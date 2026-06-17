@@ -35,7 +35,7 @@ terraform destroy -auto-approve -input=false
 terraform state list
 ```
 
-Observed apply result: VPC `vpc-1a166424sgl4w8nvepkxxuon0`, subnet `subnet-1joyue02lh0qo1n7amqg9uq4l`, route table `vtb-1joyw7vpquz281n7amqptus7i`, private CLB `clb-13f4wr49j7klc3n6nu58ohf7r`, and traffic mirror target `tmt-1joyy99o4og001n7ampjbssuw` were created successfully. A follow-up plan returned `No changes`. Destroy removed all 5 resources, final Terraform state was empty, and cloud-side lookups by VPC/CLB name returned `TotalCount: 0`.
+Observed apply result: VPC `vpc-<id>`, subnet `subnet-<id>`, route table `vtb-<id>`, private CLB `clb-<id>`, and traffic mirror target `tmt-<traffic-mirror-target-id>` were created successfully. A follow-up plan returned `No changes`. Destroy removed all 5 resources, final Terraform state was empty, and cloud-side lookups by VPC/CLB name returned `TotalCount: 0`.
 
 Observed timings in `cn-beijing`: VPC create about 10s, subnet about 21s, route table about 10s, private CLB about 10s, mirror target about 11s. Destroy removed the mirror target in about 10s, CLB in about 6s, route table in about 15s, subnet in about 7s, and VPC in about 6s.
 

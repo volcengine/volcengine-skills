@@ -125,7 +125,7 @@ from volcenginesdkcore.auth.providers.sts_oidc_provider import StsOidcCredential
 configuration = volcenginesdkcore.Configuration()
 configuration.region = "cn-beijing"
 configuration.credential_provider = StsOidcCredentialProvider(
-    role_trn="trn:iam::1234567890:role/oidc-role",
+    role_trn="trn:iam::<account-id>:role/oidc-role",
     oidc_token_file="/var/run/secrets/oidc/token",
     duration_seconds=3600,
     host="sts.volcengineapi.com",
@@ -148,8 +148,8 @@ from volcenginesdkcore.auth.providers.sts_saml_provider import StsSamlCredential
 configuration = volcenginesdkcore.Configuration()
 configuration.region = "cn-beijing"
 configuration.credential_provider = StsSamlCredentialProvider(
-    role_trn="trn:iam::1234567890:role/saml-role",
-    saml_provider_trn="trn:iam::1234567890:saml-provider/MyIdp",
+    role_trn="trn:iam::<account-id>:role/saml-role",
+    saml_provider_trn="trn:iam::<account-id>:saml-provider/MyIdp",
     saml_resp="BASE64_ENCODED_SAML_RESPONSE",
     duration_seconds=3600,
     host="sts.volcengineapi.com",

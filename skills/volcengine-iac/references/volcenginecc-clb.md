@@ -53,7 +53,7 @@ terraform plan -out=tfplan-noop.binary -input=false
 terraform destroy
 ```
 
-Observed apply result: CLB server certificate created successfully with ID `cert-mj0pptquolxc5smt1b2ycpwb`, a follow-up plan was clean no-op, destroy removed the certificate, and final Terraform state was empty.
+Observed apply result: CLB server certificate created successfully with ID `cert-<certificate-id>`, a follow-up plan was clean no-op, destroy removed the certificate, and final Terraform state was empty.
 
 Observed timings in `cn-beijing`: CLB instance creation took about 11s; CLB instance deletion took about 6s; CLB certificate creation took about 6s and deletion took about 6s; CLB ACL creation took about 21s and deletion about 15s.
 

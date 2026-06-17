@@ -11,6 +11,11 @@ terraform {
 
 provider "volcenginecc" {}
 
+variable "scheduled_launch_time" {
+  type        = string
+  description = "One-off launch time for the scheduled scaling policy. Must be a near-future UTC timestamp in YYYY-MM-DDTHH:MMZ form, within the Auto Scaling scheduling window (a few days out, not years). Times far in the future fail with InvalidScheduledPolicyLaunchTime.Malformed."
+}
+
 locals {
   project       = "default"
   prefix        = "cc-iac-as"
@@ -184,6 +189,26 @@ resource "volcenginecc_autoscaling_scaling_lifecycle_hook" "scale_out" {
   lifecycle_hook_type    = "SCALE_OUT"
   lifecycle_hook_timeout = 30
   lifecycle_hook_policy  = "CONTINUE"
+}
+
+resource "volcenginecc_autoscaling_scaling_policy" "scheduled" {
+  scaling_group_id    = volcenginecc_autoscaling_scaling_group.app.scaling_group_id
+  scaling_policy_name = "${local.prefix}-sched"
+  scaling_policy_type = "Scheduled"
+  adjustment_type     = "QuantityChangeInCapacity"
+  adjustment_value    = 1
+  cooldown            = 300
+  scheduled_policy = {
+    launch_time         = var.scheduled_launch_time
+    recurrence_end_time = ""
+    recurrence_type     = ""
+    recurrence_value    = ""
+  }
+  is_enabled_policy = false
+}
+
+output "scaling_policy_id" {
+  value = volcenginecc_autoscaling_scaling_policy.scheduled.scaling_policy_id
 }
 
 output "scaling_group_id" {

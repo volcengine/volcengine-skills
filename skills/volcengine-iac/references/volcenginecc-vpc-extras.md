@@ -41,8 +41,6 @@ terraform plan -input=false
 terraform destroy
 ```
 
-Observed apply result: prefix list `pl-3pslwqtqbldkw6csxyv9zyvq5`, bandwidth package `bwp-hob7cpjzac5c3tkp4hj3pw5b`, HAVIP `havip-3nqks1qb9g6ps931ebrw8vlq`, network ACL `nacl-3nqkszjpby1hc931ec2ovzs7`, and ENI `eni-3psm17so3ej286csxyusm4tgp` were created successfully with the supporting VPC resources. After one security-group convergence apply, `terraform plan` returned `No changes`. Destroy removed all 9 resources and final state was empty.
-
 ## Pitfalls found during verification
 
 1. `volcenginecc_vpc_security_group` uses `ingress_permissions` and `egress_permissions`; older local examples or assumptions using `security_group_rules` fail validation with `Unsupported argument`.

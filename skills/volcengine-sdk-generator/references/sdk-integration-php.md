@@ -116,7 +116,7 @@ Supported OIDC environment variables:
 require_once __DIR__ . '/vendor/autoload.php';
 
 $provider = new \Volcengine\Common\Auth\Providers\OidcCredentialProvider(
-    'trn:iam::1234567890:role/oidc-role',
+    'trn:iam::<account-id>:role/oidc-role',
     '/var/run/secrets/oidc/token',
     'credentials-php-demo',
     null,
@@ -142,7 +142,7 @@ require_once __DIR__ . '/vendor/autoload.php';
 
 $provider = new \Volcengine\Common\Auth\Providers\SamlCredentialProvider(
     'RoleName',
-    '1234567890',
+    '<account-id>',
     'MyIdp',
     'BASE64_ENCODED_SAML_RESPONSE',
     null,

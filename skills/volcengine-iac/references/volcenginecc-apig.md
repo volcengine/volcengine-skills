@@ -50,7 +50,7 @@ Destroy removed the gateway service and gateway. The VPC subnet deletion initial
 
 ```text
 EventTime: 2026-05-30T10:56:42+08:00
-TaskID: task-73d60fc0-0523-40a4-b40d-2e20692c2c1c
+TaskID: task-<id>
 AccessDenied: OperationDenied.AccountNotInWhitelist: Operation is denied because the account is not in the whitelist.
 TypeName: Volcengine::APIG::Upstream
 Operation: CREATE

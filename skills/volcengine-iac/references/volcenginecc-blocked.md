@@ -8,11 +8,13 @@ Attempted resources:
 
 | Resource | Status | Evidence |
 |---|---|---|
-| `volcenginecc_kms_key_ring` | Blocked | `ServiceNotEnabled: KMS service not open yet` during create |
-| `volcenginecc_kms_key` | Not applied | Depends on key ring |
-| `volcenginecc_kms_secret` | Not applied | Depends on key TRN |
+| `volcenginecc_kms_key_ring` | Teardown-blocked | Creates once KMS is enabled, but the keyring cannot be deleted while it still holds a key pending scheduled deletion |
+| `volcenginecc_kms_key` | Teardown-blocked | Creates after the keyring, but deletion is a scheduled `ScheduleKeyDeletion` with a mandatory multi-day pending window, so `terraform destroy` cannot remove it in the same run |
+| `volcenginecc_kms_secret` | Create-capable | Secrets Manager is enabled; not promoted because the keyring/key teardown keeps the stack from a clean destroy |
 
-Minimal configuration validated and planned successfully in `cn-beijing` with provider `volcengine/volcenginecc ~> 0.0.46`, but `apply` failed immediately on key ring creation. This was retried on 2026-05-30 and failed with the same service-not-enabled error:
+As of 2026-06-17, KMS and Secrets Manager are enabled for the account, so the historical `ServiceNotOpen` errors below no longer occur. The remaining blocker is teardown, not service enablement: `volcenginecc_kms_key` deletion is scheduled with a mandatory pending window (minimum 7 days), so a single `terraform destroy` cannot remove the key and its keyring and reach empty state. Do not promote KMS as a verified example until this teardown behavior is acceptable for shared examples. The historical service-not-enabled evidence is kept below for reference.
+
+Minimal configuration validated and planned successfully in `cn-beijing` with provider `volcengine/volcenginecc ~> 0.0.46`, but `apply` originally failed on key ring creation while KMS was disabled. The 2026-05-30 retry failed with the same service-not-enabled error:
 
 ```text
 ServiceNotEnabled: KMS_ServiceNotOpen: KMS service not open yet, please open the service and try again later.
@@ -25,18 +27,18 @@ Latest retry evidence:
 
 ```text
 EventTime: 2026-05-30T08:24:50+08:00
-TaskID: task-1ffc9f7d-ef13-4590-be4d-2430f0b43faa
+TaskID: task-<id>
 ServiceNotEnabled: KMS_ServiceNotOpen: KMS service not open yet, please open the service and try again later.
 TypeName: Volcengine::KMS::KeyRing
 Operation: CREATE
 OperationStatus: FAILED
 ```
 
-Current-account retry on 2026-05-30 in `/tmp/volcenginecc-kms-current` used only `volcenginecc_kms_key_ring` to avoid putting secret values in state before the service is enabled. `terraform fmt`, `init -backend=false`, `validate`, and `plan` succeeded; apply failed with the same service boundary:
+Current-account retry on 2026-05-30 in `<tmp-workdir>` used only `volcenginecc_kms_key_ring` to avoid putting secret values in state before the service is enabled. `terraform fmt`, `init -backend=false`, `validate`, and `plan` succeeded; apply failed with the same service boundary:
 
 ```text
 EventTime: 2026-05-30T10:50:04+08:00
-TaskID: task-b13684ba-4f37-475c-8529-71bbd8f88c19
+TaskID: task-<id>
 ServiceNotEnabled: KMS_ServiceNotOpen: KMS service not open yet, please open the service and try again later.
 TypeName: Volcengine::KMS::KeyRing
 Operation: CREATE
@@ -47,7 +49,7 @@ Retried the same key-ring-only shape again on 2026-05-30 after other products ha
 
 ```text
 EventTime: 2026-05-30T12:24:07+08:00
-TaskID: task-85c61cf3-f35d-465d-879e-d6903ed4d10d
+TaskID: task-<id>
 ServiceNotEnabled: KMS_ServiceNotOpen: KMS service not open yet, please open the service and try again later.
 TypeName: Volcengine::KMS::KeyRing
 Operation: CREATE
@@ -58,7 +60,7 @@ Retried the same key-ring-only shape again on 2026-05-30 at 13:55 with the curre
 
 ```text
 EventTime: 2026-05-30T13:55:43+08:00
-TaskID: task-a70d7af3-2c3a-4886-8228-bffc47008781
+TaskID: task-<id>
 ServiceNotEnabled: KMS_ServiceNotOpen: KMS service not open yet, please open the service and try again later.
 TypeName: Volcengine::KMS::KeyRing
 Operation: CREATE
@@ -67,11 +69,11 @@ OperationStatus: FAILED
 
 No KMS resources were created; Terraform state remained empty.
 
-After KMS service permission was granted, a 2026-05-30 retry in `/tmp/volcenginecc-kms-retry-20260530150751` created keyring `cc-iac-kms-retry` (`02014a48-361a-4f62-85c0-948f59f1c41b`) and key `cc-iac-kms-retry-key` (`137517dd-b6e2-485b-a0a7-fef491277712`) successfully. Creating `volcenginecc_kms_secret` still failed because Credential Manager / Secrets Manager is not open:
+After KMS service permission was granted, a 2026-05-30 retry in `<tmp-workdir>` created keyring `cc-iac-kms-retry` (`<resource-id>`) and key `cc-iac-kms-retry-key` (`<resource-id>`) successfully. Creating `volcenginecc_kms_secret` still failed because Credential Manager / Secrets Manager is not open:
 
 ```text
 EventTime: 2026-05-30T15:08:48+08:00
-TaskID: task-10a4a11d-f91c-4c62-b23b-402425ec8c62
+TaskID: task-<id>
 AccessDenied: SecretsManagerServiceNotOpen: Secrets Manager service not open yet. Please open the service and try again later.
 TypeName: Volcengine::KMS::Secret
 Operation: CREATE
@@ -82,14 +84,14 @@ Destroy scheduled the key for deletion instead of physically removing it, then k
 
 ```text
 EventTime: 2026-05-30T15:09:05+08:00
-TaskID: task-97bec380-9ec8-4aca-8de9-12093615fb93
+TaskID: task-<id>
 InvalidRequest: InvalidKeyringDeletion: Unable to delete keyring [cc-iac-kms-retry]. Please delete [1] keys in the keyring first.
 TypeName: Volcengine::KMS::KeyRing
 Operation: DELETE
 OperationStatus: FAILED
 ```
 
-Cloud-side check showed the key in `PendingDelete` with `ScheduleDeleteTime = "2026-06-06T15:09:03.374+08:00"` and the keyring still present with `KeyCount = 1`. Do not promote KMS to a clean verified example until `kms_key` destroy behavior and keyring cleanup are acceptable for shared examples. After the scheduled key deletion completes, delete keyring `02014a48-361a-4f62-85c0-948f59f1c41b` / `cc-iac-kms-retry` and remove the temporary Terraform state.
+Cloud-side check showed the key in `PendingDelete` with `ScheduleDeleteTime = "2026-06-06T15:09:03.374+08:00"` and the keyring still present with `KeyCount = 1`. Do not promote KMS to a clean verified example until `kms_key` destroy behavior and keyring cleanup are acceptable for shared examples. After the scheduled key deletion completes, delete keyring `<resource-id>` / `cc-iac-kms-retry` and remove the temporary Terraform state.
 
 When KMS is enabled for the account, retry with this shape:
 
@@ -164,11 +166,11 @@ Operation: CREATE
 OperationStatus: FAILED
 ```
 
-Latest CLB full-path retry in `cn-beijing`: VPC `vpc-3nqzotfd5g2rk931ebwxnb6a`, subnet `subnet-3nqzpif38t3i8931eb4qdwc4`, route table `vtb-3nqzrq5x7oxkw931eba51ryr`, and private CLB `clb-rrncm96jzgu8v0x57hsj4rw` created successfully. Creating an empty IP-type `volcenginecc_clb_server_group` failed with the same permission error before listener/rule creation:
+Latest CLB full-path retry in `cn-beijing`: VPC `vpc-<id>`, subnet `subnet-<id>`, route table `vtb-<id>`, and private CLB `clb-<id>` created successfully. Creating an empty IP-type `volcenginecc_clb_server_group` failed with the same permission error before listener/rule creation:
 
 ```text
 EventTime: 2026-05-30T09:47:16+08:00
-TaskID: task-df977422-63ab-4b3f-8bd3-24f13f6f45a0
+TaskID: task-<id>
 AccessDenied: Forbidden: You are not authorized to perform operations on the specified service.
 TypeName: Volcengine::CLB::ServerGroup
 Operation: CREATE
@@ -177,11 +179,11 @@ OperationStatus: FAILED
 
 The private CLB, route table, subnet, and VPC were destroyed successfully and final Terraform state was empty. Retry `clb_server_group`, `clb_listener`, and `clb_rule` after the account has CLB server group create permission.
 
-Current-account retry on 2026-05-30 in `/tmp/volcenginecc-clb-full-current` used a private CLB plus empty IP-type server group, disabled HTTP listener, and forwarding rule. `terraform fmt`, `init -backend=false`, `validate`, and `plan` succeeded for all seven resources. Apply created VPC `vpc-1joqambwuq22o1n7amqmd6hw9`, subnet `subnet-3pt6y91u9dxc06csxywfxhxgo`, route table `vtb-bu2m2luvc1s05h0b2uogd2lg`, and private CLB `clb-13f4n1lwlyvwg3n6nu5o4oogc`, then failed on `volcenginecc_clb_server_group` before listener/rule creation with the same permission boundary:
+Current-account retry on 2026-05-30 in `<tmp-workdir>` used a private CLB plus empty IP-type server group, disabled HTTP listener, and forwarding rule. `terraform fmt`, `init -backend=false`, `validate`, and `plan` succeeded for all seven resources. Apply created VPC `vpc-<id>`, subnet `subnet-<id>`, route table `vtb-<id>`, and private CLB `clb-<id>`, then failed on `volcenginecc_clb_server_group` before listener/rule creation with the same permission boundary:
 
 ```text
 EventTime: 2026-05-30T11:47:38+08:00
-TaskID: task-a5a5beb5-3ec1-4d61-8d8a-c5db32fe5ad1
+TaskID: task-<id>
 AccessDenied: Forbidden: You are not authorized to perform operations on the specified service.
 TypeName: Volcengine::CLB::ServerGroup
 Operation: CREATE
@@ -190,11 +192,11 @@ OperationStatus: FAILED
 
 Destroy removed the private CLB, route table, subnet, and VPC; final Terraform state was empty. `DescribeLoadBalancers --LoadBalancerName cc-iac-clb-full-clb` and `DescribeVpcs --VpcName cc-iac-clb-full-vpc` both returned `TotalCount: 0`.
 
-After the user reported CLB permissions were added, a 2026-05-30 retry in `/tmp/volcenginecc-clb-retry-20260530151553` used the verified private CLB example plus empty IP-type `clb_server_group`, disabled HTTP listener, and forwarding rule. `terraform fmt -check`, `init -backend=false`, `validate`, and `plan` succeeded for all seven resources. Apply created VPC `vpc-1jofdkvmh3chs1n7amp8zgobf`, subnet `subnet-btwj0z1pg8ao5h0b2tooistd`, route table `vtb-3nri5k9phdtds931eb76g20v`, and private CLB `clb-mj3kjzm0nzeo5smt1bu6xglv`, then `clb_server_group` still failed before listener/rule creation:
+After the user reported CLB permissions were added, a 2026-05-30 retry in `<tmp-workdir>` used the verified private CLB example plus empty IP-type `clb_server_group`, disabled HTTP listener, and forwarding rule. `terraform fmt -check`, `init -backend=false`, `validate`, and `plan` succeeded for all seven resources. Apply created VPC `vpc-<id>`, subnet `subnet-<id>`, route table `vtb-<id>`, and private CLB `clb-<id>`, then `clb_server_group` still failed before listener/rule creation:
 
 ```text
 EventTime: 2026-05-30T15:17:10+08:00
-TaskID: task-c070289a-f526-4327-94ba-051de99c346c
+TaskID: task-<id>
 AccessDenied: Forbidden: You are not authorized to perform operations on the specified service.
 TypeName: Volcengine::CLB::ServerGroup
 Operation: CREATE
@@ -203,11 +205,11 @@ OperationStatus: FAILED
 
 Destroy removed the private CLB, route table, subnet, and VPC. Final Terraform state was empty, `ve clb DescribeLoadBalancers --body '{"LoadBalancerName":"cc-iac-clb-clb"}'` returned `TotalCount: 0`, and exact VPC-name matching for `cc-iac-clb-vpc` returned no rows. The missing permission is still the Cloud Control `Volcengine::CLB::ServerGroup` create path, not the base CLB instance path.
 
-After another permission grant, a 2026-05-30 retry in `/tmp/volcenginecc-clb-retry-202605301716` used a private CLB, empty IP-type server group, disabled HTTP listener, and forwarding rule. `terraform fmt -check`, `init -backend=false`, `validate`, and `plan` succeeded for all seven resources. Apply created VPC `vpc-bt98xtvws6bk5h0b2u88a9ee`, subnet `subnet-iix49uzfbev474o8ctlv9nlv`, route table `vtb-iix5x9sxew3k74o8cttyknla`, and private CLB `clb-13f6mjnsonpxc3n6nu4l8x2b9`, then `clb_server_group` still failed before listener/rule creation:
+After another permission grant, a 2026-05-30 retry in `<tmp-workdir>` used a private CLB, empty IP-type server group, disabled HTTP listener, and forwarding rule. `terraform fmt -check`, `init -backend=false`, `validate`, and `plan` succeeded for all seven resources. Apply created VPC `vpc-<id>`, subnet `subnet-<id>`, route table `vtb-<id>`, and private CLB `clb-<id>`, then `clb_server_group` still failed before listener/rule creation:
 
 ```text
 EventTime: 2026-05-30T17:22:32+08:00
-TaskID: task-32122718-81fd-479b-aaf6-294fd8b9825f
+TaskID: task-<id>
 AccessDenied: Forbidden: You are not authorized to perform operations on the specified service.
 TypeName: Volcengine::CLB::ServerGroup
 Operation: CREATE
@@ -222,7 +224,7 @@ APIG private gateway/service verification in `cn-beijing`: a one-subnet private 
 
 ```text
 EventTime: 2026-05-30T10:56:42+08:00
-TaskID: task-73d60fc0-0523-40a4-b40d-2e20692c2c1c
+TaskID: task-<id>
 AccessDenied: OperationDenied.AccountNotInWhitelist: Operation is denied because the account is not in the whitelist.
 TypeName: Volcengine::APIG::Upstream
 Operation: CREATE
@@ -249,11 +251,11 @@ Operation: CREATE
 OperationStatus: FAILED
 ```
 
-Latest ALB full-path retry in `cn-beijing`: VPC `vpc-btgbikchi8745h0b2tl0oqg2`, two subnets, and two custom route tables created successfully. Creating both private Basic `volcenginecc_alb_load_balancer` and empty IP-type `volcenginecc_alb_server_group` still failed before listener/rule creation:
+Latest ALB full-path retry in `cn-beijing`: VPC `vpc-<id>`, two subnets, and two custom route tables created successfully. Creating both private Basic `volcenginecc_alb_load_balancer` and empty IP-type `volcenginecc_alb_server_group` still failed before listener/rule creation:
 
 ```text
 EventTime: 2026-05-30T09:49:51+08:00
-TaskID: task-3d426203-1e9f-47f3-b29f-4d0dc6148a10
+TaskID: task-<id>
 GeneralServiceException: OperationFailed.QueryIAM: The request on the specified resource failed due to the query on IAM failed.
 TypeName: Volcengine::ALB::LoadBalancer
 Operation: CREATE
@@ -262,7 +264,7 @@ OperationStatus: FAILED
 
 ```text
 EventTime: 2026-05-30T09:49:12+08:00
-TaskID: task-4d221f6a-1047-4795-98be-19312e2ab407
+TaskID: task-<id>
 InvalidRequest: OperationFailed.QueryIAM: The request on the specified resource failed due to the query on IAM failed.
 TypeName: Volcengine::ALB::ServerGroup
 Operation: CREATE
@@ -271,11 +273,11 @@ OperationStatus: FAILED
 
 Destroy hit one transient `InvalidOperation.Conflict` on a route table, then a retry succeeded. All ALB retry dependencies were destroyed and final Terraform state was empty. Retry `alb_load_balancer`, `alb_server_group`, `alb_listener`, and `alb_rule` after the account/IAM path permits ALB create calls.
 
-Current-account retry on 2026-05-30 in `/tmp/volcenginecc-alb-full-current` used a private Basic ALB, empty IP-type HTTP server group, disabled HTTP listener, and path rule. `terraform fmt`, `init -backend=false`, `validate`, and `plan` succeeded after setting `alb_server_group.health_check.port = 0`; despite the docs marking the field optional, provider validation requires it even when health checks are disabled. Apply created VPC `vpc-1joqy4o8e0y681n7ampwc2o1p`, subnets `subnet-bu3d538nz85c5h0b2tulmndq` and `subnet-bu3c85f3a8zk5h0b2u21qkgy`, and route tables `vtb-bu3fljsjrsao5h0b2u0it3hh` and `vtb-bu3etrfvnytc5h0b2uf0dngc`, then ALB load balancer and server group failed with the same IAM query boundary:
+Current-account retry on 2026-05-30 in `<tmp-workdir>` used a private Basic ALB, empty IP-type HTTP server group, disabled HTTP listener, and path rule. `terraform fmt`, `init -backend=false`, `validate`, and `plan` succeeded after setting `alb_server_group.health_check.port = 0`; despite the docs marking the field optional, provider validation requires it even when health checks are disabled. Apply created VPC `vpc-<id>`, subnets `subnet-<id>` and `subnet-<id>`, and route tables `vtb-<id>` and `vtb-<id>`, then ALB load balancer and server group failed with the same IAM query boundary:
 
 ```text
 EventTime: 2026-05-30T11:51:47+08:00
-TaskID: task-3a0c429a-3315-4855-a5c4-d593250af5ed
+TaskID: task-<id>
 GeneralServiceException: OperationFailed.QueryIAM: The request on the specified resource failed due to the query on IAM failed.
 TypeName: Volcengine::ALB::LoadBalancer
 Operation: CREATE
@@ -284,7 +286,7 @@ OperationStatus: FAILED
 
 ```text
 EventTime: 2026-05-30T11:51:09+08:00
-TaskID: task-e2367ab6-6400-49c3-bae2-868611c98bdd
+TaskID: task-<id>
 InvalidRequest: OperationFailed.QueryIAM: The request on the specified resource failed due to the query on IAM failed.
 TypeName: Volcengine::ALB::ServerGroup
 Operation: CREATE
@@ -293,11 +295,11 @@ OperationStatus: FAILED
 
 Destroy removed both route tables, both subnets, and the VPC; final Terraform state was empty. `DescribeLoadBalancers --LoadBalancerName cc-iac-alb-full-alb` and `DescribeVpcs --VpcName cc-iac-alb-full-vpc` both returned `TotalCount: 0`.
 
-After the user reported ALB permissions were added, a 2026-05-30 retry in `/tmp/volcenginecc-alb-retry-20260530151836` used a private Basic ALB, two subnets, empty IP-type HTTP server group, disabled HTTP listener, and forwarding rule. `terraform fmt`, `init -backend=false`, `validate`, and `plan` succeeded. Apply created VPC `vpc-1jofy4ick3ta81n7amp1sph42`, subnets `subnet-1jofzcqmi03cw1n7amqj9mhee` and `subnet-3psmciuxaoav46csxywektip1`, and route tables `vtb-iik3yfkbnshs74o8ctt6soz0` and `vtb-iik3hvozn7y874o8cti6f0v5`, then ALB load balancer and server group still failed:
+After the user reported ALB permissions were added, a 2026-05-30 retry in `<tmp-workdir>` used a private Basic ALB, two subnets, empty IP-type HTTP server group, disabled HTTP listener, and forwarding rule. `terraform fmt`, `init -backend=false`, `validate`, and `plan` succeeded. Apply created VPC `vpc-<id>`, subnets `subnet-<id>` and `subnet-<id>`, and route tables `vtb-<id>` and `vtb-<id>`, then ALB load balancer and server group still failed:
 
 ```text
 EventTime: 2026-05-30T15:20:02+08:00
-TaskID: task-82bd2f77-5ae3-47ac-b34e-2e8d6143b0c8
+TaskID: task-<id>
 GeneralServiceException: OperationFailed.QueryIAM: The request on the specified resource failed due to the query on IAM failed.
 TypeName: Volcengine::ALB::LoadBalancer
 Operation: CREATE
@@ -306,7 +308,7 @@ OperationStatus: FAILED
 
 ```text
 EventTime: 2026-05-30T15:19:23+08:00
-TaskID: task-ccbab9a2-958c-4726-b9cd-bd19c8fdda45
+TaskID: task-<id>
 InvalidRequest: OperationFailed.QueryIAM: The request on the specified resource failed due to the query on IAM failed.
 TypeName: Volcengine::ALB::ServerGroup
 Operation: CREATE
@@ -315,7 +317,7 @@ OperationStatus: FAILED
 
 Destroy initially hit transient `InvalidOperation.Conflict` on one route table; a retry removed the remaining route table, subnet, and VPC. Final Terraform state was empty, `ve alb DescribeLoadBalancers --body '{"LoadBalancerName":"cc-iac-alb-retry-alb"}'` returned `TotalCount: 0`, and exact VPC-name matching for `cc-iac-alb-retry-vpc` returned no rows. The account/IAM path for ALB load balancer and server group create is still blocked.
 
-After another permission grant, a 2026-05-30 retry in `/tmp/volcenginecc-alb-retry-202605301724` verified the full private Basic ALB path. The first apply created VPC `vpc-1a0rzey9a3eo08nvepk2xwrf0`, subnets `subnet-3pszlhz9fvk746csxyvz8ri0v` and `subnet-3nqxjaef1aiv4931ec7sx360`, route tables `vtb-btabgqpa08w05h0b2tfen2t1` and `vtb-iixl1qe8bk7474o8cu0inh61`, server group `rsp-1pf9tk34n89vk845wfadmo0m9`, private ALB `alb-1pf9tk72pgdts845wf9wsiyyj`, listener `lsn-1pf9tk91qkfsw845wfa7etpj5`, and rule `rule-1pf9tkkvx8rnk845wfayvebx8`.
+After another permission grant, a 2026-05-30 retry in `<tmp-workdir>` verified the full private Basic ALB path. The first apply created VPC `vpc-<id>`, subnets `subnet-<id>` and `subnet-<id>`, route tables `vtb-<id>` and `vtb-<id>`, server group `rsp-<id>`, private ALB `alb-<id>`, listener `lsn-<id>`, and rule `rule-<id>`.
 
 The first follow-up plan showed server group health-check drift because the API reads disabled health checks back with defaults:
 
@@ -328,9 +330,9 @@ The first follow-up plan showed server group health-check drift because the API 
 
 Aligning the configuration to the API defaults (`method = "HEAD"`, `http_version = "HTTP1.0"`, `http_code = "http_2xx,http_3xx"`) and omitting `cross_zone_enabled` produced a clean no-op plan. Destroy then removed rule, listener, server group, ALB, route tables, subnets, and VPC. Final Terraform state was empty, `ve alb DescribeLoadBalancers --body '{"LoadBalancerName":"cc-iac-alb-1724-alb"}'` returned `TotalCount: 0`, `ve alb DescribeServerGroups --body '{"ServerGroupName":"cc-iac-alb-1724-sg"}'` returned `TotalCount: 0`, exact VPC-name matching returned `TotalCount: 0`, and checking ENIs by the deleted VPC ID returned `InvalidVpc.NotFound`. The verified example now lives in `assets/examples/volcenginecc-alb`.
 
-Formal verification of `assets/examples/volcenginecc-alb` in `/tmp/volcenginecc-alb-example-verify-202605301733` then created VPC `vpc-3nqz7ptxs0etc931ebqmyyo0`, server group `rsp-xoaavdcpzaww54ov5fdq8lgi`, private ALB `alb-bdgz9vls883k8dv40o8v1rkb`, listener `lsn-1pf9tl8kalfcw845wfafraq0l`, and rule `rule-bdgz9xktca2o8dv40obuj4s5`. A follow-up `terraform plan -detailed-exitcode` returned `No changes`. The first destroy hit one transient route-table `InvalidOperation.Conflict` after ALB/service ENI deletion; `DescribeNetworkInterfaces` showed no ENIs, and a second destroy removed the remaining route table, subnet, and VPC. Final Terraform state was empty, `ve alb DescribeLoadBalancers --body '{"LoadBalancerName":"cc-iac-alb-alb"}'` returned `TotalCount: 0`, `ve alb DescribeServerGroups --body '{"ServerGroupName":"cc-iac-alb-sg"}'` returned `TotalCount: 0`, exact VPC-name matching for `cc-iac-alb-vpc` returned `TotalCount: 0`, and checking ENIs by the deleted VPC ID returned `InvalidVpc.NotFound`.
+Formal verification of `assets/examples/volcenginecc-alb` in `<tmp-workdir>` then created VPC `vpc-<id>`, server group `rsp-<id>`, private ALB `alb-<id>`, listener `lsn-<id>`, and rule `rule-<id>`. A follow-up `terraform plan -detailed-exitcode` returned `No changes`. The first destroy hit one transient route-table `InvalidOperation.Conflict` after ALB/service ENI deletion; `DescribeNetworkInterfaces` showed no ENIs, and a second destroy removed the remaining route table, subnet, and VPC. Final Terraform state was empty, `ve alb DescribeLoadBalancers --body '{"LoadBalancerName":"cc-iac-alb-alb"}'` returned `TotalCount: 0`, `ve alb DescribeServerGroups --body '{"ServerGroupName":"cc-iac-alb-sg"}'` returned `TotalCount: 0`, exact VPC-name matching for `cc-iac-alb-vpc` returned `TotalCount: 0`, and checking ENIs by the deleted VPC ID returned `InvalidVpc.NotFound`.
 
-ALB server certificate verification in `cn-beijing`: a self-signed `Server` certificate with a traditional RSA private key created successfully, had a clean no-op plan, and destroyed successfully. The created certificate ID was `cert-xoa99pcjymtc54ov5ehq2k2k`; final Terraform state was empty. A first server-certificate attempt with OpenSSL's default PKCS#8 private key failed with:
+ALB server certificate verification in `cn-beijing`: a self-signed `Server` certificate with a traditional RSA private key created successfully, had a clean no-op plan, and destroyed successfully. The created certificate ID was `<certificate-id>`; final Terraform state was empty. A first server-certificate attempt with OpenSSL's default PKCS#8 private key failed with:
 
 ```text
 InvalidPrivateKey.Malformed: The specified PrivateKey is malformed.
@@ -350,9 +352,9 @@ OperationStatus: FAILED
 
 All temporary CLB/ALB resources were destroyed; final Terraform state was empty for both verification directories.
 
-Standalone ALB/CLB ACL verification in `cn-beijing`: `volcenginecc_alb_acl` and `volcenginecc_clb_acl` both created with one TEST-NET CIDR entry, had a clean no-op plan, and destroyed successfully. Created IDs were `acl-1pf9s99tpguf4845wfatdciln` for ALB and `acl-mj0domhqg4xs5smt1al6e28u` for CLB. ACL creation took about 21s and deletion about 15s. These ACL examples verify policy group lifecycle only; listener attachment still depends on verified listener resources.
+Standalone ALB/CLB ACL verification in `cn-beijing`: `volcenginecc_alb_acl` and `volcenginecc_clb_acl` both created with one TEST-NET CIDR entry, had a clean no-op plan, and destroyed successfully. Created IDs were `<acl-id>` for ALB and `<acl-id>` for CLB. ACL creation took about 21s and deletion about 15s. These ACL examples verify policy group lifecycle only; listener attachment still depends on verified listener resources.
 
-CLB server certificate verification in `cn-beijing`: a self-signed server certificate with a traditional RSA private key created successfully, had a clean no-op plan, and destroyed successfully. The created certificate ID was `cert-mj0pptquolxc5smt1b2ycpwb`; final Terraform state was empty. A first server-certificate attempt with OpenSSL's default PKCS#8 private key failed with:
+CLB server certificate verification in `cn-beijing`: a self-signed server certificate with a traditional RSA private key created successfully, had a clean no-op plan, and destroyed successfully. The created certificate ID was `<certificate-id>`; final Terraform state was empty. A first server-certificate attempt with OpenSSL's default PKCS#8 private key failed with:
 
 ```text
 InvalidPrivateKey.Malformed: The specified PrivateKey is malformed.
@@ -361,7 +363,7 @@ Operation: CREATE
 OperationStatus: FAILED
 ```
 
-Standalone ALB customized config verification in `cn-beijing`: `volcenginecc_alb_customized_cfg` created with content `client_max_body_size 60M;\r\nkeepalive_timeout 77s;\r\n`, had a clean no-op plan, and destroyed successfully. Created ID was `ccfg-bdgxt19g2rcw8dv40nfok4lk`. Creation took about 15s and deletion about 6s. This verifies config-policy lifecycle only; listener association still depends on verified listener resources.
+Standalone ALB customized config verification in `cn-beijing`: `volcenginecc_alb_customized_cfg` created with content `client_max_body_size 60M;\r\nkeepalive_timeout 77s;\r\n`, had a clean no-op plan, and destroyed successfully. Created ID was `ccfg-<id>`. Creation took about 15s and deletion about 6s. This verifies config-policy lifecycle only; listener association still depends on verified listener resources.
 
 NLB TLS security policy retry in `cn-beijing`: `volcenginecc_clb_nlb_security_policy` validated and planned with `tls_versions = ["TLSv1.2"]` and common TLSv1.2 cipher suites, but create failed before any resource was created:
 
@@ -369,13 +371,13 @@ NLB TLS security policy retry in `cn-beijing`: `volcenginecc_clb_nlb_security_po
 RequestForbidden: Forbidden: You are not authorized to perform operations on the specified service; apply for the following whitelist key, 'nlb_tls_allow'.
 TypeName: Volcengine::CLB::NLBSecurityPolicy
 Operation: CREATE
-TaskID: task-1e5a30a6-eab8-47d2-bf1d-4db51dfc95a4
+TaskID: task-<id>
 EventTime: 2026-05-30T07:04:48+08:00
 ```
 
 No NLB security policy resources were created; Terraform state remained empty. Retry after the `nlb_tls_allow` whitelist is granted.
 
-NLB main path retry in `cn-beijing`: a private intranet NLB, IP-type empty TCP server group, and disabled TCP listener validated and planned successfully. NLB instance creation succeeded with ID `nlb-2wf9pvtq3gutcz9cqtob7oz4`; TCP listener creation succeeded with ID `lsn-2wf9pvzn6t0qoz9cquqgyaws`; all resources later destroyed successfully and final Terraform state was empty.
+NLB main path retry in `cn-beijing`: a private intranet NLB, IP-type empty TCP server group, and disabled TCP listener validated and planned successfully. NLB instance creation succeeded with ID `nlb-<id>`; TCP listener creation succeeded with ID `lsn-<id>`; all resources later destroyed successfully and final Terraform state was empty.
 
 The first two server group create attempts failed because the provider/API sent an invalid session persistence timeout when session persistence was disabled or timeout was omitted:
 
@@ -383,7 +385,7 @@ The first two server group create attempts failed because the provider/API sent 
 InvalidRequest: InvalidSessionPersistenceTimeout.Malformed: The specified SessionPersistenceTimeout is malformed.
 TypeName: Volcengine::CLB::NLBServerGroup
 Operation: CREATE
-TaskID: task-d766a4e9-3a15-49b9-8e14-02619aa81bfc
+TaskID: task-<id>
 EventTime: 2026-05-30T08:06:08+08:00
 ```
 
@@ -391,11 +393,11 @@ EventTime: 2026-05-30T08:06:08+08:00
 InvalidRequest: InvalidSessionPersistenceTimeout.Malformed: The specified SessionPersistenceTimeout is malformed.
 TypeName: Volcengine::CLB::NLBServerGroup
 Operation: CREATE
-TaskID: task-4e82e196-6159-4ec1-94d1-9d048bf63c4a
+TaskID: task-<id>
 EventTime: 2026-05-30T08:07:16+08:00
 ```
 
-Setting `session_persistence_enabled = true` and `session_persistence_timeout = 1000` allowed the server group to create with ID `rsp-11znzhiq70xz449iegfzg4u28`. However, every follow-up plan proposed an in-place update on Optional+Computed fields (`connection_drain_timeout`, `health_check` nested defaults, and `servers`) even after applying that update. `lifecycle.ignore_changes` on those fields, and even `ignore_changes = all`, did not suppress the provider-planned update. Do not add a verified NLB example until `volcenginecc_clb_nlb_server_group` can reach a clean no-op plan.
+Setting `session_persistence_enabled = true` and `session_persistence_timeout = 1000` allowed the server group to create with ID `rsp-<id>`. However, every follow-up plan proposed an in-place update on Optional+Computed fields (`connection_drain_timeout`, `health_check` nested defaults, and `servers`) even after applying that update. `lifecycle.ignore_changes` on those fields, and even `ignore_changes = all`, did not suppress the provider-planned update. Do not add a verified NLB example until `volcenginecc_clb_nlb_server_group` can reach a clean no-op plan.
 
 Minimal retry shape that created but drifted:
 
@@ -457,8 +459,8 @@ CEN minimal configuration validated and planned successfully in `cn-beijing` wit
 
 ```text
 EventTime: 2026-05-30T11:14:35+08:00
-TaskID: task-d9a02042-7e55-4f04-a5a9-6a7ce9f16a3d
-AccessDenied: User is not authorized to perform: cen:CreateCen on resource: trn:iam::2109984414:project/default
+TaskID: task-<id>
+AccessDenied: User is not authorized to perform: cen:CreateCen on resource: trn:iam::<account-id>:project/default
 TypeName: Volcengine::CEN::CEN
 Operation: CREATE
 OperationStatus: FAILED
@@ -466,7 +468,7 @@ OperationStatus: FAILED
 
 Recovery: `terraform destroy` removed the temporary VPC successfully. Final `terraform state list` returned empty, and `ve vpc DescribeVpcs --VpcName cc-iac-cen-vpc-current` returned `TotalCount: 0`.
 
-After `cen:CreateCen` was granted, a 2026-05-30 retry in `/tmp/volcenginecc-cen-retry-202605301553` verified the CEN+single-VPC attachment lifecycle. CEN `cc-iac-cen-retry-cen` created with ID `cen-rrxduo4y1mo0v0x58jvanh7` and attached VPC `vpc-iindwi39pudc74o8cuxqgrn2`. `terraform plan -detailed-exitcode` returned `No changes`; destroy removed the CEN first, then the VPC. Final Terraform state was empty, `ve cen DescribeCens --body '{"CenName":"cc-iac-cen-retry-cen"}'` returned `TotalCount: 0`, and exact VPC-name matching for `cc-iac-cen-retry-vpc` returned no rows.
+After `cen:CreateCen` was granted, a 2026-05-30 retry in `<tmp-workdir>` verified the CEN+single-VPC attachment lifecycle. CEN `cc-iac-cen-retry-cen` created with ID `cen-<id>` and attached VPC `vpc-<id>`. `terraform plan -detailed-exitcode` returned `No changes`; destroy removed the CEN first, then the VPC. Final Terraform state was empty, `ve cen DescribeCens --body '{"CenName":"cc-iac-cen-retry-cen"}'` returned `TotalCount: 0`, and exact VPC-name matching for `cc-iac-cen-retry-vpc` returned no rows.
 
 The verified example now lives in `assets/examples/volcenginecc-cen`; validation notes and pitfalls live in `references/volcenginecc-cen.md`. Start with the CEN+single-VPC attachment shape before trying bandwidth packages, inter-region bandwidth, published routes, or cross-account grants:
 
@@ -493,8 +495,8 @@ DirectConnect gateway retry in `cn-beijing`: the minimal gateway-only configurat
 
 ```text
 EventTime: 2026-05-30T13:32:58+08:00
-TaskID: task-9431d2ba-2a4b-42bf-9952-2880ea6e93eb
-AccessDenied: AccessDenied: User is not authorized to perform: directconnect:CreateDirectConnectGateway on resource: trn:iam::2109984414:project/default
+TaskID: task-<id>
+AccessDenied: AccessDenied: User is not authorized to perform: directconnect:CreateDirectConnectGateway on resource: trn:iam::<account-id>:project/default
 TypeName: Volcengine::DirectConnect::DirectConnectGateway
 Operation: CREATE
 OperationStatus: FAILED
@@ -502,14 +504,14 @@ OperationStatus: FAILED
 
 No DirectConnect resources were created; Terraform state remained empty. Retry `directconnect_direct_connect_gateway` after the create permission is granted. Add `directconnect_virtual_interface` only with a real physical dedicated line ID, and add `directconnect_gateway_route` only after a valid VIF, CEN, or TransitRouter next hop exists.
 
-After `directconnect:CreateDirectConnectGateway` was granted, a 2026-05-30 retry in `/tmp/volcenginecc-directconnect-retry-202605301556` verified the standalone Direct Connect gateway lifecycle. Gateway `cc-iac-dc-retry-gw` created with ID `dcg-aq8wpaltal8g17ng66bqjovt`. `terraform plan -detailed-exitcode` returned `No changes`; destroy removed the gateway, final Terraform state was empty, and `ve directconnect DescribeDirectConnectGateways --body '{"DirectConnectGatewayName":"cc-iac-dc-retry-gw"}'` returned `TotalCount: 0`. The verified example now lives in `assets/examples/volcenginecc-directconnect`; validation notes and pitfalls live in `references/volcenginecc-directconnect.md`.
+After `directconnect:CreateDirectConnectGateway` was granted, a 2026-05-30 retry in `<tmp-workdir>` verified the standalone Direct Connect gateway lifecycle. Gateway `cc-iac-dc-retry-gw` created with ID `<directconnect-gateway-id>`. `terraform plan -detailed-exitcode` returned `No changes`; destroy removed the gateway, final Terraform state was empty, and `ve directconnect DescribeDirectConnectGateways --body '{"DirectConnectGatewayName":"cc-iac-dc-retry-gw"}'` returned `TotalCount: 0`. The verified example now lives in `assets/examples/volcenginecc-directconnect`; validation notes and pitfalls live in `references/volcenginecc-directconnect.md`.
 
 TransitRouter retry in `cn-beijing`: the minimal router-only configuration used `asn = 64512`, `multicast_enabled = false`, project `default`, and one tag. `terraform fmt`, `init -backend=false`, `validate`, and `plan` succeeded. Apply failed before a TransitRouter ID was created:
 
 ```text
 EventTime: 2026-05-30T13:35:09+08:00
-TaskID: task-8f8d470c-8ee4-42c7-99af-2039e1a9e4a6
-AccessDenied: AccessDenied: User is not authorized to perform: transitrouter:CreateTransitRouter on resource: trn:iam::2109984414:project/default
+TaskID: task-<id>
+AccessDenied: AccessDenied: User is not authorized to perform: transitrouter:CreateTransitRouter on resource: trn:iam::<account-id>:project/default
 TypeName: Volcengine::TransitRouter::TransitRouter
 Operation: CREATE
 OperationStatus: FAILED
@@ -517,14 +519,14 @@ OperationStatus: FAILED
 
 No TransitRouter resources were created; Terraform state remained empty. Retry `transitrouter_transit_router` after the create permission is granted. Add route tables and VPC attachments only after the base router reaches clean no-op; peer attachments also need a bandwidth package and should be treated as billable inter-region resources.
 
-After `transitrouter:CreateTransitRouter` was granted, a 2026-05-30 retry in `/tmp/volcenginecc-transitrouter-retry-202605301556` verified the standalone TransitRouter lifecycle. TransitRouter `cc-iac-tr-retry` created with ID `tr-mjpyegwsyeps5smt1a042pya`, `asn = 64512`, and `multicast_enabled = false`. `terraform plan -detailed-exitcode` returned `No changes`; destroy removed the router, final Terraform state was empty, and `ve transitrouter DescribeTransitRouters --body '{"TransitRouterName":"cc-iac-tr-retry"}'` returned `TotalCount: 0`. The verified example now lives in `assets/examples/volcenginecc-transitrouter`; validation notes and pitfalls live in `references/volcenginecc-transitrouter.md`.
+After `transitrouter:CreateTransitRouter` was granted, a 2026-05-30 retry in `<tmp-workdir>` verified the standalone TransitRouter lifecycle. TransitRouter `cc-iac-tr-retry` created with ID `<transit-router-id>`, `asn = 64512`, and `multicast_enabled = false`. `terraform plan -detailed-exitcode` returned `No changes`; destroy removed the router, final Terraform state was empty, and `ve transitrouter DescribeTransitRouters --body '{"TransitRouterName":"cc-iac-tr-retry"}'` returned `TotalCount: 0`. The verified example now lives in `assets/examples/volcenginecc-transitrouter`; validation notes and pitfalls live in `references/volcenginecc-transitrouter.md`.
 
 PrivateLink CLB endpoint service configuration validated and planned successfully in `cn-beijing` with provider `volcengine/volcenginecc ~> 0.0.46`. The retry used a temporary VPC, subnet, route table, private CLB, and an Interface endpoint service with private DNS disabled. VPC, subnet, route table, and CLB all created successfully, then endpoint service creation failed:
 
 ```text
 EventTime: 2026-05-30T11:18:51+08:00
-TaskID: task-4ca99cb4-83cf-45c6-b91c-cc77f95f824d
-AccessDenied: User is not authorized to perform: privatelink:CreateVpcEndpointService on resource: trn:clb:cn-beijing:2109984414:clb/clb-rrnxl0iu0n40v0x58bp58rj,trn:iam::2109984414:project/default
+TaskID: task-<id>
+AccessDenied: User is not authorized to perform: privatelink:CreateVpcEndpointService on resource: trn:clb:cn-beijing:<account-id>:clb/clb-<id>,trn:iam::<account-id>:project/default
 TypeName: Volcengine::PrivateLink::EndpointService
 Operation: CREATE
 OperationStatus: FAILED
@@ -532,13 +534,13 @@ OperationStatus: FAILED
 
 Recovery: `terraform destroy` removed the private CLB, route table, subnet, and VPC successfully. Final `terraform state list` returned empty; `ve clb DescribeLoadBalancers` for the temporary CLB returned `TotalCount: 0`; `ve vpc DescribeVpcs --VpcName cc-iac-pl-current-vpc` returned `TotalCount: 0`; `ve privatelink DescribeVpcEndpointServices --ServiceResourceType CLB --ServiceType Interface` returned `TotalCount: 0`.
 
-After `privatelink:CreateVpcEndpointService` was granted, a 2026-05-30 retry in `/tmp/volcenginecc-privatelink-retry-202605301601` verified the full auto-accepted Interface PrivateLink path. The first apply created the service VPC/subnet/route table, private CLB `clb-mj3su951ld6o5smt1bkinzsv`, and endpoint service `epsvc-1mxfpfwqz9e681qigxqv417g5`. A follow-up plan returned `No changes`.
+After `privatelink:CreateVpcEndpointService` was granted, a 2026-05-30 retry in `<tmp-workdir>` verified the full auto-accepted Interface PrivateLink path. The first apply created the service VPC/subnet/route table, private CLB `clb-<id>`, and endpoint service `<endpoint-service-id>`. A follow-up plan returned `No changes`.
 
-A second apply added a consumer VPC/subnet/route table/security group and endpoint `ep-1mxfpg2o2lk3k1qigxqfoigf8`. The first endpoint apply hit the common transient VPC security-group conflict, then a rerun succeeded:
+A second apply added a consumer VPC/subnet/route table/security group and endpoint `<endpoint-id>`. The first endpoint apply hit the common transient VPC security-group conflict, then a rerun succeeded:
 
 ```text
 EventTime: 2026-05-30T16:04:43+08:00
-TaskID: task-1323b43c-338c-45c4-b5ea-fbe48293f5ff
+TaskID: task-<id>
 InvalidRequest: InvalidOperation.Conflict: The specified resource operation conflicts.
 TypeName: Volcengine::VPC::SecurityGroup
 Operation: CREATE
@@ -547,7 +549,7 @@ OperationStatus: FAILED
 
 After the rerun, `ve privatelink DescribeVpcEndpoints --body '{"EndpointName":"cc-iac-pl-retry-endpoint"}'` showed the endpoint with `ConnectionStatus = "Connected"`, so no explicit `volcenginecc_privatelink_vpc_endpoint_connection` resource was needed for the baseline. The full stack then had a clean no-op plan.
 
-Destroy removed endpoint, endpoint service, CLB, security group, route tables, subnets, and both VPCs. Final Terraform state was empty. `DescribeVpcEndpointServices` for service ID `epsvc-1mxfpfwqz9e681qigxqv417g5` returned `TotalCount: 0`, `DescribeVpcEndpoints` for endpoint ID `ep-1mxfpg2o2lk3k1qigxqfoigf8` no longer returned that endpoint, `ve clb DescribeLoadBalancers --body '{"LoadBalancerName":"cc-iac-pl-retry-clb"}'` returned `TotalCount: 0`, and exact VPC-name matching for both temporary VPCs returned no rows.
+Destroy removed endpoint, endpoint service, CLB, security group, route tables, subnets, and both VPCs. Final Terraform state was empty. `DescribeVpcEndpointServices` for service ID `<endpoint-service-id>` returned `TotalCount: 0`, `DescribeVpcEndpoints` for endpoint ID `<endpoint-id>` no longer returned that endpoint, `ve clb DescribeLoadBalancers --body '{"LoadBalancerName":"cc-iac-pl-retry-clb"}'` returned `TotalCount: 0`, and exact VPC-name matching for both temporary VPCs returned no rows.
 
 The verified example now lives in `assets/examples/volcenginecc-privatelink`; validation notes and pitfalls live in `references/volcenginecc-privatelink.md`. Keep `private_dns_enabled = false` for the baseline test; enabling Private DNS adds public domain verification.
 
@@ -686,11 +688,11 @@ Attempted resources:
 | `volcenginecc_cloudidentity_permission_set_provisioning` | Dependency-blocked | Requires permission set plus real target account ID |
 | `volcenginecc_cloudidentity_user_provisioning` | Dependency-blocked | Requires real principal and target account IDs |
 
-Current-account retry on 2026-05-30 in `/tmp/volcenginecc-cloudidentity-current` used only a manual group and a system `ReadOnlyAccess` permission set, avoiding user password state and cross-account assignment/provisioning. `terraform fmt`, `init -backend=false`, `validate`, and `plan` succeeded. Apply failed before any resource IDs were created:
+Current-account retry on 2026-05-30 in `<tmp-workdir>` used only a manual group and a system `ReadOnlyAccess` permission set, avoiding user password state and cross-account assignment/provisioning. `terraform fmt`, `init -backend=false`, `validate`, and `plan` succeeded. Apply failed before any resource IDs were created:
 
 ```text
 EventTime: 2026-05-30T13:30:42+08:00
-TaskID: task-2ab0edcc-530c-4d33-b9ee-a31f4d769cfa
+TaskID: task-<id>
 AccessDenied: AccessDenied: User is not authorized to perform: cloudidentity:CreateGroup on resource:
 TypeName: Volcengine::CloudIdentity::Group
 Operation: CREATE
@@ -699,7 +701,7 @@ OperationStatus: FAILED
 
 ```text
 EventTime: 2026-05-30T13:30:42+08:00
-TaskID: task-2fa24a9f-c5e8-4baf-b682-f1c06fca0c5a
+TaskID: task-<id>
 AccessDenied: AccessDenied: User is not authorized to perform: cloudidentity:CreatePermissionSet on resource:
 TypeName: Volcengine::CloudIdentity::PermissionSet
 Operation: CREATE
@@ -737,7 +739,7 @@ Attempted resources:
 | Resource | Status | Evidence |
 |---|---|---|
 | `volcenginecc_rdsmysql_endpoint` | Drift-blocked for default example | Custom direct endpoint create/delete succeeded, but no-op plan tried to update `addresses.domain_prefix` and failed because the domain prefix already exists |
-| `volcenginecc_rdsmysql_backup` | API-blocked | `backup_method = "Physical"` and `backup_method = "Logical"` both failed with `InvalidParameter: 参数BackupMethod值无效` |
+| `volcenginecc_rdsmysql_backup` | Verified (with timing caveat) | `backup_method` must be `Snapshot` (`Physical`/`Logical` return `参数BackupMethod值无效`). A fresh instance runs an initial backup, so the first manual backup can hit `OperationDenied_BackupJobExists`; re-apply after it finishes. Create + clean no-op confirmed 2026-06-17 |
 
 The custom endpoint retry used a verified MySQL instance in `cn-beijing` with provider `volcengine/volcenginecc ~> 0.0.46`:
 
@@ -781,7 +783,7 @@ Operation: CREATE
 OperationStatus: FAILED
 ```
 
-The `Logical` attempt with `backup_type = "Full"` and database-level `backup_meta` failed with the same invalid backup method error. Keep `rdsmysql_backup` out of generated examples until a working API enum or provider fix is verified.
+The `Logical` attempt with `backup_type = "Full"` also returned the same invalid backup method error. On 2026-06-17, `backup_method = "Snapshot"` with `backup_type = "Full"` created successfully and reached a clean no-op plan. The only caveat is timing: a newly created instance runs an initial backup job, so the first manual backup can fail with `OperationDenied_BackupJobExists` and needs a re-apply once the instance's backup job finishes. It is kept out of the shared example to avoid that first-apply flakiness, but the verified shape is `backup_method = "Snapshot"`, `backup_type = "Full"`.
 
 During this retry, dependent database/account creation initially failed with `InstanceIsNotRunning` immediately after the instance became visible. Waiting about 90 seconds and re-running apply succeeded. A later destroy attempt hit the same status window while deleting the account; after retry, database/account, instance, allowlist, endpoint, VPC, subnet, and route table were all destroyed and final Terraform state was empty.
 
@@ -849,7 +851,7 @@ A later native/image sandbox retry used `runtime = "native/v1"`, `source_type = 
 NotFound: ResourceNotFound: Sandbox image not found in pre cache sandbox image list, you need to precache your sandbox image first
 TypeName: Volcengine::VEFAAS::Function
 Operation: CREATE
-TaskID: task-ada9f3fc-e2a4-4d18-9edf-e0bb4700ce5d
+TaskID: task-<id>
 EventTime: 2026-05-30T06:46:56+08:00
 ```
 
@@ -861,7 +863,7 @@ Two pre-cached-image shapes still failed at sandbox startup:
 
 ```text
 EventTime: 2026-05-30T12:08:19+08:00
-TaskID: task-513c24a4-8820-4d03-b57b-d70ed7985092
+TaskID: task-<id>
 InvalidOperation: error_code: "function_exited", error_message "function exited unexpectedly(exit status 127) ... bash: ./run.sh: No such file or directory"
 TypeName: Volcengine::VEFAAS::Sandbox
 Operation: CREATE
@@ -870,7 +872,7 @@ OperationStatus: FAILED
 
 ```text
 EventTime: 2026-05-30T12:09:44+08:00
-TaskID: task-0ee19f79-96c6-46f0-a8b8-eb6f2dc72e78
+TaskID: task-<id>
 InvalidOperation: error_code: "function_exited", error_message "function exited unexpectedly(exit status 1) ... /etc/sudoers.d/: Is a directory"
 TypeName: Volcengine::VEFAAS::Sandbox
 Operation: CREATE
@@ -891,7 +893,7 @@ Attempted resources:
 Minimal configuration validated and planned successfully in `cn-beijing` with provider `volcengine/volcenginecc ~> 0.0.46`. The first apply created only the network dependencies, then failed on allowlist creation:
 
 ```text
-AccessDenied: User is not authorized to perform: rds_mssql:CreateAllowList on resource: trn:iam::2109984414:project/default,trn:vpc:cn-beijing:2109984414:securitygroup/*
+AccessDenied: User is not authorized to perform: rds_mssql:CreateAllowList on resource: trn:iam::<account-id>:project/default,trn:vpc:cn-beijing:<account-id>:securitygroup/*
 TypeName: Volcengine::RDSMsSQL::AllowList
 Operation: CREATE
 OperationStatus: FAILED
@@ -900,7 +902,7 @@ OperationStatus: FAILED
 A second apply without the allowlist dependency was used only to test the instance API and failed with:
 
 ```text
-AccessDenied: User is not authorized to perform: rds_mssql:CreateDBInstance on resource: trn:iam::2109984414:project/default
+AccessDenied: User is not authorized to perform: rds_mssql:CreateDBInstance on resource: trn:iam::<account-id>:project/default
 TypeName: Volcengine::RDSMsSQL::Instance
 Operation: CREATE
 OperationStatus: FAILED
@@ -912,8 +914,8 @@ Latest allowlist-only retry in `cn-beijing`: a standalone `volcenginecc_rdsmssql
 
 ```text
 EventTime: 2026-05-30T09:53:23+08:00
-TaskID: task-61f39a52-4f2b-45be-9eb3-8aa66e603def
-AccessDenied: User is not authorized to perform: rds_mssql:CreateAllowList on resource: trn:iam::2109984414:project/default,trn:vpc:cn-beijing:2109984414:securitygroup/*
+TaskID: task-<id>
+AccessDenied: User is not authorized to perform: rds_mssql:CreateAllowList on resource: trn:iam::<account-id>:project/default,trn:vpc:cn-beijing:<account-id>:securitygroup/*
 TypeName: Volcengine::RDSMsSQL::AllowList
 Operation: CREATE
 OperationStatus: FAILED
@@ -923,8 +925,8 @@ Retried the standalone allowlist shape again on 2026-05-30 at 13:59 with allow l
 
 ```text
 EventTime: 2026-05-30T13:59:24+08:00
-TaskID: task-56cba346-4b98-4ee3-a470-3736c56b671d
-AccessDenied: User is not authorized to perform: rds_mssql:CreateAllowList on resource: trn:iam::2109984414:project/default,trn:vpc:cn-beijing:2109984414:securitygroup/*
+TaskID: task-<id>
+AccessDenied: User is not authorized to perform: rds_mssql:CreateAllowList on resource: trn:iam::<account-id>:project/default,trn:vpc:cn-beijing:<account-id>:securitygroup/*
 TypeName: Volcengine::RDSMsSQL::AllowList
 Operation: CREATE
 OperationStatus: FAILED
@@ -932,11 +934,11 @@ OperationStatus: FAILED
 
 Terraform state remained empty. This permission boundary was resolved by later grants; the remaining issue is destroy-time backend cleanup.
 
-After the user reported MSSQL permissions were added, a 2026-05-30 retry in `/tmp/volcenginecc-rdsmssql-retry-20260530152214` used a standalone allowlist plus minimal Basic SQL Server 2019 Standard instance, VPC, subnet, and route table. `terraform fmt -check`, `init -backend=false`, `validate`, and `plan` succeeded. The allowlist created successfully with ID `acl-3b64796c92ed45eb9d375ca193bc60a8`, proving `rds_mssql:CreateAllowList` was granted. The instance failed three times, including after 90s and 180s waits, because RDS MSSQL could not see the Terraform-created VPC even though `ve vpc DescribeVpcs` returned it as `Available`:
+After the user reported MSSQL permissions were added, a 2026-05-30 retry in `<tmp-workdir>` used a standalone allowlist plus minimal Basic SQL Server 2019 Standard instance, VPC, subnet, and route table. `terraform fmt -check`, `init -backend=false`, `validate`, and `plan` succeeded. The allowlist created successfully with ID `<acl-id>`, proving `rds_mssql:CreateAllowList` was granted. The instance failed three times, including after 90s and 180s waits, because RDS MSSQL could not see the Terraform-created VPC even though `ve vpc DescribeVpcs` returned it as `Available`:
 
 ```text
 EventTime: 2026-05-30T15:23:26+08:00
-TaskID: task-8e6cf6eb-29ed-4b89-bd28-8485d695e9ed
+TaskID: task-<id>
 NotFound: VpcIDNotFound: The specified VpcID does not exist.
 TypeName: Volcengine::RDSMsSQL::Instance
 Operation: CREATE
@@ -945,7 +947,7 @@ OperationStatus: FAILED
 
 ```text
 EventTime: 2026-05-30T15:25:23+08:00
-TaskID: task-823b9378-9b34-4ac3-b308-41c348298ec4
+TaskID: task-<id>
 NotFound: VpcIDNotFound: The specified VpcID does not exist.
 TypeName: Volcengine::RDSMsSQL::Instance
 Operation: CREATE
@@ -954,7 +956,7 @@ OperationStatus: FAILED
 
 ```text
 EventTime: 2026-05-30T15:29:12+08:00
-TaskID: task-19721463-7c7e-48a1-ab29-94c8ae786d8e
+TaskID: task-<id>
 NotFound: VpcIDNotFound: The specified VpcID does not exist.
 TypeName: Volcengine::RDSMsSQL::Instance
 Operation: CREATE
@@ -963,64 +965,64 @@ OperationStatus: FAILED
 
 Discovery confirmed `cn-beijing-a` supports `SQLServer_2019_Std` Basic and spec `rds.mssql.3il.x8.medium.s1`, so this is not an obvious zone/spec mismatch. Destroy removed the allowlist, route table, subnet, and VPC; final Terraform state was empty. `ve rdsmssql DescribeAllowLists` for `cc-iac-mssql-retry-allow` returned an empty list, `ve rdsmssql DescribeDBInstances` for `cc-iac-mssql-retry-instance` returned `Total: 0`, and exact VPC-name matching for `cc-iac-mssql-retry-vpc` returned no rows. Retry the instance with an older, pre-existing disposable VPC/subnet or after the RDS MSSQL VPC visibility path is confirmed.
 
-After another permission grant, a 2026-05-30 retry in `/tmp/volcenginecc-rdsmssql-retry-202605301743` created the full minimal SQL Server path successfully. The configuration used VPC `vpc-btcto3qrmvb45h0b2u52k12s`, subnet `subnet-3pt1kgmjawoow6csxywfwxwl9`, route table `vtb-1jp3m05rryfpc1n7amp7sqooh`, allowlist `acl-158fda4205e5461da6b089629737e11f`, and Basic SQL Server 2019 Standard instance `mssql-07cef429b3c4` with spec `rds.mssql.3il.x8.medium.s1`. Create took about 4m37s and a follow-up `terraform plan -detailed-exitcode` returned `No changes`, so the earlier `VpcIDNotFound` no longer reproduces.
+After another permission grant, a 2026-05-30 retry in `<tmp-workdir>` created the full minimal SQL Server path successfully. The configuration used VPC `vpc-<id>`, subnet `subnet-<id>`, route table `vtb-<id>`, allowlist `<acl-id>`, and Basic SQL Server 2019 Standard instance `<db-instance-id>` with spec `rds.mssql.3il.x8.medium.s1`. Create took about 4m37s and a follow-up `terraform plan -detailed-exitcode` returned `No changes`, so the earlier `VpcIDNotFound` no longer reproduces.
 
-RDS SQL Server is promoted only as a lifecycle/destroy-caveat example, not as a clean verified example, because destroy did not fully converge in the same run. The instance delete returned success after about 10s, and later `DescribeDBInstances` returned `Total: 0`. However, subnet deletion initially failed while two RDS service-managed ENIs were still attached; after about 60s, `DescribeNetworkInterfaces --SubnetId subnet-3pt1kgmjawoow6csxywfwxwl9` returned `TotalCount: 0` and the allowlist `AssociatedInstanceNum` dropped to `0`. A second destroy removed the allowlist and subnet, but VPC deletion remained blocked by the RDS service-managed security group `sg-ij00cwlytvk074o8ctvy0oul`:
+RDS SQL Server is promoted only as a lifecycle/destroy-caveat example, not as a clean verified example, because destroy did not fully converge in the same run. The instance delete returned success after about 10s, and later `DescribeDBInstances` returned `Total: 0`. However, subnet deletion initially failed while two RDS service-managed ENIs were still attached; after about 60s, `DescribeNetworkInterfaces --SubnetId subnet-<id>` returned `TotalCount: 0` and the allowlist `AssociatedInstanceNum` dropped to `0`. A second destroy removed the allowlist and subnet, but VPC deletion remained blocked by the RDS service-managed security group `sg-<id>`:
 
 ```text
 EventTime: 2026-05-30T17:51:50+08:00
-TaskID: task-3cc04316-3f9f-4063-b644-97760ee23017
+TaskID: task-<id>
 InvalidRequest: InvalidVpc.InUse: The specified VPC has dependent resource of a security group.
 TypeName: Volcengine::VPC::VPC
 Operation: DELETE
 OperationStatus: FAILED
 ```
 
-Manual deletion of `sg-ij00cwlytvk074o8ctvy0oul` failed because it is service-managed:
+Manual deletion of `sg-<id>` failed because it is service-managed:
 
 ```text
 Forbidden: You are not authorized to perform operations on the specified security group.
 The specified security group is a service-managed security group.
 ```
 
-After another 3 minutes, `DescribeDBInstances` still returned `Total: 0` and `DescribeNetworkInterfaces --VpcId vpc-btcto3qrmvb45h0b2u52k12s` still returned `TotalCount: 0`, but `DescribeSecurityGroups --VpcId vpc-btcto3qrmvb45h0b2u52k12s` still showed the service-managed security group plus the default security group. After another 5 minutes, the service-managed security group was still present, and a final `terraform destroy` failed with the same VPC dependency:
+After another 3 minutes, `DescribeDBInstances` still returned `Total: 0` and `DescribeNetworkInterfaces --VpcId vpc-<id>` still returned `TotalCount: 0`, but `DescribeSecurityGroups --VpcId vpc-<id>` still showed the service-managed security group plus the default security group. After another 5 minutes, the service-managed security group was still present, and a final `terraform destroy` failed with the same VPC dependency:
 
 ```text
 EventTime: 2026-05-30T18:04:52+08:00
-TaskID: task-9b75ebb2-e898-4f59-a3c2-aab9481aa060
+TaskID: task-<id>
 InvalidRequest: InvalidVpc.InUse: The specified VPC has dependent resource of a security group.
 TypeName: Volcengine::VPC::VPC
 Operation: DELETE
 OperationStatus: FAILED
 ```
 
-Current residue after the retry: Terraform state in `/tmp/volcenginecc-rdsmssql-retry-202605301743` contains only `volcenginecc_vpc_vpc.main` for VPC `vpc-btcto3qrmvb45h0b2u52k12s`; the temporary binary `tfplan` was deleted because it may contain sensitive variables. Cloud-side residue is VPC `vpc-btcto3qrmvb45h0b2u52k12s` plus service-managed security group `sg-ij00cwlytvk074o8ctvy0oul` (`Mssql Managed Security Group`) and its default security group. Instance `mssql-07cef429b3c4`, allowlist `acl-158fda4205e5461da6b089629737e11f`, RDS ENIs, route table, and subnet were deleted or no longer visible. Continue cleanup by waiting for the RDS service-managed security group to disappear, then rerun `terraform destroy` to remove the VPC. Keep MSSQL out of the clean verified count until this cleanup behavior is understood.
+Current residue after the retry: Terraform state in `<tmp-workdir>` contains only `volcenginecc_vpc_vpc.main` for VPC `vpc-<id>`; the temporary binary `tfplan` was deleted because it may contain sensitive variables. Cloud-side residue is VPC `vpc-<id>` plus service-managed security group `sg-<id>` (`Mssql Managed Security Group`) and its default security group. Instance `<db-instance-id>`, allowlist `<acl-id>`, RDS ENIs, route table, and subnet were deleted or no longer visible. Continue cleanup by waiting for the RDS service-managed security group to disappear, then rerun `terraform destroy` to remove the VPC. Keep MSSQL out of the clean verified count until this cleanup behavior is understood.
 
-After the user successfully created and released a separate RDS MySQL instance, a 2026-05-31 retry in `/tmp/volcenginecc-rdsmssql-cleanretry-20260531023059` used the shared `assets/examples/volcenginecc-rdsmssql` shape with prefix `cc-iac-mssql-0531`, CIDR `10.118.0.0/16`, and the 60s `time_sleep` create/destroy delay. Apply succeeded: VPC `vpc-ijd4bbvlew3k74o8cuk7m3e9`, subnet `subnet-1a11bcepqxips8nvepldtwmnj`, route table `vtb-btmyu76jr7r45h0b2u5kvw61`, allowlist `acl-9ca58061348c442380285e16d3c8870e`, and SQL Server instance `mssql-e2b854194c05` were created successfully. Instance creation took 4m45s and a follow-up plan returned `No changes`.
+After the user successfully created and released a separate RDS MySQL instance, a 2026-05-31 retry in `<tmp-workdir>` used the shared `assets/examples/volcenginecc-rdsmssql` shape with prefix `cc-iac-mssql-0531`, CIDR `10.118.0.0/16`, and the 60s `time_sleep` create/destroy delay. Apply succeeded: VPC `vpc-<id>`, subnet `subnet-<id>`, route table `vtb-<id>`, allowlist `<acl-id>`, and SQL Server instance `<db-instance-id>` were created successfully. Instance creation took 4m45s and a follow-up plan returned `No changes`.
 
 Destroy order was correct with the updated dependency graph: SQL Server instance deleted first in 12s, then `time_sleep` waited 60s, then the allowlist, route table, and subnet all deleted successfully. VPC deletion still failed because the RDS service-managed security group remained:
 
 ```text
 EventTime: 2026-05-31T02:40:06+08:00
-TaskID: task-6ba1dc41-9c93-433c-9020-496808bf4584
+TaskID: task-<id>
 InvalidRequest: InvalidVpc.InUse: The specified VPC has dependent resource of a security group.
 TypeName: Volcengine::VPC::VPC
 Operation: DELETE
 OperationStatus: FAILED
 ```
 
-Cloud-side checks after the failed destroy showed `DescribeDBInstances` `Total: 0`, `DescribeAllowLists` empty, and `DescribeNetworkInterfaces --VpcId vpc-ijd4bbvlew3k74o8cuk7m3e9` `TotalCount: 0`, but `DescribeSecurityGroups --VpcId vpc-ijd4bbvlew3k74o8cuk7m3e9` still returned default security group `sg-ijd4bhsor20w74o8cv2crync` and service-managed MSSQL security group `sg-ijdv4ls74um874o8cullvbdk`. `DescribeVpcs --VpcIds ["vpc-ijd4bbvlew3k74o8cuk7m3e9"]` returned `TotalCount: 0`, so the VPC and security-group views are inconsistent. An additional 60s wait followed by another `terraform destroy` failed with the same VPC security-group dependency:
+Cloud-side checks after the failed destroy showed `DescribeDBInstances` `Total: 0`, `DescribeAllowLists` empty, and `DescribeNetworkInterfaces --VpcId vpc-<id>` `TotalCount: 0`, but `DescribeSecurityGroups --VpcId vpc-<id>` still returned default security group `sg-<id>` and service-managed MSSQL security group `sg-<id>`. `DescribeVpcs --VpcIds ["vpc-<id>"]` returned `TotalCount: 0`, so the VPC and security-group views are inconsistent. An additional 60s wait followed by another `terraform destroy` failed with the same VPC security-group dependency:
 
 ```text
 EventTime: 2026-05-31T02:42:03+08:00
-TaskID: task-044b65e3-3492-42cb-bc3e-8a6edcf1d54c
+TaskID: task-<id>
 InvalidRequest: InvalidVpc.InUse: The specified VPC has dependent resource of a security group.
 TypeName: Volcengine::VPC::VPC
 Operation: DELETE
 OperationStatus: FAILED
 ```
 
-Current residue from the 2026-05-31 retry: Terraform state in `/tmp/volcenginecc-rdsmssql-cleanretry-20260531023059` contains only `volcenginecc_vpc_vpc.main` for VPC `vpc-ijd4bbvlew3k74o8cuk7m3e9`; cloud-side residue is the VPC/security-group index entry plus service-managed MSSQL security group `sg-ijdv4ls74um874o8cullvbdk` and default security group `sg-ijd4bhsor20w74o8cv2crync`. Keep this example lifecycle-verified only. The 60s sleep fixes Terraform ordering and the short allowlist/subnet release window, but does not fix this service-managed SG cleanup issue.
+Current residue from the 2026-05-31 retry: Terraform state in `<tmp-workdir>` contains only `volcenginecc_vpc_vpc.main` for VPC `vpc-<id>`; cloud-side residue is the VPC/security-group index entry plus service-managed MSSQL security group `sg-<id>` and default security group `sg-<id>`. Keep this example lifecycle-verified only. The 60s sleep fixes Terraform ordering and the short allowlist/subnet release window, but does not fix this service-managed SG cleanup issue.
 
 The shared lifecycle example uses this shape:
 
@@ -1056,84 +1058,25 @@ resource "volcenginecc_rdsmssql_instance" "main" {
 
 `assets/examples/volcenginecc-rdsmssql` exists as a lifecycle/destroy-caveat example only. It adds a `time_sleep` 60s create/destroy delay between network readiness and SQL Server lifecycle, but operators should still poll `DescribeDBInstances`, `DescribeNetworkInterfaces`, `DescribeAllowLists`, and `DescribeSecurityGroups` every 60s before rerunning destroy if the VPC is blocked. `super_account_password` is sensitive in plan output but will still be stored in Terraform state.
 
-## MongoDB
-
-Attempted resources:
-
-| Resource | Status | Evidence |
-|---|---|---|
-| `volcenginecc_mongodb_allow_list` | Permission-blocked | `AccessDenied: User is not authorized to perform: mongodb:CreateAllowList` during create |
-| `volcenginecc_mongodb_instance` | Dependency/permission-blocked | Requires MongoDB allowlist permission and creates a billable instance; not applied after allowlist permission failed |
-| `volcenginecc_mongodb_ssl_state` | Dependency-blocked | Requires a successfully created MongoDB instance |
-
-Read-only discovery in `cn-beijing` succeeded: `ve mongodb DescribeAvailabilityZones --body '{"RegionId":"cn-beijing"}'` returned normal zones `cn-beijing-a` through `cn-beijing-d`; `ve mongodb DescribeNodeSpecs --body '{"RegionId":"cn-beijing"}'` returned a minimal ReplicaSet node spec `mongo.1c2g` with `MinStorage = 20`.
-
-Standalone MongoDB allowlist verification in `cn-beijing` with provider `volcengine/volcenginecc ~> 0.0.46`: `terraform fmt`, `init`, `validate`, and `plan` succeeded, then apply failed before any resource was created:
-
-```text
-EventTime: 2026-05-30T10:35:52+08:00
-TaskID: task-5b14fa52-e44d-432f-a704-738ac3de09a3
-AccessDenied: User is not authorized to perform: mongodb:CreateAllowList on resource: trn:iam::2109984414:project/default
-TypeName: Volcengine::MongoDB::AllowList
-Operation: CREATE
-OperationStatus: FAILED
-```
-
-`terraform state list` was empty after the failed apply. `ve mongodb DescribeAllowLists --body '{"RegionId":"cn-beijing","ProjectName":"default","AllowListName":"cc-iac-mongodb-allow"}'` returned `Total: 0`, confirming no allowlist was created.
-
-Retry MongoDB only after `mongodb:CreateAllowList` and `mongodb:CreateDBInstance` are granted. Use the discovered minimal ReplicaSet shape to reduce cost:
-
-```hcl
-resource "volcenginecc_mongodb_allow_list" "app" {
-  allow_list_name     = "cc-iac-mongodb-allow"
-  allow_list_type     = "IPv4"
-  allow_list_category = "Ordinary"
-  allow_list_desc     = "volcenginecc MongoDB allowlist example"
-  project_name        = "default"
-  allow_list          = ["10.0.0.0/8"]
-}
-
-resource "volcenginecc_mongodb_instance" "main" {
-  zone_id                = "cn-beijing-a"
-  vpc_id                 = volcenginecc_vpc_vpc.main.vpc_id
-  subnet_id              = volcenginecc_vpc_subnet.main.subnet_id
-  db_engine              = "MongoDB"
-  db_engine_version      = "MongoDB_7_0"
-  instance_type          = "ReplicaSet"
-  node_spec              = "mongo.1c2g"
-  node_number            = 3
-  storage_space_gb       = 20
-  super_account_name     = "root"
-  super_account_password = var.mongodb_password
-  instance_name          = "cc-iac-mongodb"
-  instance_count         = 1
-  charge_type            = "PostPaid"
-  project_name           = "default"
-  allow_list_ids         = [volcenginecc_mongodb_allow_list.app.allow_list_id]
-}
-```
-
-Do not add an `assets/examples/volcenginecc-mongodb` verified example until allowlist, instance, optional SSL state, no-op plan, and destroy all succeed. `super_account_password` is sensitive in plan output but will still be stored in Terraform state.
-
 ## veDB MySQL
 
 Attempted resources:
 
 | Resource | Status | Evidence |
 |---|---|---|
-| `volcenginecc_vedbm_allow_list` | Permission-blocked | `AccessDenied: User is not authorized to perform: vedbm:CreateAllowList` during create |
-| `volcenginecc_vedbm_instance` | Dependency/permission-blocked | Requires veDBM allowlist permission and creates a billable instance with a password stored in state |
+| `volcenginecc_vedbm_allow_list` | Verified (create) | `vedbm:CreateAllowList` is now granted; standalone allowlist creates successfully (2026-06-17) |
+| `volcenginecc_vedbm_instance` | Provider-blocked | Allowlist permission granted, but create fails with `InvalidChargeType: The Charge Type is only support PostPaid/PrePaid` even with `charge_detail.charge_type = "PostPaid"`, `storage_charge_type`, and `number` set per the provider example; likely a provider 0.0.46 charge mapping bug |
 | `volcenginecc_vedbm_account` | Dependency-blocked | Requires a running veDBM instance; account password is stored in Terraform state |
 | `volcenginecc_vedbm_database` | Dependency-blocked | Requires a running veDBM instance and optional account grants |
 | `volcenginecc_vedbm_endpoint` | Dependency-blocked | Requires a running veDBM instance and node selection |
 | `volcenginecc_vedbm_backup` | Dependency-blocked | Requires a running veDBM instance |
 
-Current-account retry on 2026-05-30 in `/tmp/volcenginecc-vedbm-current` used only a standalone IPv4 allowlist to avoid creating a billable database instance or storing database passwords. `terraform fmt`, `init -backend=false`, `validate`, and `plan` succeeded. Apply failed before an allowlist ID was created:
+Current-account retry on 2026-05-30 in `<tmp-workdir>` used only a standalone IPv4 allowlist to avoid creating a billable database instance or storing database passwords. `terraform fmt`, `init -backend=false`, `validate`, and `plan` succeeded. Apply failed before an allowlist ID was created:
 
 ```text
 EventTime: 2026-05-30T13:29:27+08:00
-TaskID: task-8ece5813-c6ba-4e1c-b53f-46c4a1cc1fc2
-AccessDenied: AccessDenied: User is not authorized to perform: vedbm:CreateAllowList on resource: trn:iam::2109984414:project/default
+TaskID: task-<id>
+AccessDenied: AccessDenied: User is not authorized to perform: vedbm:CreateAllowList on resource: trn:iam::<account-id>:project/default
 TypeName: Volcengine::VEDBM::AllowList
 Operation: CREATE
 OperationStatus: FAILED
@@ -1141,412 +1084,21 @@ OperationStatus: FAILED
 
 No veDBM resources were created; Terraform state remained empty. After `vedbm:CreateAllowList` and `vedbm:CreateDBInstance` are granted, retry the standalone allowlist first. Add `vedbm_instance` only with a sensitive password variable and a disposable VPC/subnet, then add account, database, endpoint, and backup in later applies after the instance reaches a stable running state.
 
-## Kafka
-
-Attempted resources:
-
-| Resource | Status | Evidence |
-|---|---|---|
-| `volcenginecc_kafka_allow_list` | Verified | Standalone allowlist create/no-op/destroy succeeded; see example `volcenginecc-kafka-allow-list` |
-| `volcenginecc_kafka_instance` | Service-blocked | Both full and minimal instance create attempts failed with Cloud Control `ServiceInternalError: InternalError` |
-| `volcenginecc_kafka_topic` | Dependency-blocked | Requires a successfully created Kafka instance |
-
-The initial configuration validated and planned successfully in `cn-beijing` with provider `volcengine/volcenginecc ~> 0.0.46`. It included VPC, subnet, route table, Kafka allowlist, Kafka instance, SASL user settings, and one topic. Apply created the network and allowlist resources, then Kafka instance creation failed:
-
-```text
-ServiceInternalError: InternalError: The request failed due to some unknown error, exception or failure.
-TypeName: Volcengine::Kafka::Instance
-Operation: CREATE
-OperationStatus: FAILED
-```
-
-A second minimized retry removed SASL user settings, topic creation, custom parameters, and explicit storage type. It kept only `compute_spec = "kafka.20xrate.hw"`, `version = "2.8.2"`, `partition_number = 350`, `storage_space = 100`, VPC/subnet, and the verified allowlist. That attempt failed with the same Cloud Control error:
-
-```text
-ServiceInternalError: InternalError: The request failed due to some unknown error, exception or failure.
-TypeName: Volcengine::Kafka::Instance
-Operation: CREATE
-OperationStatus: FAILED
-```
-
-Temporary VPC, subnet, route table, and Kafka allowlist resources were destroyed successfully; final Terraform state was empty.
-
-Current-account retry on 2026-05-30 in `/tmp/volcenginecc-kafka-current` used the same minimized Kafka shape: VPC, subnet, custom route table, verified allowlist, and a single pay-as-you-go `volcenginecc_kafka_instance` with `compute_spec = "kafka.20xrate.hw"`, `version = "2.8.2"`, `partition_number = 350`, and `storage_space = 100`. `terraform fmt`, `init -backend=false`, `validate`, and `plan` succeeded. Apply created VPC `vpc-bu1k7r8cjnr45h0b2uchh31y`, subnet `subnet-1jopkfmx9eark1n7amqc04rhn`, route table `vtb-3nqh7jkkl4c1s931ebvpps73`, and allowlist `acl-7829e720baf2499ab10bcde584883f85`, then Kafka instance creation failed with the same service-side error:
-
-```text
-EventTime: 2026-05-30T11:42:26+08:00
-TaskID: task-bce68173-fc18-4bab-9927-b8f42b2e3190
-ServiceInternalError: InternalError: The request failed due to some unknown error, exception or failure.
-TypeName: Volcengine::Kafka::Instance
-Operation: CREATE
-OperationStatus: FAILED
-```
-
-Retried the same minimized Kafka shape again on 2026-05-30 at 14:24. `terraform fmt -check`, `init -backend=false`, `validate`, and `plan` succeeded. Apply created VPC `vpc-3nr8kolqd1clc931ebvtvo9v`, subnet `subnet-btmtuqzfh14w5h0b2ui8d5fd`, route table `vtb-btmvnh6xhtz45h0b2tqddvri`, and allowlist `acl-800ac25596ea49149401bd6dc4ad85c9`, then Kafka instance creation still failed with the same service-side error:
-
-```text
-EventTime: 2026-05-30T14:24:15+08:00
-TaskID: task-641c0f5d-e26b-426d-8cab-bc52806ba87c
-ServiceInternalError: InternalError: The request failed due to some unknown error, exception or failure.
-TypeName: Volcengine::Kafka::Instance
-Operation: CREATE
-OperationStatus: FAILED
-```
-
-Destroy removed the allowlist, route table, subnet, and VPC; final Terraform state was empty. `DescribeVpcs --VpcName cc-iac-kafka-vpc` returned `TotalCount: 0` in the earlier retry, and exact VPC-name matching for `cc-iac-kafka-retry-vpc` returned no rows in the 14:24 retry. `ve kafka DescribeAllowLists` returned a service-side `InternalError` 500 during residue checking, so the reliable cleanup evidence for the Kafka allowlist is Terraform destroy completion plus empty state. Because Kafka instance creation still fails, `volcenginecc_kafka_topic` and `volcenginecc_vefaas_kafka_trigger` remain dependency-blocked and must not be generated with placeholder instance IDs or SASL credentials.
-
-Standalone Kafka allowlist verification in `cn-beijing`: `volcenginecc_kafka_allow_list` created with `allow_list = "10.97.0.0/16"`, had a clean no-op plan, and destroyed successfully. Created ID was `acl-917f65a4315948cdb08720d2cb58f3f6`. Creation took about 22s and deletion about 15s. The generated docs/example use the wrong resource name `volcenginecc_kafka_allowlist`; the actual Terraform resource type is `volcenginecc_kafka_allow_list`.
-
-When the Kafka instance API is usable, retry with this minimal shape first:
-
-```hcl
-resource "volcenginecc_kafka_allow_list" "app" {
-  allow_list      = "10.97.0.0/16"
-  allow_list_name = "cc-iac-kafka-allow"
-}
-
-resource "volcenginecc_kafka_instance" "main" {
-  compute_spec         = "kafka.20xrate.hw"
-  instance_description = "volcenginecc Kafka example instance"
-  instance_name        = "cc-iac-kafka-instance"
-  subnet_id            = volcenginecc_vpc_subnet.main.subnet_id
-  ip_white_list        = [volcenginecc_kafka_allow_list.app.allow_list_id]
-  partition_number     = 350
-  storage_space        = 100
-  version              = "2.8.2"
-  vpc_id               = volcenginecc_vpc_vpc.main.vpc_id
-  zone_id              = "cn-beijing-a"
-  project_name         = "default"
-
-  charge_info = {
-    charge_type = "PostPaid"
-    auto_renew  = false
-  }
-}
-```
-
-After instance creation succeeds, add `volcenginecc_kafka_topic` in a second apply. The provider docs/example have a resource naming pitfall: docs show `volcenginecc_kafka_allowlist`, but the actual Terraform resource name is `volcenginecc_kafka_allow_list`.
-
-## RabbitMQ
-
-Attempted resources:
-
-| Resource | Status | Evidence |
-|---|---|---|
-| `volcenginecc_rabbitmq_allow_list` | Dependency-only verified | Create/destroy succeeded after permission grant, but instance path is still blocked |
-| `volcenginecc_rabbitmq_instance` | Service-internal blocked | `ServiceInternalError: InternalError` during create |
-| `volcenginecc_rabbitmq_public_address` | Dependency-blocked | Requires a successfully created RabbitMQ instance and EIP |
-| `volcenginecc_rabbitmq_instance_plugin` | Dependency-blocked | Requires a successfully created RabbitMQ instance and a deliberate plugin choice |
-
-Minimal private-network configuration validated and planned successfully in `cn-beijing` with provider `volcengine/volcenginecc ~> 0.0.46`. The first apply created only the network dependencies, then failed on allowlist creation:
-
-```text
-AccessDenied: User is not authorized to perform: rabbitmq:CreateAllowList on resource:
-TypeName: Volcengine::RabbitMQ::AllowList
-Operation: CREATE
-OperationStatus: FAILED
-```
-
-A standalone allowlist retry without network or instance dependencies still failed with the same permission denial; no resources were created and Terraform state remained empty:
-
-```text
-AccessDenied: User is not authorized to perform: rabbitmq:CreateAllowList on resource:
-TypeName: Volcengine::RabbitMQ::AllowList
-Operation: CREATE
-TaskID: task-6c07a9b7-9c72-4bdb-a010-aa4ec94ea3ef
-EventTime: 2026-05-30T08:20:50+08:00
-```
-
-Latest standalone allowlist retry still failed before any resource was created; Terraform state remained empty:
-
-```text
-EventTime: 2026-05-30T09:54:29+08:00
-TaskID: task-d1bc9ed5-e940-440e-89f2-8e07738914a0
-AccessDenied: User is not authorized to perform: rabbitmq:CreateAllowList
-TypeName: Volcengine::RabbitMQ::AllowList
-Operation: CREATE
-OperationStatus: FAILED
-```
-
-Retried the standalone allowlist shape again on 2026-05-30 at 13:59 with allow list name `cc-iac-rabbit-allow-retry`. `terraform fmt -check`, `init -backend=false`, `validate`, and `plan` succeeded; apply still failed before creating any resource:
-
-```text
-EventTime: 2026-05-30T13:59:43+08:00
-TaskID: task-92d6b7a5-db08-4d54-b7aa-1eab5d2a61cf
-AccessDenied: User is not authorized to perform: rabbitmq:CreateAllowList on resource:
-TypeName: Volcengine::RabbitMQ::AllowList
-Operation: CREATE
-OperationStatus: FAILED
-```
-
-A second apply without the allowlist dependency was used only to test the instance API and failed with:
-
-```text
-AccessDenied: User is not authorized to perform: rabbitmq:CreateInstance on resource: trn:iam::2109984414:project/default
-TypeName: Volcengine::RabbitMQ::Instance
-Operation: CREATE
-OperationStatus: FAILED
-```
-
-Temporary VPC, subnet, and route table resources were destroyed successfully; final Terraform state was empty.
-
-Current-account retry on 2026-05-30 in `/tmp/volcenginecc-rabbitmq-current` used VPC, subnet, route table, `volcenginecc_rabbitmq_allow_list`, and `volcenginecc_rabbitmq_instance`. `terraform fmt`, `init -backend=false`, `validate`, and `plan` succeeded. Apply created VPC `vpc-bu4dhufolgjk5h0b2ugt8nea`, subnet `subnet-1a126yhc3e03k8nvepkni52jg`, and route table `vtb-3nqjplo73xou8931eblw679i`, then both RabbitMQ resources failed with the same IAM permission boundary:
-
-```text
-EventTime: 2026-05-30T11:56:52+08:00
-TaskID: task-aa6f3eaa-57ec-4c30-b59e-79dec5b9c4ea
-AccessDenied: User is not authorized to perform: rabbitmq:CreateAllowList
-TypeName: Volcengine::RabbitMQ::AllowList
-Operation: CREATE
-OperationStatus: FAILED
-```
-
-```text
-EventTime: 2026-05-30T11:57:33+08:00
-TaskID: task-859ae916-3ba2-4d7f-b385-5b1ccff129ce
-AccessDenied: User is not authorized to perform: rabbitmq:CreateInstance on resource: trn:iam::2109984414:project/default
-TypeName: Volcengine::RabbitMQ::Instance
-Operation: CREATE
-OperationStatus: FAILED
-```
-
-Destroy removed the route table, subnet, and VPC; final Terraform state was empty. `DescribeVpcs --VpcName cc-iac-rabbit-current-vpc` returned `TotalCount: 0`, and `DescribeInstances --InstanceName cc-iac-rabbit-current-instance` returned no RabbitMQ instances.
-
-After RabbitMQ permissions were granted, a 2026-05-30 retry in `/tmp/volcenginecc-rabbitmq-retry-20260530153035` created allowlist `acl-06da2274763d40b4adddf896edf22a0f` plus VPC dependencies successfully. Creating the RabbitMQ instance then failed in the service backend:
-
-```text
-EventTime: 2026-05-30T15:33:46+08:00
-TaskID: task-8e262631-64a9-4686-8e9e-429bb125c479
-ServiceInternalError: InternalError: The request failed due to some unknown error, exception or failure.
-TypeName: Volcengine::RabbitMQ::Instance
-Operation: CREATE
-OperationStatus: FAILED
-```
-
-Cleanup destroyed the allowlist, route table, subnet, and VPC. Final Terraform state was empty; `ve rabbitmq DescribeAllowLists --body '{"RegionId":"cn-beijing","AllowListName":"cc-iac-rabbit-retry-allow"}'` returned an empty `AllowLists` array, `DescribeInstances` returned `Total: 0`, and exact VPC-name matching for `cc-iac-rabbit-retry-vpc` returned no rows.
-
-After another permission grant, a 2026-05-30 retry in `/tmp/volcenginecc-rabbitmq-retry-202605301631` created allowlist `acl-71df21f00ea84383a61c3e77b0a5b5a3` plus VPC dependencies successfully. Creating the RabbitMQ instance still failed in the service backend:
-
-```text
-EventTime: 2026-05-30T16:32:29+08:00
-TaskID: task-9d25fc0d-7229-487a-8830-00b0268ce35e
-ServiceInternalError: InternalError: The request failed due to some unknown error, exception or failure.
-TypeName: Volcengine::RabbitMQ::Instance
-Operation: CREATE
-OperationStatus: FAILED
-```
-
-Cleanup destroyed the allowlist, route table, subnet, and VPC. Final Terraform state was empty; `ve rabbitmq DescribeAllowLists --body '{"RegionId":"cn-beijing","AllowListName":"cc-iac-rabbit-1631-allow"}'` returned an empty `AllowLists` array, `DescribeInstances --InstanceName cc-iac-rabbit-1631-instance` returned `Total: 0`, and exact VPC-name matching for `cc-iac-rabbit-1631-vpc` returned no rows.
-
-When the RabbitMQ service backend issue is resolved, retry with this shape:
-
-```hcl
-resource "volcenginecc_rabbitmq_allow_list" "app" {
-  allow_list_type = "IPv4"
-  allow_list      = "10.98.0.0/16"
-  allow_list_name = "cc-iac-rabbit-allow"
-}
-
-resource "volcenginecc_rabbitmq_instance" "main" {
-  zone_id              = "cn-beijing-a"
-  user_name            = "appadmin"
-  user_password        = var.rabbitmq_password
-  compute_spec         = "rabbitmq.n1.x4.small"
-  version              = "3.12"
-  storage_space        = 100
-  instance_description = "volcenginecc RabbitMQ example instance"
-  instance_name        = "cc-iac-rabbit-instance"
-  vpc_id               = volcenginecc_vpc_vpc.main.vpc_id
-  subnet_id            = volcenginecc_vpc_subnet.main.subnet_id
-  project_name         = "default"
-
-  charge_detail = {
-    charge_type = "PostPaid"
-  }
-}
-```
-
-Do not add an `assets/examples/volcenginecc-rabbitmq` verified example until apply, no-op plan, and destroy all succeed. The provider docs/example have a resource naming pitfall: docs show `volcenginecc_rabbitmq_allowlist`, but the actual Terraform resource name is `volcenginecc_rabbitmq_allow_list`. `user_password` is sensitive in plan output but will still be stored in Terraform state.
-
-## RocketMQ
-
-Attempted resources:
-
-| Resource | Status | Evidence |
-|---|---|---|
-| `volcenginecc_rocketmq_allow_list` | Dependency-only verified | Create/destroy succeeded after permission grant, but instance path is still blocked |
-| `volcenginecc_rocketmq_instance` | Parameter/network blocked | `StorageSpace`, `VpcIdOrSubnetId`, and `ComputeSpec` validation failures during create |
-| `volcenginecc_rocketmq_topic` | Dependency-blocked | Requires a successfully created RocketMQ instance |
-| `volcenginecc_rocketmq_group` | Dependency-blocked | Requires a successfully created RocketMQ instance |
-
-Minimal private-network configuration validated and planned successfully in `cn-beijing` with provider `volcengine/volcenginecc ~> 0.0.46`. It used RocketMQ `4.8` rather than `5.x`, because the docs say `5.x` requires whitelist application. The first apply created only the network dependencies, then failed on allowlist creation:
-
-```text
-AccessDenied: User is not authorized to perform: rocketmq:CreateAllowList on resource: trn:RocketMQ:cn-beijing:2109984414:instance/cc-iac-rocket-allow
-TypeName: Volcengine::RocketMQ::AllowList
-Operation: CREATE
-OperationStatus: FAILED
-```
-
-A standalone allowlist retry without network or instance dependencies still failed with the same permission denial; no resources were created and Terraform state remained empty:
-
-```text
-AccessDenied: User is not authorized to perform: rocketmq:CreateAllowList on resource: trn:RocketMQ:cn-beijing:2109984414:instance/cc-iac-rocket-allow-05300830
-TypeName: Volcengine::RocketMQ::AllowList
-Operation: CREATE
-TaskID: task-1f1066ed-8ab5-42b8-9777-2b5d2fc82036
-EventTime: 2026-05-30T08:20:50+08:00
-```
-
-Latest standalone allowlist retry still failed before any resource was created; Terraform state remained empty:
-
-```text
-EventTime: 2026-05-30T09:54:29+08:00
-TaskID: task-812b4b46-ddcc-4ae1-8364-9afecd834ba6
-AccessDenied: User is not authorized to perform: rocketmq:CreateAllowList
-TypeName: Volcengine::RocketMQ::AllowList
-Operation: CREATE
-OperationStatus: FAILED
-```
-
-Retried the standalone allowlist shape again on 2026-05-30 at 14:01 with allow list name `cc-iac-rocket-allow-retry`. `terraform fmt -check`, `init -backend=false`, `validate`, and `plan` succeeded; apply still failed before creating any resource:
-
-```text
-EventTime: 2026-05-30T14:01:24+08:00
-TaskID: task-c3a64a2c-d84c-4fe2-b144-6dbcd867db3f
-AccessDenied: User is not authorized to perform: rocketmq:CreateAllowList on resource: trn:RocketMQ:cn-beijing:2109984414:instance/cc-iac-rocket-allow-retry
-TypeName: Volcengine::RocketMQ::AllowList
-Operation: CREATE
-OperationStatus: FAILED
-```
-
-A second apply without the allowlist dependency was used only to test the instance API and failed with:
-
-```text
-AccessDenied: User is not authorized to perform: rocketmq:CreateInstance on resource: trn:iam::2109984414:project/default
-TypeName: Volcengine::RocketMQ::Instance
-Operation: CREATE
-OperationStatus: FAILED
-```
-
-Temporary VPC, subnet, and route table resources were destroyed successfully; final Terraform state was empty.
-
-Current-account retry on 2026-05-30 in `/tmp/volcenginecc-rocketmq-current` used VPC, subnet, route table, `volcenginecc_rocketmq_allow_list`, and a private RocketMQ 4.8 instance shape. `terraform fmt`, `init -backend=false`, `validate`, and `plan` succeeded. Apply created VPC `vpc-1a12g96xu93b48nvepko7zwop`, subnet `subnet-3nqk0gw1pxclc931ebyw1dfq`, and route table `vtb-1a12i7s9nbri88nvepkg6zpvj`, then failed on allowlist creation before the instance dependency could start:
-
-```text
-EventTime: 2026-05-30T11:59:15+08:00
-TaskID: task-dfc6bd42-e8de-4655-8412-500a2d54bada
-AccessDenied: User is not authorized to perform: rocketmq:CreateAllowList on resource: trn:RocketMQ:cn-beijing:2109984414:instance/cc-iac-rocket-current-allow
-TypeName: Volcengine::RocketMQ::AllowList
-Operation: CREATE
-OperationStatus: FAILED
-```
-
-Destroy removed the route table, subnet, and VPC; final Terraform state was empty. `DescribeVpcs --VpcName cc-iac-rocket-current-vpc` returned `TotalCount: 0`. `ve rocketmq DescribeInstances --InstanceName ...` was not usable as a residue check because the CLI rejected the filter shape with `InvalidParameter: The specified parameter PageSizeOrPageNumber is not valid`; the RocketMQ instance create call had not started because it depended on the failed allowlist.
-
-After RocketMQ permissions were granted, a 2026-05-30 retry in `/tmp/volcenginecc-rocketmq-retry-202605301536` created allowlist `acl-ad61375b1da6493590be31f9d41d5e1a` plus VPC dependencies successfully, proving the allowlist permission is now usable. Instance creation then exposed API-side shape constraints:
-
-```text
-EventTime: 2026-05-30T15:38:49+08:00
-TaskID: task-fed42caf-1c1a-466d-8e13-c76b1bf93171
-InvalidRequest: InvalidParameter: The specified parameter StorageSpace is not valid.
-```
-
-Changing `storage_space` from `100` to the docs' `300` moved validation forward, but the otherwise same `rocketmq.n1.x2.micro` private-network shape failed on the VPC/subnet pair:
-
-```text
-EventTime: 2026-05-30T15:39:13+08:00
-TaskID: task-8bf7adff-a928-495d-ac09-6c33b34023f3
-InvalidRequest: InvalidParameter: The specified parameter VpcIdOrSubnetId is not valid.
-```
-
-Trying the docs example compute spec `rocketmq.x2.2k` with `storage_space = 300` failed compute spec validation in the current API path:
-
-```text
-EventTime: 2026-05-30T15:40:19+08:00
-TaskID: task-5afe9e6d-c124-47bb-a67d-f5fdda650b6c
-InvalidRequest: InvalidParameter: The specified parameter ComputeSpec is not valid.
-```
-
-Cleanup destroyed the allowlist, route table, subnet, and VPC. Final Terraform state was empty; `ve rocketmq DescribeAllowLists --RegionId cn-beijing --AllowListName cc-iac-rocket-retry-allow` returned `AllowLists: null`, and exact VPC-name matching for `cc-iac-rocket-retry-vpc` returned no rows. `ve rocketmq DescribeAvailabilityZones` shows `cn-beijing-a/b/c/d` are normal, but the CLI does not expose a product/specification list action, so the exact valid spec/subnet matrix still needs product-side confirmation.
-
-After another permission grant, a 2026-05-30 retry in `/tmp/volcenginecc-rocketmq-retry-202605301705` created allowlist `acl-30cbca2fcb5e4c5faa275aec2a38f03b`, VPC `vpc-iiv1ud15pam874o8ctzoc3ka`, subnet `subnet-3nqtc2caj94ow931ebzocopq`, and route table `vtb-3nqteoa5ib6dc931ecitufx9`. Three instance shapes were tested against those dependencies:
-
-```text
-version = "5.x"
-zone_id = "cn-beijing-a,cn-beijing-c,cn-beijing-d"
-compute_spec = "rocketmq.x2.2k"
-storage_space = 300
-TaskID: task-bcdf0985-b0e4-4618-ab85-03c71a332c69
-InvalidRequest: InvalidParameter: The specified parameter StorageSpace is not valid.
-```
-
-```text
-version = "5.x"
-zone_id = "cn-beijing-a,cn-beijing-c,cn-beijing-d"
-compute_spec = "rocketmq.x2.2k"
-storage_space = 500
-TaskID: task-c1e5cfcc-4fed-46eb-b045-521a487addeb
-InvalidRequest: InvalidParameter: The specified parameter StorageSpace is not valid.
-```
-
-```text
-version = "4.8"
-zone_id = "cn-beijing-a"
-compute_spec = "rocketmq.n3.x2.medium"
-storage_space = 300
-TaskID: task-a46f9e35-5d61-424e-98ed-9969e83aac25
-InvalidRequest: InvalidParameter: The specified parameter StorageSpace is not valid.
-```
-
-The docs page and provider schema still do not expose a reliable compute/storage matrix, and `ve rocketmq` has no list-specifications action. Do not continue blind storage enumeration; get the valid `ComputeSpec` plus `StorageSpace` matrix from RocketMQ product support or an API that exposes product specifications. Cleanup destroyed the allowlist, route table, subnet, and VPC. Final Terraform state was empty; `ve rocketmq DescribeInstances` returned `Total: 0`, `DescribeAllowLists --AllowListName cc-iac-rocket-1705-allow` returned `AllowLists: null`, and `ve vpc DescribeVpcs --VpcName cc-iac-rocket-1705-vpc` returned `TotalCount: 0`.
-
-When the RocketMQ spec/subnet matrix is known, retry with this adjusted shape before adding topic/group:
-
-```hcl
-resource "volcenginecc_rocketmq_allow_list" "app" {
-  allow_list_name = "cc-iac-rocket-allow"
-  allow_list_type = "IPv4"
-  allow_list      = "10.99.0.0/16"
-}
-
-resource "volcenginecc_rocketmq_instance" "main" {
-  allow_list_ids       = [volcenginecc_rocketmq_allow_list.app.allow_list_id]
-  ip_version_type      = "IPv4"
-  enable_ssl           = false
-  version              = "4.8"
-  zone_id              = "cn-beijing-a"
-  compute_spec         = "rocketmq.n1.x2.micro"
-  storage_space        = 300
-  vpc_id               = volcenginecc_vpc_vpc.main.vpc_id
-  subnet_id            = volcenginecc_vpc_subnet.main.subnet_id
-  file_reserved_time   = 24
-  instance_name        = "cc-iac-rocket-instance"
-  network_types        = "PrivateNetwork"
-  project_name         = "default"
-  instance_description = "volcenginecc RocketMQ example instance"
-
-  charge_detail = {
-    charge_type = "PostPaid"
-  }
-}
-```
-
-Do not add an `assets/examples/volcenginecc-rocketmq` verified example until apply, no-op plan, and destroy all succeed. After the instance is verified, add `volcenginecc_rocketmq_topic` and `volcenginecc_rocketmq_group` in a second apply.
-
 ## BMQ
 
 Attempted resources:
 
 | Resource | Status | Evidence |
 |---|---|---|
-| `volcenginecc_bmq_instance` | Service-role blocked | `RoleNotExist: Role 'trn:iam::2109984414:role/ServiceRoleForBmq' does not exist` during create |
+| `volcenginecc_bmq_instance` | Teardown/drift-blocked | After `ServiceRoleForBmq` was authorized (2026-06-17) the instance creates (~16m) and reaches instance-level no-op, but the security group still shows the generic default-egress readback drift and destroy needs multiple passes while BMQ service-managed ENIs release |
 | `volcenginecc_bmq_group` | Dependency-blocked | Requires a successfully created BMQ instance |
+
+As of 2026-06-17, `ServiceRoleForBmq` is authorized and `volcenginecc_bmq_instance` creates successfully (about 16 minutes) with a clean instance-level follow-up plan. It is still not promoted to a verified example: the `volcenginecc_vpc_security_group` shows the generic default-egress readback drift, and `terraform destroy` needs two or three passes because BMQ leaves service-managed ENIs that block security-group/subnet deletion until they release. The historical service-role-missing evidence is kept below.
 
 BMQ API discovery succeeded in `cn-beijing`: `ve bmq ListSpecifications` returned `bmq.standard` as available and `ve bmq DescribeAvailableZones` showed `cn-beijing-a`, `cn-beijing-c`, and `cn-beijing-d` not sold out. The Terraform configuration validated and planned successfully with provider `volcengine/volcenginecc ~> 0.0.46`, using VPC, subnet, route table, security group, `bmq.standard`, and a private overlay endpoint. Apply created only the network dependencies, then failed on BMQ instance creation:
 
 ```text
-AccessDenied: User is not authorized to perform: bmq:CreateInstance on resource: trn:iam::2109984414:project/default
+AccessDenied: User is not authorized to perform: bmq:CreateInstance on resource: trn:iam::<account-id>:project/default
 TypeName: Volcengine::BMQ::Instance
 Operation: CREATE
 OperationStatus: FAILED
@@ -1554,23 +1106,23 @@ OperationStatus: FAILED
 
 Temporary VPC, subnet, route table, and security group resources were destroyed successfully; final Terraform state was empty.
 
-Current-account retry on 2026-05-30 in `/tmp/volcenginecc-bmq-current` used VPC, subnet, route table, security group, and a private overlay `volcenginecc_bmq_instance`. `terraform fmt`, `init -backend=false`, `validate`, and `plan` succeeded. A first apply created VPC `vpc-bu5awtl1tslc5h0b2tutud18`, subnet `subnet-1a12sg5cdcjk08nvepk29ls70`, and route table `vtb-ij609sqc42rk74o8ctgttvhi`, but the security group create hit a transient VPC control-plane conflict:
+Current-account retry on 2026-05-30 in `<tmp-workdir>` used VPC, subnet, route table, security group, and a private overlay `volcenginecc_bmq_instance`. `terraform fmt`, `init -backend=false`, `validate`, and `plan` succeeded. A first apply created VPC `vpc-<id>`, subnet `subnet-<id>`, and route table `vtb-<id>`, but the security group create hit a transient VPC control-plane conflict:
 
 ```text
 EventTime: 2026-05-30T12:01:40+08:00
-TaskID: task-e80a987f-6a15-4b13-a4b1-77a549cea80b
+TaskID: task-<id>
 InvalidOperation.Conflict: The specified resource operation conflicts.
 TypeName: Volcengine::VPC::SecurityGroup
 Operation: CREATE
 OperationStatus: FAILED
 ```
 
-Rerunning apply after the VPC settled created security group `sg-3nqkl4awxplog931ebp2lgms`, then the BMQ instance failed at the service permission boundary:
+Rerunning apply after the VPC settled created security group `sg-<id>`, then the BMQ instance failed at the service permission boundary:
 
 ```text
 EventTime: 2026-05-30T12:02:28+08:00
-TaskID: task-3b027337-c698-4f29-9879-ab106bc3ab6a
-AccessDenied: User is not authorized to perform: bmq:CreateInstance on resource: trn:iam::2109984414:project/default
+TaskID: task-<id>
+AccessDenied: User is not authorized to perform: bmq:CreateInstance on resource: trn:iam::<account-id>:project/default
 TypeName: Volcengine::BMQ::Instance
 Operation: CREATE
 OperationStatus: FAILED
@@ -1578,12 +1130,12 @@ OperationStatus: FAILED
 
 Destroy removed the security group, route table, subnet, and VPC; final Terraform state was empty. `DescribeVpcs --VpcName cc-iac-bmq-current-vpc` returned `TotalCount: 0`. `ve bmq ListInstances --Region ...` was not usable as a residue check because that CLI command rejected `--Region`; no BMQ instance ID was created because `CreateInstance` failed before resource creation.
 
-After BMQ create permission was granted, a 2026-05-30 retry in `/tmp/volcenginecc-bmq-retry-202605301542` again hit the transient VPC security-group conflict on the first apply, then succeeded on a second apply after the VPC settled. BMQ instance creation then moved past the earlier IAM permission boundary and failed because the service-linked role is missing:
+After BMQ create permission was granted, a 2026-05-30 retry in `<tmp-workdir>` again hit the transient VPC security-group conflict on the first apply, then succeeded on a second apply after the VPC settled. BMQ instance creation then moved past the earlier IAM permission boundary and failed because the service-linked role is missing:
 
 ```text
 EventTime: 2026-05-30T15:44:07+08:00
-TaskID: task-afaabafa-8576-4c58-a28d-97eaf21ac118
-NotFound: RoleNotExist: Role 'trn:iam::2109984414:role/ServiceRoleForBmq' does not exist.
+TaskID: task-<id>
+NotFound: RoleNotExist: Role 'trn:iam::<account-id>:role/ServiceRoleForBmq' does not exist.
 TypeName: Volcengine::BMQ::Instance
 Operation: CREATE
 OperationStatus: FAILED
@@ -1591,21 +1143,21 @@ OperationStatus: FAILED
 
 Cleanup destroyed the security group, route table, subnet, and VPC. Final Terraform state was empty; exact VPC-name matching for `cc-iac-bmq-retry-vpc` returned no rows, and `ve bmq SearchInstances` returned `TotalCount: 0`.
 
-After another permission grant, a 2026-05-30 retry in `/tmp/volcenginecc-bmq-retry-202605301636` used the same private overlay shape and created VPC `vpc-iisbde5ugq9s74o8cujmdrpu`, subnet `subnet-iisbzjabywao74o8cuovyal0`, route table `vtb-3nqp6pn3amrk0931ec352wqa`, and security group `sg-1josnjckpz7r41n7ampwasl6p`. The BMQ instance request then ran for about 16 minutes. Terraform reported the Cloud Control task as failed:
+After another permission grant, a 2026-05-30 retry in `<tmp-workdir>` used the same private overlay shape and created VPC `vpc-<id>`, subnet `subnet-<id>`, route table `vtb-<id>`, and security group `sg-<id>`. The BMQ instance request then ran for about 16 minutes. Terraform reported the Cloud Control task as failed:
 
 ```text
 EventTime: 2026-05-30T16:53:19+08:00
-TaskID: task-ba1c091a-7f54-44f4-8e37-fc92b9a1ed13
+TaskID: task-<id>
 InvalidRequest: InvalidParameter: parameter is invalid, pls check parameters
 TypeName: Volcengine::BMQ::Instance
 Operation: CREATE
 OperationStatus: FAILED
 ```
 
-However, `ve bmq SearchInstances --body '{"SearchKey":"cc-iac-bmq-1636"}'` immediately showed the instance was actually created and `RUNNING` as `bmq-5er8frdjem3gbtqwargy`. Because Terraform did not put the instance in state after the failed task, import was required before cleanup:
+However, `ve bmq SearchInstances --body '{"SearchKey":"cc-iac-bmq-1636"}'` immediately showed the instance was actually created and `RUNNING` as `bmq-<id>`. Because Terraform did not put the instance in state after the failed task, import was required before cleanup:
 
 ```text
-terraform import volcenginecc_bmq_instance.main bmq-5er8frdjem3gbtqwargy
+terraform import volcenginecc_bmq_instance.main bmq-<id>
 ```
 
 The imported instance still did not converge to a clean no-op plan. Terraform planned updates for `endpoints`, computed `tags`, and the security group had an extra default egress rule (`description = "放通全部流量"`, `priority = 100`) in addition to the configured egress rule. This means the shape is not suitable for a verified example even though the cloud instance can be created.
@@ -1614,14 +1166,14 @@ Destroy deleted the BMQ instance, then the first network cleanup attempt failed 
 
 ```text
 EventTime: 2026-05-30T16:55:34+08:00
-TaskID: task-1a9c03fe-8da9-43c7-8b95-fd2bd05381c4
+TaskID: task-<id>
 AccessDenied: Forbidden: You are not authorized to perform operations on the specified elastic network interface. The specified elastic network interface is a service-managed elastic network interface.
 TypeName: Volcengine::VPC::SecurityGroup
 Operation: DELETE
 OperationStatus: FAILED
 ```
 
-After `ve vpc DescribeNetworkInterfaces --VpcId vpc-iisbde5ugq9s74o8cujmdrpu` and `--SubnetId subnet-iisbzjabywao74o8cuovyal0` returned no rows, rerunning `terraform destroy` removed the security group, route table, subnet, and VPC. Final Terraform state was empty; `ve bmq SearchInstances` returned `TotalCount: 0`, `ve vpc DescribeVpcs --VpcName cc-iac-bmq-1636-vpc` returned `TotalCount: 0`, and checking ENIs by the deleted VPC ID returned `InvalidVpc.NotFound`.
+After `ve vpc DescribeNetworkInterfaces --VpcId vpc-<id>` and `--SubnetId subnet-<id>` returned no rows, rerunning `terraform destroy` removed the security group, route table, subnet, and VPC. Final Terraform state was empty; `ve bmq SearchInstances` returned `TotalCount: 0`, `ve vpc DescribeVpcs --VpcName cc-iac-bmq-1636-vpc` returned `TotalCount: 0`, and checking ENIs by the deleted VPC ID returned `InvalidVpc.NotFound`.
 
 When `ServiceRoleForBmq` exists and BMQ can assume it, retry with this shape:
 
@@ -1663,7 +1215,7 @@ Attempted resources:
 EFS minimal configuration validated and planned successfully in `cn-beijing` with provider `volcengine/volcenginecc ~> 0.0.46`, using `cn-beijing-a`, `Premium`, `Premium_125`, and provisioned bandwidth `300`. Apply failed immediately with:
 
 ```text
-AccessDenied: AccessDenied: User is not authorized to perform: efs:CreateFileSystem on resource: trn:iam::2109984414:project/default
+AccessDenied: AccessDenied: User is not authorized to perform: efs:CreateFileSystem on resource: trn:iam::<account-id>:project/default
 TypeName: Volcengine::EFS::FileSystem
 Operation: CREATE
 OperationStatus: FAILED
@@ -1671,11 +1223,11 @@ OperationStatus: FAILED
 
 No EFS resources were created; Terraform state remained empty.
 
-Current-account retry on 2026-05-30 used the same minimal shape in `/tmp/volcenginecc-efs-current`. `terraform fmt`, `init -backend=false`, `validate`, and `plan` succeeded; apply failed with the same permission boundary:
+Current-account retry on 2026-05-30 used the same minimal shape in `<tmp-workdir>`. `terraform fmt`, `init -backend=false`, `validate`, and `plan` succeeded; apply failed with the same permission boundary:
 
 ```text
 EventTime: 2026-05-30T10:45:47+08:00
-TaskID: task-a8ba57f6-309e-455d-9fff-4f161ef85f34
+TaskID: task-<id>
 AccessDenied: User is not authorized to perform: efs:CreateFileSystem
 ```
 
@@ -1683,8 +1235,8 @@ Retried the same standalone EFS file system shape again on 2026-05-30 at 14:04 w
 
 ```text
 EventTime: 2026-05-30T14:04:03+08:00
-TaskID: task-ad3f7a23-dcb9-4c63-84c4-44fadb51f6c8
-AccessDenied: User is not authorized to perform: efs:CreateFileSystem on resource: trn:iam::2109984414:project/default
+TaskID: task-<id>
+AccessDenied: User is not authorized to perform: efs:CreateFileSystem on resource: trn:iam::<account-id>:project/default
 TypeName: Volcengine::EFS::FileSystem
 Operation: CREATE
 OperationStatus: FAILED
@@ -1692,7 +1244,7 @@ OperationStatus: FAILED
 
 Post-failure checks: `terraform state list` returned empty in the earlier retry, and `ve efs DescribeFileSystems` with `FileSystemName=cc-iac-efs-current` returned `TotalCount: 0`. The 14:04 retry returned `Identifier: null`; a cloud-side `ve efs DescribeFileSystems` check with `FileSystemName=cc-iac-efs-retry` returned `TotalCount: 0`.
 
-After `efs:CreateFileSystem` was granted, a 2026-05-30 retry in `/tmp/volcenginecc-efs-retry-202605301545` verified the EFS file system lifecycle. The initial tagged shape created successfully but a follow-up plan showed a tag drift because `type = "Custom"` read back without `type`. Removing the `tags` block produced a clean no-op plan. The verified EFS file system `cc-iac-efs-retry` created with ID `efs-cnbja3a96f8f938a6`, `terraform plan -detailed-exitcode` returned `No changes`, destroy removed the file system, final Terraform state was empty, and `ve efs DescribeFileSystems --body '{"FileSystemName":"cc-iac-efs-retry"}'` returned `TotalCount: 0`.
+After `efs:CreateFileSystem` was granted, a 2026-05-30 retry in `<tmp-workdir>` verified the EFS file system lifecycle. The initial tagged shape created successfully but a follow-up plan showed a tag drift because `type = "Custom"` read back without `type`. Removing the `tags` block produced a clean no-op plan. The verified EFS file system `cc-iac-efs-retry` created with ID `<efs-id>`, `terraform plan -detailed-exitcode` returned `No changes`, destroy removed the file system, final Terraform state was empty, and `ve efs DescribeFileSystems --body '{"FileSystemName":"cc-iac-efs-retry"}'` returned `TotalCount: 0`.
 
 The verified example now lives in `assets/examples/volcenginecc-efs`; validation notes and pitfalls live in `references/volcenginecc-efs.md`. Use this shape:
 
@@ -1738,7 +1290,7 @@ The `ve filenas CreatePermissionGroup` API exists, but the provider does not exp
 vePFS sale discovery succeeded in `cn-beijing`: `ve vepfs DescribeZones` returned `OnSale` for `Advance_100` and `Performance` in `cn-beijing-a/b/c/d/e`. The Terraform configuration validated and planned successfully with VPC, subnet, route table, and `volcenginecc_vepfs_instance`, then failed on instance creation:
 
 ```text
-AccessDenied: AccessDenied: User is not authorized to perform: vepfs:CreateFileSystem on resource: trn:iam::2109984414:project/default
+AccessDenied: AccessDenied: User is not authorized to perform: vepfs:CreateFileSystem on resource: trn:iam::<account-id>:project/default
 TypeName: Volcengine::VEPFS::Instance
 Operation: CREATE
 OperationStatus: FAILED
@@ -1746,20 +1298,20 @@ OperationStatus: FAILED
 
 Temporary VPC, subnet, and route table resources were destroyed successfully; final Terraform state was empty.
 
-Current-account retry on 2026-05-30 in `/tmp/volcenginecc-vepfs-current` confirmed the same boundary. `terraform fmt`, `init -backend=false`, `validate`, and `plan` succeeded. The temporary VPC/subnet/route table were created, then `volcenginecc_vepfs_instance` failed:
+Current-account retry on 2026-05-30 in `<tmp-workdir>` confirmed the same boundary. `terraform fmt`, `init -backend=false`, `validate`, and `plan` succeeded. The temporary VPC/subnet/route table were created, then `volcenginecc_vepfs_instance` failed:
 
 ```text
 EventTime: 2026-05-30T10:46:51+08:00
-TaskID: task-8faaddbe-dd15-4d88-8b6c-10788b212628
+TaskID: task-<id>
 AccessDenied: User is not authorized to perform: vepfs:CreateFileSystem
 ```
 
-Retried the same VPC/subnet/route-table-backed shape again on 2026-05-30 at 14:05 with file system name `cc-iac-vepfs-retry-fs`. `terraform fmt -check`, `init -backend=false`, `validate`, and `plan` succeeded. The temporary VPC `vpc-3nr4zqxilyubk931ecl4efyg`, subnet `subnet-3psehxdoa8ykg6csxyw9kxuif`, and route table `vtb-1jpc0q51mi03k1n7amp6tsw0r` were created, then `volcenginecc_vepfs_instance` failed:
+Retried the same VPC/subnet/route-table-backed shape again on 2026-05-30 at 14:05 with file system name `cc-iac-vepfs-retry-fs`. `terraform fmt -check`, `init -backend=false`, `validate`, and `plan` succeeded. The temporary VPC `vpc-<id>`, subnet `subnet-<id>`, and route table `vtb-<id>` were created, then `volcenginecc_vepfs_instance` failed:
 
 ```text
 EventTime: 2026-05-30T14:05:53+08:00
-TaskID: task-c5a777fb-370f-4096-8eac-4330ac46d376
-AccessDenied: User is not authorized to perform: vepfs:CreateFileSystem on resource: trn:iam::2109984414:project/default
+TaskID: task-<id>
+AccessDenied: User is not authorized to perform: vepfs:CreateFileSystem on resource: trn:iam::<account-id>:project/default
 TypeName: Volcengine::VEPFS::Instance
 Operation: CREATE
 OperationStatus: FAILED
@@ -1767,11 +1319,11 @@ OperationStatus: FAILED
 
 Recovery: `terraform destroy` removed 3 temporary network resources. Final `terraform state list` returned empty, `ve vepfs DescribeFileSystems` with `FileSystemName=cc-iac-vepfs-current` returned `TotalCount: 0`, and the temporary VPC ID no longer appeared in `DescribeVpcs`. The 14:05 retry also ended with empty Terraform state, `ve vepfs DescribeFileSystems` for `cc-iac-vepfs-retry-fs` returned `TotalCount: 0`, and exact VPC-name matching for `cc-iac-vepfs-retry-vpc` returned no rows.
 
-After `vepfs:CreateFileSystem` was granted, a 2026-05-30 retry in `/tmp/volcenginecc-vepfs-retry-202605301550` created the temporary VPC, subnet, and route table successfully, then vePFS instance creation failed in the service backend:
+After `vepfs:CreateFileSystem` was granted, a 2026-05-30 retry in `<tmp-workdir>` created the temporary VPC, subnet, and route table successfully, then vePFS instance creation failed in the service backend:
 
 ```text
 EventTime: 2026-05-30T15:51:47+08:00
-TaskID: task-4b0a4469-9e6f-44ad-8550-5f306ea06fba
+TaskID: task-<id>
 ServiceInternalError: InternalError: Service has some internal Error. Pls Contact With Admin.
 TypeName: Volcengine::VEPFS::Instance
 Operation: CREATE
@@ -1780,11 +1332,11 @@ OperationStatus: FAILED
 
 Cleanup destroyed the route table, subnet, and VPC. Final Terraform state was empty, `ve vepfs DescribeFileSystems --body '{"FileSystemName":"cc-iac-vepfs-retry-fs"}'` returned `TotalCount: 0`, and exact VPC-name matching for `cc-iac-vepfs-retry-vpc` returned no rows. `ve vepfs DescribeMountServiceNodeTypes --body '{"ZoneId":"cn-beijing-a"}'` still returned `NodeTypeInfos: []`, so mount service remains blocked even after instance creation is fixed.
 
-After another permission grant, a 2026-05-30 retry in `/tmp/volcenginecc-vepfs-retry-202605301707` used the same VPC/subnet/route-table-backed vePFS shape after confirming `ve vepfs DescribeZones` reports `Advance_100` and `Performance` as `OnSale` in Beijing zones. The temporary VPC `vpc-1joxfsgv4uiv41n7ampzp4z39`, subnet `subnet-3psxsbno1yzuo6csxyw8ul7qr`, and route table `vtb-3nqudnfptzchs931ec1syj9f` created successfully, then vePFS instance creation still failed in the service backend:
+After another permission grant, a 2026-05-30 retry in `<tmp-workdir>` used the same VPC/subnet/route-table-backed vePFS shape after confirming `ve vepfs DescribeZones` reports `Advance_100` and `Performance` as `OnSale` in Beijing zones. The temporary VPC `vpc-<id>`, subnet `subnet-<id>`, and route table `vtb-<id>` created successfully, then vePFS instance creation still failed in the service backend:
 
 ```text
 EventTime: 2026-05-30T17:08:14+08:00
-TaskID: task-c714d023-22d5-432e-a114-f419f55d136b
+TaskID: task-<id>
 ServiceInternalError: InternalError: Service has some internal Error. Pls Contact With Admin.
 TypeName: Volcengine::VEPFS::Instance
 Operation: CREATE
@@ -1838,11 +1390,11 @@ Attempted resources:
 InvalidRequest: InvalidArgument: Invalid argument key Paths, value <nil>, please check argument.
 TypeName: Volcengine::TLS::Rule
 Operation: CREATE
-TaskID: task-83a27070-a352-447e-9a5e-80b622396c01
+TaskID: task-<id>
 EventTime: 2026-05-30T06:52:57+08:00
 ```
 
-Adding `input_type = 0`, `log_type = "minimalist_log"`, and `paths = ["/var/log/messages"]` created rule ID `9d0941ac-4c7e-4aa8-8bc3-166b1d54213a`. Setting `pause = 1` caused readback drift (`pause = 0 -> 1` on the next plan), so the verified example omits `pause`. With `pause` omitted, the follow-up plan returned `No changes`, and destroy removed the rule, index, topic, and project successfully. Final Terraform state was empty.
+Adding `input_type = 0`, `log_type = "minimalist_log"`, and `paths = ["/var/log/messages"]` created rule ID `<resource-id>`. Setting `pause = 1` caused readback drift (`pause = 0 -> 1` on the next plan), so the verified example omits `pause`. With `pause` omitted, the follow-up plan returned `No changes`, and destroy removed the rule, index, topic, and project successfully. Final Terraform state was empty.
 
 `tls_consumer_group` was verified in `cn-beijing` with a project, a topic configured with `allow_consume = true`, and:
 
@@ -1856,7 +1408,7 @@ resource "volcenginecc_tls_consumer_group" "app" {
 }
 ```
 
-Creation returned ID `1a5b5fcc-9932-4548-b70c-74bca345c838|cc-iac-tls-cg-group`. The topic read back `consume_topic = "out-e12b9976-6a9b-4793-ad5b-46f4f1739226"`, but the follow-up plan returned `No changes`. Destroy removed consumer group, topic, and project successfully, and final Terraform state was empty.
+Creation returned ID `<resource-id>|cc-iac-tls-cg-group`. The topic read back `consume_topic = "out-<resource-id>"`, but the follow-up plan returned `No changes`. Destroy removed consumer group, topic, and project successfully, and final Terraform state was empty.
 
 `tls_shipper` to TOS was retried in `cn-beijing` with a temporary TLS project/topic and TOS bucket. The first TOS bucket shape used `enable_version_status = "Disabled"` and failed provider validation because the accepted values are only `Enabled` and `Suspended`. A second shape used `Suspended`, passed validation, then failed create after the API had partially created the bucket:
 
@@ -1864,7 +1416,7 @@ Creation returned ID `1a5b5fcc-9932-4548-b70c-74bca345c838|cc-iac-tls-cg-group`.
 GeneralServiceException: InvalidBody: The bucket multi-version is not enabled.
 TypeName: Volcengine::TOS::Bucket
 Operation: CREATE
-TaskID: task-f2c6efe3-2173-410a-9c3f-2da4557e6198
+TaskID: task-<id>
 EventTime: 2026-05-30T07:11:30+08:00
 ```
 
@@ -1897,7 +1449,7 @@ resource "volcenginecc_tls_shipper" "tos" {
 }
 ```
 
-Created shipper ID was `ac905b0f-7c83-4288-a76f-d478ccb2fb05`, but the follow-up plan was not clean:
+Created shipper ID was `<resource-id>`, but the follow-up plan was not clean:
 
 ```text
 ~ status = true -> false
@@ -1911,11 +1463,11 @@ Do not add `tls_shipper` to the verified TLS example until a shape produces crea
 GeneralServiceException: IndexNotExists: Index does not exist.
 TypeName: Volcengine::TLS::ScheduleSqlTask
 Operation: CREATE
-TaskID: task-2bb13df3-3007-4add-afb6-423866fb4cb7
+TaskID: task-<id>
 EventTime: 2026-05-30T07:41:18+08:00
 ```
 
-Adding indexes for both topics allowed create to succeed. Created task ID was `b266af30-f819-4eef-81a8-c9890f4d7ff7`; the follow-up plan returned `No changes`, and destroy removed the task, indexes, topics, and project successfully. Final Terraform state was empty.
+Adding indexes for both topics allowed create to succeed. Created task ID was `<resource-id>`; the follow-up plan returned `No changes`, and destroy removed the task, indexes, topics, and project successfully. Final Terraform state was empty.
 
 `tls_alarm_notify_group` empty-group retry validated and planned, then failed during create:
 
@@ -1986,7 +1538,7 @@ resource "volcenginecc_tls_alarm_notify_group" "webhook_rule" {
 
 The partially created notification groups were present in state and were destroyed successfully with Terraform. Temporary TLS project, topic, index, and notification group resources were destroyed; final Terraform state was empty.
 
-Current-account retry on 2026-05-30 in `/tmp/volcenginecc-tls-notify-current` used the smallest top-level `notify_type` + one GeneralWebhook `receivers` shape, without TLS project/topic dependencies. `terraform fmt`, `init -backend=false`, `validate`, and `plan` succeeded. The service created notification group `43e9387f-6191-42bc-8947-27704ef9bce3`, but Terraform failed the apply with the same provider nested-set correlation bug:
+Current-account retry on 2026-05-30 in `<tmp-workdir>` used the smallest top-level `notify_type` + one GeneralWebhook `receivers` shape, without TLS project/topic dependencies. `terraform fmt`, `init -backend=false`, `validate`, and `plan` succeeded. The service created notification group `<resource-id>`, but Terraform failed the apply with the same provider nested-set correlation bug:
 
 ```text
 Provider produced inconsistent result after apply
@@ -1997,7 +1549,7 @@ provider "registry.terraform.io/volcengine/volcenginecc" produced an unexpected 
 
 The created notification group was present in Terraform state and destroyed successfully; final Terraform state was empty. Because even the smallest receiver shape cannot complete apply cleanly, `volcenginecc_tls_alarm` remains dependency-blocked for generated examples.
 
-Retried the same smallest top-level `notify_type` + one GeneralWebhook `receivers` shape again on 2026-05-30 at 14:20 with group name `cc-iac-tls-notify-retry`. `terraform fmt -check`, `init -backend=false`, `validate`, and `plan` succeeded. The service created notification group `bacc9b55-3961-4d1c-8103-d8a3650217a6`, then Terraform failed with the same provider nested-set correlation bug:
+Retried the same smallest top-level `notify_type` + one GeneralWebhook `receivers` shape again on 2026-05-30 at 14:20 with group name `cc-iac-tls-notify-retry`. `terraform fmt -check`, `init -backend=false`, `validate`, and `plan` succeeded. The service created notification group `<resource-id>`, then Terraform failed with the same provider nested-set correlation bug:
 
 ```text
 Provider produced inconsistent result after apply
@@ -2020,7 +1572,7 @@ Do not add a verified `tls_alarm_notify_group` or `tls_alarm` example until a no
 `cloudmonitor_rule` minimal disabled ECS CPU rule validated and planned successfully in `cn-beijing` with provider `volcengine/volcenginecc ~> 0.0.46`, using `namespace = "VCM_ECS"`, `sub_namespace = "Instance"`, `enable_state = "disable"`, `CpuTotal`, and no contact group IDs. Create failed, and a 2026-05-30 retry failed with the same permission denial:
 
 ```text
-AccessDenied: AccessDenied: User is not authorized to perform: cloudmonitor:CreateRule on resource: trn:iam::2109984414:project/default
+AccessDenied: AccessDenied: User is not authorized to perform: cloudmonitor:CreateRule on resource: trn:iam::<account-id>:project/default
 TypeName: Volcengine::CloudMonitor::Rule
 Operation: CREATE
 OperationStatus: FAILED
@@ -2030,8 +1582,8 @@ Latest retry evidence:
 
 ```text
 EventTime: 2026-05-30T08:23:16+08:00
-TaskID: task-9cb3a58e-7e64-43b7-8d3f-1d83c1fad671
-AccessDenied: User is not authorized to perform: cloudmonitor:CreateRule on resource: trn:iam::2109984414:project/default
+TaskID: task-<id>
+AccessDenied: User is not authorized to perform: cloudmonitor:CreateRule on resource: trn:iam::<account-id>:project/default
 TypeName: Volcengine::CloudMonitor::Rule
 Operation: CREATE
 OperationStatus: FAILED
@@ -2041,19 +1593,19 @@ Latest current-AK retry evidence:
 
 ```text
 EventTime: 2026-05-30T10:38:58+08:00
-TaskID: task-e68f2d6f-6237-49da-bf5f-02aa398ed231
-AccessDenied: User is not authorized to perform: cloudmonitor:CreateRule on resource: trn:iam::2109984414:project/default
+TaskID: task-<id>
+AccessDenied: User is not authorized to perform: cloudmonitor:CreateRule on resource: trn:iam::<account-id>:project/default
 TypeName: Volcengine::CloudMonitor::Rule
 Operation: CREATE
 OperationStatus: FAILED
 ```
 
-Current-account retry on 2026-05-30 in `/tmp/volcenginecc-cloudmonitor-current` used the same disabled ECS CPU rule shape with rule name `cc-iac-cm-ecs-cpu-current`. `terraform fmt`, `init -backend=false`, `validate`, and `plan` succeeded; apply failed before creating any resource:
+Current-account retry on 2026-05-30 in `<tmp-workdir>` used the same disabled ECS CPU rule shape with rule name `cc-iac-cm-ecs-cpu-current`. `terraform fmt`, `init -backend=false`, `validate`, and `plan` succeeded; apply failed before creating any resource:
 
 ```text
 EventTime: 2026-05-30T12:20:27+08:00
-TaskID: task-f6f51d03-1020-4ead-ad50-da3ad229f04e
-AccessDenied: User is not authorized to perform: cloudmonitor:CreateRule on resource: trn:iam::2109984414:project/default
+TaskID: task-<id>
+AccessDenied: User is not authorized to perform: cloudmonitor:CreateRule on resource: trn:iam::<account-id>:project/default
 TypeName: Volcengine::CloudMonitor::Rule
 Operation: CREATE
 OperationStatus: FAILED
@@ -2063,20 +1615,20 @@ Retried the same disabled ECS CPU rule shape again on 2026-05-30 at 13:57 with r
 
 ```text
 EventTime: 2026-05-30T13:57:30+08:00
-TaskID: task-d79cd50f-1c2e-4830-abfb-5119264baa32
-AccessDenied: User is not authorized to perform: cloudmonitor:CreateRule on resource: trn:iam::2109984414:project/default
+TaskID: task-<id>
+AccessDenied: User is not authorized to perform: cloudmonitor:CreateRule on resource: trn:iam::<account-id>:project/default
 TypeName: Volcengine::CloudMonitor::Rule
 Operation: CREATE
 OperationStatus: FAILED
 ```
 
-No CloudMonitor resources were created in those retries; Terraform state remained empty. The latest `ve cloudmonitor ListRules --body '{"PageNumber":1,"PageSize":10,"RuleName":"cc-iac-cm-ecs-cpu-current"}'` returned an empty `Data` list. The account has a default CloudMonitor contact group (`2060456752737312768`) but it contains no contacts.
+No CloudMonitor resources were created in those retries; Terraform state remained empty. The latest `ve cloudmonitor ListRules --body '{"PageNumber":1,"PageSize":10,"RuleName":"cc-iac-cm-ecs-cpu-current"}'` returned an empty `Data` list. The account has a default CloudMonitor contact group (`<resource-id>`) but it contains no contacts.
 
-After `cloudmonitor:CreateRule` was granted, a 2026-05-30 retry in `/tmp/volcenginecc-cloudmonitor-retry-20260530151009` verified `volcenginecc_cloudmonitor_rule`. The first post-permission create without a concrete notification route failed with:
+After `cloudmonitor:CreateRule` was granted, a 2026-05-30 retry in `<tmp-workdir>` verified `volcenginecc_cloudmonitor_rule`. The first post-permission create without a concrete notification route failed with:
 
 ```text
 EventTime: 2026-05-30T15:10:31+08:00
-TaskID: task-c53f8582-58f6-4489-926e-937e8261252c
+TaskID: task-<id>
 InvalidRequest: InvalidParam.Notification: 通知渠道和回调不能同时为空
 TypeName: Volcengine::CloudMonitor::Rule
 Operation: CREATE
@@ -2087,14 +1639,14 @@ Binding the default contact group then failed because it had no members:
 
 ```text
 EventTime: 2026-05-30T15:11:04+08:00
-TaskID: task-34a7edf5-5851-4c66-aa3c-004d4d7e18f1
-InvalidRequest: ContactGroupMemberEmpty: 联系组 默认告警联系组 2060456752737312768 的联系人为空，请选择非空联系组
+TaskID: task-<id>
+InvalidRequest: ContactGroupMemberEmpty: 联系组 默认告警联系组 <resource-id> 的联系人为空，请选择非空联系组
 TypeName: Volcengine::CloudMonitor::Rule
 Operation: CREATE
 OperationStatus: FAILED
 ```
 
-Using Webhook notification moved validation to the metric period field. `period = "1m"` and `period = "60s"` both failed with `InvalidParam.Period`; `period = "60"` succeeded. The verified disabled ECS CPU rule created ID `2060620425061621760`, follow-up `terraform plan -detailed-exitcode` returned `No changes`, `terraform destroy` removed the rule, final Terraform state was empty, and `ve cloudmonitor ListRules --body '{"PageNumber":1,"PageSize":10,"RuleName":"cc-iac-cm-ecs-cpu-retry2"}'` returned an empty `Data` list.
+Using Webhook notification moved validation to the metric period field. `period = "1m"` and `period = "60s"` both failed with `InvalidParam.Period`; `period = "60"` succeeded. The verified disabled ECS CPU rule created ID `<resource-id>`, follow-up `terraform plan -detailed-exitcode` returned `No changes`, `terraform destroy` removed the rule, final Terraform state was empty, and `ve cloudmonitor ListRules --body '{"PageNumber":1,"PageSize":10,"RuleName":"cc-iac-cm-ecs-cpu-retry2"}'` returned an empty `Data` list.
 
 Retry shape:
 
@@ -2169,7 +1721,7 @@ IPv6 retry in `cn-beijing`: a VPC with `enable_ipv_6 = true`, IPv6 subnet, IPv6 
 
 ```text
 EventTime: 2026-05-30T08:37:36+08:00
-TaskID: task-547630d7-8255-4ccb-a9c7-b7044e0b2577
+TaskID: task-<id>
 InvalidRequest: InvalidParameter.EnableIpv6: The EnableIpv6 parameter is currently not supported.
 TypeName: Volcengine::VPC::VPC
 Operation: CREATE
@@ -2182,7 +1734,7 @@ Flow log retry in `cn-beijing`: a VPC plus TLS project/topic target validated an
 
 ```text
 EventTime: 2026-05-30T08:41:37+08:00
-TaskID: task-71fc48d1-53d6-4ba1-b49a-982e87c04834
+TaskID: task-<id>
 AccessDenied: InvalidOperation.NoPermission: The current service is not allowed to do this operation.
 TypeName: Volcengine::VPC::FlowLog
 Operation: CREATE
@@ -2191,13 +1743,13 @@ OperationStatus: FAILED
 
 The TLS project, TLS topic, and VPC dependencies were destroyed and Terraform state was empty afterward. Retry after the account has permission to create VPC flow logs.
 
-Traffic mirror filter retry in `cn-beijing`: standalone filter `tmf-3pst38p3t0jcw6csxyvwz4zbl` and ingress TCP filter rule `tmr-3pst47jzgnfnk6csxyw7yh4ip` created successfully, returned a clean no-op plan, then destroyed successfully with final Terraform state empty. See `volcenginecc-vpc-traffic-mirror-filter.md` for the verified example.
+Traffic mirror filter retry in `cn-beijing`: standalone filter `<traffic-mirror-filter-id>` and ingress TCP filter rule `<traffic-mirror-rule-id>` created successfully, returned a clean no-op plan, then destroyed successfully with final Terraform state empty. See `volcenginecc-vpc-traffic-mirror-filter.md` for the verified example.
 
 Full traffic mirror target/session retry in `cn-beijing`: filter, ingress TCP filter rule, VPC, subnet, route table, security group, and two standalone ENIs created successfully. Creating a mirror target from the standalone target ENI failed:
 
 ```text
 EventTime: 2026-05-30T08:40:22+08:00
-TaskID: task-dcdf7dc8-1619-4bf6-b9d5-4927e3c3dd08
+TaskID: task-<id>
 InvalidRequest: InvalidEni.InstanceMismatch: The specified elastic network interface is not attached to the specified instance.
 TypeName: Volcengine::VPC::TrafficMirrorTarget
 Operation: CREATE
@@ -2206,11 +1758,11 @@ OperationStatus: FAILED
 
 All created dependencies were destroyed and Terraform state was empty afterward. Retry the full target/session path with two ECS-attached ENIs, or a CLB instance as the target, instead of standalone ENIs.
 
-Second full traffic mirror target/session retry in `cn-beijing`: a temporary ECS instance `i-yenb54ta0wwh2yosws0r` with attached primary ENI `eni-1jo66i9dxfe9s1n7amp3p3r8p` and a private CLB `clb-mj1i8xbze0w05smt1aesjjg0` were created successfully. A CLB mirror target `tmt-3nqye2tsbjksg931ecgdajy6`, filter `tmf-3nqye2a20f11c931ec3b3h8z`, and rule `tmr-3nqyfm0ofytxc931ecepx6n3` also created successfully. A later standalone CLB mirror target example returned a clean no-op plan and is now verified in `volcenginecc-vpc-traffic-mirror-target.md`. Creating the mirror session then failed:
+Second full traffic mirror target/session retry in `cn-beijing`: a temporary ECS instance `i-<id>` with attached primary ENI `<eni-id>` and a private CLB `clb-<id>` were created successfully. A CLB mirror target `<traffic-mirror-target-id>`, filter `<traffic-mirror-filter-id>`, and rule `<traffic-mirror-rule-id>` also created successfully. A later standalone CLB mirror target example returned a clean no-op plan and is now verified in `volcenginecc-vpc-traffic-mirror-target.md`. Creating the mirror session then failed:
 
 ```text
 EventTime: 2026-05-30T09:41:03+08:00
-TaskID: task-f0f925f4-1ad8-48e3-ad0d-32806da050ef
+TaskID: task-<id>
 InvalidRequest: InvalidInstanceSpecification.Malformed: The specified instance does not currently support traffic mirror.
 TypeName: Volcengine::VPC::TrafficMirrorSession
 Operation: CREATE
@@ -2236,14 +1788,14 @@ SSL VPN server retry in `cn-beijing`: VPC, subnet, route table, SSL-enabled VPN 
 
 ```text
 EventTime: 2026-05-30T13:41:39+08:00
-TaskID: task-74e7b4b9-a036-4170-afaf-7ab2fc368424
+TaskID: task-<id>
 InvalidRequest: InvalidSslVpnClientIpPool.Conflict: The specified ClientIpPool conflicts with that of local subnets.
 TypeName: Volcengine::VPN::SslVpnServer
 Operation: CREATE
 OperationStatus: FAILED
 ```
 
-Changing `client_ip_pool` to `10.250.0.0/26` fixed the shape. The successful run created VPN gateway `vgw-3nr16uvy3e1og931eb9v4m8n` and SSL VPN server `vss-ijh95fubdqm874o8cv2fkow7`; a follow-up plan returned `No changes`. Destroy removed the SSL server, gateway, route table, subnet, and VPC; final Terraform state was empty. `DescribeVpnGateways --VpnGatewayName cc-iac-vpn-ssl-current-gateway` and `DescribeVpcs --VpcName cc-iac-vpn-ssl-current-vpc` both returned `TotalCount: 0`.
+Changing `client_ip_pool` to `10.250.0.0/26` fixed the shape. The successful run created VPN gateway `<vpn-gateway-id>` and SSL VPN server `<ssl-vpn-server-id>`; a follow-up plan returned `No changes`. Destroy removed the SSL server, gateway, route table, subnet, and VPC; final Terraform state was empty. `DescribeVpnGateways --VpnGatewayName cc-iac-vpn-ssl-current-gateway` and `DescribeVpcs --VpcName cc-iac-vpn-ssl-current-vpc` both returned `TotalCount: 0`.
 
 Do not add `vpn_ssl_vpn_client_cert` to shared examples unless the user explicitly accepts that generated client private key material will be stored in Terraform state.
 
@@ -2264,7 +1816,7 @@ TOS extended retry in `cn-beijing`: bucket `cc-iac-tos-extra-05300844` created s
 
 ```text
 EventTime: 2026-05-30T08:46:43+08:00
-TaskID: task-dd356d04-ab97-4ea3-9a18-6737378dcd5f
+TaskID: task-<id>
 GeneralServiceException: InvalidRole: Role must exist.
 TypeName: Volcengine::TOS::BucketInventory
 Operation: CREATE
@@ -2273,7 +1825,7 @@ OperationStatus: FAILED
 
 ```text
 EventTime: 2026-05-30T08:46:43+08:00
-TaskID: task-7661e202-e19e-403d-8554-bc0973f7e463
+TaskID: task-<id>
 NotFound: NotificationRule not found
 TypeName: Volcengine::TOS::BucketNotification
 Operation: CREATE
@@ -2282,7 +1834,7 @@ OperationStatus: FAILED
 
 ```text
 EventTime: 2026-05-30T08:46:43+08:00
-TaskID: task-2229e424-fc40-4d28-92d0-323d9dee3d8e
+TaskID: task-<id>
 GeneralServiceException: InvalidRole: Role must exist.
 TypeName: Volcengine::TOS::BucketRealtimeLog
 Operation: CREATE
@@ -2297,7 +1849,7 @@ TOS bucket inventory was retried again in the current account with Terraform-cre
 
 ```text
 EventTime: 2026-05-30T13:18:49+08:00
-TaskID: task-c65ae5ed-6bf0-4eaa-8a8f-bc513d39c3fa
+TaskID: task-<id>
 GeneralServiceException: InvalidRole: assume role fail, please check role.
 TypeName: Volcengine::TOS::BucketInventory
 Operation: CREATE
@@ -2310,7 +1862,7 @@ TOS bucket notification was later verified with a released veFaaS function desti
 
 ```text
 EventTime: 2026-05-30T12:44:12+08:00
-TaskID: task-be420bf3-78d8-4052-b8e1-04fbee0fa470
+TaskID: task-<id>
 InvalidRequest: InvalidArgument: faas function has not been fully released yet, please release it first
 TypeName: Volcengine::TOS::BucketNotification
 Operation: CREATE
@@ -2329,20 +1881,20 @@ Attempted resources:
 | `volcenginecc_storageebs_snapshot` | Verified | Manual snapshot create/no-op/destroy succeeded; see `volcenginecc-ebs-snapshot.md` |
 | `volcenginecc_storageebs_snapshot_group` | Lifecycle verified with parent drift | Snapshot group create/destroy succeeded from an ECS system volume; fresh no-op drift came from parent ECS/security-group Optional+Computed fields, not the snapshot group |
 
-Manual snapshot verification in `cn-beijing`: a 10 GiB `ESSD_PL0` postpaid data disk in `cn-beijing-a` created successfully, snapshot `snap-3x4l1lwpj94i4t7woexd` created in about 2m6s, a follow-up plan returned `No changes`, and destroy removed the snapshot and disk. Final Terraform state was empty.
+Manual snapshot verification in `cn-beijing`: a 10 GiB `ESSD_PL0` postpaid data disk in `cn-beijing-a` created successfully, snapshot `<snapshot-id>` created in about 2m6s, a follow-up plan returned `No changes`, and destroy removed the snapshot and disk. Final Terraform state was empty.
 
 Snapshot group retry in `cn-beijing`: an ECS-backed system volume path validated, planned, applied, and destroyed successfully. First create failed only because `description` was set on the snapshot group:
 
 ```text
 EventTime: 2026-05-30T10:00:58+08:00
-TaskID: task-b2e1aefd-5c81-4f9c-8d61-8c5d828b1398
+TaskID: task-<id>
 InvalidRequest: InvalidParameter.Description: The specified description is invalid.
 TypeName: Volcengine::StorageEBS::SnapshotGroup
 Operation: CREATE
 OperationStatus: FAILED
 ```
 
-After omitting `description`, snapshot group `sg-3x4l645av94i4t7xb043` created from ECS instance `i-yenb6ggdfkxjd1u6a5gq` and system volume `vol-3x4l625l4h42xlzbc9tb`, returned a clean follow-up plan, and destroyed successfully. A fresh run from empty state also created snapshot group `sg-3x4l6dnynl42xlzbet12` from ECS instance `i-yenb6rc9vkxjd1utivbg` and system volume `vol-3x4l6d2w4x42xlzbepss`; the snapshot group itself had no drift, but the follow-up plan showed parent `volcenginecc_ecs_instance` and `volcenginecc_vpc_security_group` Optional+Computed pseudo-diffs. Destroy removed all seven resources and final Terraform state was empty.
+After omitting `description`, snapshot group `sg-<id>` created from ECS instance `i-<id>` and system volume `vol-<id>`, returned a clean follow-up plan, and destroyed successfully. A fresh run from empty state also created snapshot group `sg-<id>` from ECS instance `i-<id>` and system volume `vol-<id>`; the snapshot group itself had no drift, but the follow-up plan showed parent `volcenginecc_ecs_instance` and `volcenginecc_vpc_security_group` Optional+Computed pseudo-diffs. Destroy removed all seven resources and final Terraform state was empty.
 
 Use [`volcenginecc-ebs-snapshot-group.md`](./volcenginecc-ebs-snapshot-group.md) for the verified lifecycle example. Do not use standalone unattached disks for snapshot groups.
 
@@ -2355,15 +1907,15 @@ Attempted resources:
 | `volcenginecc_autoscaling_scaling_group` | Lifecycle verified with drift/destroy caveat | Create/destroy succeeded only with a launch template; follow-up plan showed provider readback pseudo-diffs |
 | `volcenginecc_autoscaling_scaling_configuration` | Lifecycle verified with destroy caveat | Create succeeded and was cascaded by scaling group deletion; direct Terraform destroy can fail while it is the active configuration |
 | `volcenginecc_autoscaling_scaling_lifecycle_hook` | Lifecycle verified | Scale-out hook create/delete succeeded |
-| `volcenginecc_autoscaling_scaling_policy` | API/provider-shape blocked | Scheduled policy launch times from docs and RFC3339 variants all failed as malformed |
+| `volcenginecc_autoscaling_scaling_policy` | Verified (scheduled) | Scheduled policy creates and reaches clean self no-op with a near-future `launch_time` and `is_enabled_policy = false`; now part of the example |
 
-Auto Scaling retry in `cn-beijing`: VPC, subnet, route table, security group, keypair, ECS launch template, scaling group, scaling configuration, and lifecycle hook validated, planned, applied, and destroyed. A successful run created launch template `lt-yenb7gkazegln4lcig9d`, scaling group `scg-yenb7gl9ihfv0hfqhula`, scaling configuration `scc-yenb7j74kci1qnmuk05a`, and lifecycle hook `sgh-yenb7j7sow9ht5yj9vf5`; destroy removed all nine resources and final Terraform state was empty.
+Auto Scaling retry in `cn-beijing`: VPC, subnet, route table, security group, keypair, ECS launch template, scaling group, scaling configuration, and lifecycle hook validated, planned, applied, and destroyed. A successful run created launch template `lt-<id>`, scaling group `scg-<id>`, scaling configuration `scc-<id>`, and lifecycle hook `sgh-<id>`; destroy removed all nine resources and final Terraform state was empty.
 
 Creating the scaling group without `launch_template_id` failed even though generated docs mark it optional:
 
 ```text
 EventTime: 2026-05-30T10:14:57+08:00
-TaskID: task-2169963f-6192-43bd-a5f8-5f47bc72e6ae
+TaskID: task-<id>
 MissingParameter.LaunchTemplateId
 TypeName: Volcengine::AutoScaling::ScalingGroup
 Operation: CREATE
@@ -2374,27 +1926,27 @@ Creating the required launch template without `launch_template_version.volumes` 
 
 ```text
 EventTime: 2026-05-30T10:15:37+08:00
-TaskID: task-fbbc455e-15e8-4ef4-9ae4-db83e37b85c8
+TaskID: task-<id>
 MissingParameter.LaunchTemplateVolumes
 TypeName: Volcengine::ECS::LaunchTemplate
 Operation: CREATE
 OperationStatus: FAILED
 ```
 
-Scheduled scaling policies failed for multiple future time formats, including `2030-01-01T00:00Z`, `2030-01-01T00:00+08:00`, and `2030-01-01T00:00:00Z`:
+Scheduled scaling policies first failed for far-future launch times such as `2030-01-01T00:00Z`, `2030-01-01T00:00+08:00`, and `2030-01-01T00:00:00Z`. The root cause was the launch time being too far out, not the format: a near-future UTC `launch_time` (for example a few days ahead, `YYYY-MM-DDTHH:MMZ`) with `is_enabled_policy = false` creates successfully. The earlier far-future attempts returned:
 
 ```text
 EventTime: 2026-05-30T10:23:55+08:00
-TaskID: task-2dc0f91d-f29b-41f8-8f3e-48b736d14e7c
+TaskID: task-<id>
 InvalidRequest: InvalidScheduledPolicyLaunchTime.Malformed: The specified ScheduledPolicy LaunchTime is malformed.
 TypeName: Volcengine::AutoScaling::ScalingPolicy
 Operation: CREATE
 OperationStatus: FAILED
 ```
 
-One cleanup run exposed Terraform destroy ordering drift: deleting the active scaling configuration before the scaling group failed with `InvalidScalingConfiguration.InUse`. Recovery removed the configuration from state, destroyed the scaling group first, confirmed both group and configuration were gone with `ve autoscaling DescribeScalingGroups --ScalingGroupIds.1 scg-yenb7wby5nfv0gjg6syk` and `ve autoscaling DescribeScalingConfigurations --ScalingConfigurationIds.1 scc-yenb7yvoud9ht4efbcr9`, then destroyed the remaining launch template/network dependencies. Final Terraform state was empty.
+One cleanup run exposed Terraform destroy ordering drift: deleting the active scaling configuration before the scaling group failed with `InvalidScalingConfiguration.InUse`. Recovery removed the configuration from state, destroyed the scaling group first, confirmed both group and configuration were gone with `ve autoscaling DescribeScalingGroups --ScalingGroupIds.1 scg-<id>` and `ve autoscaling DescribeScalingConfigurations --ScalingConfigurationIds.1 scc-<id>`, then destroyed the remaining launch template/network dependencies. Final Terraform state was empty.
 
-Use [`volcenginecc-autoscaling.md`](./volcenginecc-autoscaling.md) for the verified lifecycle example. Do not add `autoscaling_scaling_policy` to shared examples until a scheduled or alarm policy shape reaches create, no-op, and destroy without manual recovery.
+Use [`volcenginecc-autoscaling.md`](./volcenginecc-autoscaling.md) for the verified lifecycle example, which now includes a scheduled `autoscaling_scaling_policy`. Alarm and recurrence policy shapes are not yet verified.
 
 ## CBR
 
@@ -2402,17 +1954,17 @@ Attempted resources:
 
 | Resource | Status | Evidence |
 |---|---|---|
-| `volcenginecc_cbr_vault` | Permission-blocked | `AccessDenied: User is not authorized to perform: cbr:CreateVault` during create |
-| `volcenginecc_cbr_backup_policy` | Permission-blocked | `AccessDenied: User is not authorized to perform: cbr:CreateBackupPolicy` during create |
+| `volcenginecc_cbr_vault` | Verified | Backup vault create/no-op/destroy succeeded after permission grant (2026-06-17); see `volcenginecc-cbr.md` |
+| `volcenginecc_cbr_backup_policy` | Verified | Disabled incremental policy create/no-op/destroy succeeded (2026-06-17); see `volcenginecc-cbr.md` |
 | `volcenginecc_cbr_backup_resource` | Dependency-blocked | Requires permission plus a real ECS or vePFS backup source |
 | `volcenginecc_cbr_backup_plan` | Dependency-blocked | Requires a backup policy and backup resource |
 
-Current-account retry on 2026-05-30 in `/tmp/volcenginecc-cbr-current` used a minimal independent shape: one backup vault and one disabled full backup policy. `terraform fmt`, `init -backend=false`, `validate`, and `plan` succeeded. Apply failed before any resource IDs were created:
+Current-account retry on 2026-05-30 in `<tmp-workdir>` used a minimal independent shape: one backup vault and one disabled full backup policy. `terraform fmt`, `init -backend=false`, `validate`, and `plan` succeeded. Apply failed before any resource IDs were created:
 
 ```text
 EventTime: 2026-05-30T13:26:06+08:00
-TaskID: task-ac67bd68-813a-4438-b5aa-cc06d0f162db
-AccessDenied: AccessDenied: User is not authorized to perform: cbr:CreateVault on resource: trn:iam::2109984414:project/default
+TaskID: task-<id>
+AccessDenied: AccessDenied: User is not authorized to perform: cbr:CreateVault on resource: trn:iam::<account-id>:project/default
 TypeName: Volcengine::CBR::Vault
 Operation: CREATE
 OperationStatus: FAILED
@@ -2420,14 +1972,14 @@ OperationStatus: FAILED
 
 ```text
 EventTime: 2026-05-30T13:26:06+08:00
-TaskID: task-5db8277c-6060-4250-9e80-17a3b35a1b81
+TaskID: task-<id>
 AccessDenied: AccessDenied: User is not authorized to perform: cbr:CreateBackupPolicy on resource:
 TypeName: Volcengine::CBR::BackupPolicy
 Operation: CREATE
 OperationStatus: FAILED
 ```
 
-No CBR resources were created; Terraform state remained empty. The provider docs have a resource naming pitfall: the backup policy example uses `volcenginecc_cbr_backuppolicy`, but the registered Terraform resource type is `volcenginecc_cbr_backup_policy`. After `cbr:CreateVault` and `cbr:CreateBackupPolicy` are granted, retry the minimal vault plus disabled policy first. Add `cbr_backup_resource` and `cbr_backup_plan` only after selecting a disposable ECS or vePFS source and proving create, no-op plan, destroy, and empty final state.
+After `cbr:CreateVault` and `cbr:CreateBackupPolicy` were granted, the minimal vault plus disabled policy was verified (create, clean no-op, destroy, empty state) on 2026-06-17 and now lives in `assets/examples/volcenginecc-cbr` with notes in `volcenginecc-cbr.md`. The provider docs have a resource naming pitfall: the backup policy example uses `volcenginecc_cbr_backuppolicy`, but the registered Terraform resource type is `volcenginecc_cbr_backup_policy`. `cbr_backup_resource` and `cbr_backup_plan` remain dependency-blocked until a disposable ECS or vePFS backup source is chosen.
 
 ## VMP
 
@@ -2438,11 +1990,11 @@ Attempted resources:
 | `volcenginecc_vmp_workspace` | Service-disabled blocked | `ProductUnsubscribed: You are not subscribed to VMP` during create |
 | `volcenginecc_vmp_alerting_rule` | Dependency-blocked | Requires a working VMP workspace; notification policies are optional only after create is proven |
 
-Current-account retry on 2026-05-30 in `/tmp/volcenginecc-vmp-current` used a minimal workspace without custom credentials: `auth_type = "None"`, `public_access_enabled = false`, `delete_protection_enabled = false`, and `instance_type_id = "vmp.standard.15d"`. `terraform fmt`, `init -backend=false`, `validate`, and `plan` succeeded. Apply failed before a workspace ID was created:
+Current-account retry on 2026-05-30 in `<tmp-workdir>` used a minimal workspace without custom credentials: `auth_type = "None"`, `public_access_enabled = false`, `delete_protection_enabled = false`, and `instance_type_id = "vmp.standard.15d"`. `terraform fmt`, `init -backend=false`, `validate`, and `plan` succeeded. Apply failed before a workspace ID was created:
 
 ```text
 EventTime: 2026-05-30T13:27:55+08:00
-TaskID: task-ea6aafc3-19e5-4f76-add2-5f698cb3fd13
+TaskID: task-<id>
 ServiceNotEnabled: ProductUnsubscribed: You are not subscribed to VMP. Please go to the VMP console web page to subscribe to the service.
 TypeName: Volcengine::VMP::Workspace
 Operation: CREATE
@@ -2460,12 +2012,14 @@ Attempted resources:
 | `volcenginecc_dns_zone` | Verified | Public zone create/no-op/destroy succeeded; see `volcenginecc-dns.md` |
 | `volcenginecc_privatezone_private_zone` | Verified | Private zone create/no-op/destroy succeeded; see `volcenginecc-privatezone.md` |
 | `volcenginecc_privatezone_record` | Verified | Private A record create/no-op/destroy succeeded; see `volcenginecc-privatezone.md` |
-| `volcenginecc_privatezone_resolver_endpoint` | Service-linked-role blocked | `ErrServiceNotTrusted: ServiceLinkedRole of private_zone is not trusted` during create |
-| `volcenginecc_privatezone_resolver_rule` | Dependency-blocked | Requires a working resolver endpoint ID |
+| `volcenginecc_privatezone_resolver_endpoint` | Verified | Outbound two-AZ endpoint create/no-op/destroy succeeded after creating the `private_zone` service-linked role (2026-06-17); see `volcenginecc-privatezone-resolver.md` |
+| `volcenginecc_privatezone_resolver_rule` | Verified | Outbound forwarding rule create/no-op/destroy succeeded on the verified endpoint; see `volcenginecc-privatezone-resolver.md` |
 | `volcenginecc_privatezone_user_vpc_authorization` | External dependency blocked | Self-account validation rejected; requires a real target account/verification flow |
 | `volcenginecc_cdn_domain` | Service-disabled blocked | `ServiceNotEnabled: OperationDenied.ServiceStopped` during create |
 | `volcenginecc_cdn_share_config` | Service-disabled blocked | Minimal shared referer config planned, but CDN service is stopped for the account |
 | `volcenginecc_waf_domain` | Domain dependency blocked | Unregistered test domain failed DNICP validation |
+
+As of 2026-06-17, creating the service-linked role with `ve iam CreateServiceLinkedRole --ServiceName private_zone` resolved the trust error, and the outbound resolver endpoint plus forwarding rule were verified (create, clean no-op, destroy, empty state); they now live in `assets/examples/volcenginecc-privatezone-resolver`. The historical failure is kept below.
 
 PrivateZone resolver endpoint validated and planned successfully with a two-AZ VPC/subnet shape, then failed during create:
 
@@ -2480,18 +2034,18 @@ Latest retry evidence:
 
 ```text
 EventTime: 2026-05-30T08:28:34+08:00
-TaskID: task-90f74600-270e-40d6-9c50-a2dc242bd12f
+TaskID: task-<id>
 InvalidRequest: ErrServiceNotTrusted: ServiceLinkedRole of private_zone is not trusted
 TypeName: Volcengine::PrivateZone::ResolverEndpoint
 Operation: CREATE
 OperationStatus: FAILED
 ```
 
-Retried the same two-AZ VPC/subnet shape again on 2026-05-30 at 14:14, with `volcenginecc_privatezone_resolver_rule` in the same plan depending on the endpoint. `terraform fmt -check`, `init -backend=false`, `validate`, and `plan` succeeded. Apply created temporary VPC `vpc-1jo4zz1kwfy801n7amqmtj8za`, subnets `subnet-1jo518l7l1jpc1n7ampvkwdgq` and `subnet-3nr6mwzbrfaps931eb0tqvtt`, and route table `vtb-btl6x31q9dkw5h0b2tt8bzzk`; endpoint creation still failed before the resolver rule dependency could run:
+Retried the same two-AZ VPC/subnet shape again on 2026-05-30 at 14:14, with `volcenginecc_privatezone_resolver_rule` in the same plan depending on the endpoint. `terraform fmt -check`, `init -backend=false`, `validate`, and `plan` succeeded. Apply created temporary VPC `vpc-<id>`, subnets `subnet-<id>` and `subnet-<id>`, and route table `vtb-<id>`; endpoint creation still failed before the resolver rule dependency could run:
 
 ```text
 EventTime: 2026-05-30T14:14:22+08:00
-TaskID: task-4c3c562b-acf3-46c9-8f97-44fae2967cb7
+TaskID: task-<id>
 InvalidRequest: ErrServiceNotTrusted: ServiceLinkedRole of private_zone is not trusted
 TypeName: Volcengine::PrivateZone::ResolverEndpoint
 Operation: CREATE
@@ -2558,10 +2112,10 @@ Retried the same current-account `auth_type = 0` shape on 2026-05-30 at 14:17. `
 
 ```text
 EventTime: 2026-05-30T14:17:17+08:00
-TaskID: task-713d0927-c425-490e-8c0f-0fabbddf0ece
+TaskID: task-<id>
 InvalidRequest: ErrAccountSelfValidationNotAllowed: account self-validation not allowed
 TypeName: Volcengine::PrivateZone::UserVPCAuthorization
-Identifier: 2109984414
+Identifier: <account-id>
 Operation: CREATE
 OperationStatus: FAILED
 ```
@@ -2579,11 +2133,11 @@ Operation: CREATE
 OperationStatus: FAILED
 ```
 
-Current-account retry on 2026-05-30 used the same minimal IP-origin shape in `/tmp/volcenginecc-cdn-current`. `terraform fmt`, `init -backend=false`, `validate`, and `plan` succeeded; apply failed before creating a CDN domain:
+Current-account retry on 2026-05-30 used the same minimal IP-origin shape in `<tmp-workdir>`. `terraform fmt`, `init -backend=false`, `validate`, and `plan` succeeded; apply failed before creating a CDN domain:
 
 ```text
 EventTime: 2026-05-30T12:27:35+08:00
-TaskID: task-7f06dc07-70c2-4600-8127-5e0a83415f68
+TaskID: task-<id>
 ServiceNotEnabled: OperationDenied.ServiceStopped: 服务处于停用状态，不支持该操作。
 TypeName: Volcengine::CDN::Domain
 Operation: CREATE
@@ -2594,7 +2148,7 @@ Retried the same minimal IP-origin shape again on 2026-05-30 at 14:09 with domai
 
 ```text
 EventTime: 2026-05-30T14:09:21+08:00
-TaskID: task-22c5431f-3067-4312-aa7d-b8244f102e7a
+TaskID: task-<id>
 ServiceNotEnabled: OperationDenied.ServiceStopped: 服务处于停用状态，不支持该操作。
 TypeName: Volcengine::CDN::Domain
 Identifier: cdn.example.com
@@ -2610,15 +2164,15 @@ Terraform state remained empty. A cloud-side `ve cdn DescribeCdnConfig` check fo
 ServiceNotEnabled: OperationDenied.ServiceStopped: 服务处于停用状态，不支持该操作。
 TypeName: Volcengine::CDN::ShareConfig
 Operation: CREATE
-TaskID: task-11a70a5f-4b96-4d93-900e-b90453e2cbcc
+TaskID: task-<id>
 EventTime: 2026-05-30T07:07:48+08:00
 ```
 
-Current-account retry on 2026-05-30 used the same minimal shared referer allowlist shape in `/tmp/volcenginecc-cdn-share-current`. `terraform fmt`, `init -backend=false`, `validate`, and `plan` succeeded; apply failed before creating a shared config:
+Current-account retry on 2026-05-30 used the same minimal shared referer allowlist shape in `<tmp-workdir>`. `terraform fmt`, `init -backend=false`, `validate`, and `plan` succeeded; apply failed before creating a shared config:
 
 ```text
 EventTime: 2026-05-30T12:27:35+08:00
-TaskID: task-d4d3920c-736f-4da7-a7f1-36fd527ba370
+TaskID: task-<id>
 ServiceNotEnabled: OperationDenied.ServiceStopped: 服务处于停用状态，不支持该操作。
 TypeName: Volcengine::CDN::ShareConfig
 Operation: CREATE
@@ -2666,11 +2220,11 @@ Operation: CREATE
 OperationStatus: FAILED
 ```
 
-Current-account retry on 2026-05-30 used the same CNAME HTTP shape in `/tmp/volcenginecc-waf-current`, with a public IP origin and `protocols = ["HTTP"]`. `terraform fmt`, `init -backend=false`, `validate`, and `plan` succeeded; apply failed before creating a WAF domain because the test domain was not registered with DNICP:
+Current-account retry on 2026-05-30 used the same CNAME HTTP shape in `<tmp-workdir>`, with a public IP origin and `protocols = ["HTTP"]`. `terraform fmt`, `init -backend=false`, `validate`, and `plan` succeeded; apply failed before creating a WAF domain because the test domain was not registered with DNICP:
 
 ```text
 EventTime: 2026-05-30T12:28:51+08:00
-TaskID: task-f1f680d7-6b13-4469-9828-367a3a7ea4ce
+TaskID: task-<id>
 InvalidRequest: InvalidParameter: Domain(cc-iac-waf-current.example.com) The domain name is not registered with DNICP
 TypeName: Volcengine::WAF::Domain
 Operation: CREATE
@@ -2681,7 +2235,7 @@ Retried the same CNAME HTTP shape again on 2026-05-30 at 14:10 with domain `cc-i
 
 ```text
 EventTime: 2026-05-30T14:10:59+08:00
-TaskID: task-79ee70f4-3ebc-493e-841d-7a1d2129d3cd
+TaskID: task-<id>
 InvalidRequest: InvalidParameter: Domain(cc-iac-waf-retry.example.com) The domain name is not registered with DNICP
 TypeName: Volcengine::WAF::Domain
 Identifier: cc-iac-waf-retry.example.com

@@ -153,7 +153,7 @@ import com.volcengine.auth.OidcCredentialProvider;
 public class SampleCode {
     public static void main(String[] args) {
         OidcCredentialProvider provider = new OidcCredentialProvider(
-                "trn:iam::1234567890:role/oidc-role",
+                "trn:iam::<account-id>:role/oidc-role",
                 null,
                 "/var/run/secrets/oidc/token",
                 null,
@@ -181,8 +181,8 @@ import com.volcengine.auth.SamlCredentialProvider;
 public class SampleCode {
     public static void main(String[] args) {
         SamlCredentialProvider provider = new SamlCredentialProvider(
-                "trn:iam::1234567890:role/saml-role",
-                "trn:iam::1234567890:saml-provider/MyIdp",
+                "trn:iam::<account-id>:role/saml-role",
+                "trn:iam::<account-id>:saml-provider/MyIdp",
                 "BASE64_ENCODED_SAML_RESPONSE",
                 null,
                 "sts.volcengineapi.com");

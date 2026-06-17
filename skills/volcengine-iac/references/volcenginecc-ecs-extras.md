@@ -37,8 +37,8 @@ Observed apply result: both resources created within seconds. A follow-up plan r
 Observed IDs in the verification account:
 
 ```text
-deployment_set_id = dps-yenb2o5dp2acxl97rab8
-hpc_cluster_id    = hpcCluster-yenb2o4w9sa8j5v7g6pm
+deployment_set_id = dps-<id>
+hpc_cluster_id    = hpcCluster-<id>
 ```
 
 ## Pitfalls found during verification

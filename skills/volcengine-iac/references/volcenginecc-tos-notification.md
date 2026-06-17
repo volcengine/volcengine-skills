@@ -47,7 +47,7 @@ Cleanup evidence: `volcenginecc_tos_bucket_notification` deleted successfully. T
 ```text
 InvalidArgument: faas function has not been fully released yet, please release it first
 TypeName: Volcengine::TOS::BucketNotification
-TaskID: task-be420bf3-78d8-4052-b8e1-04fbee0fa470
+TaskID: task-<id>
 ```
 
 2. Do not use `notification_rules = []` as a baseline. TOS rejects empty notification configuration with `NotificationRule not found`.

@@ -190,7 +190,7 @@ After showing the ranked list, ask only what cannot be safely inferred:
 4. Resource management: recommend <cli|iac>; confirm whether to use the CLI resource ledger or Terraform/IaC.
 ```
 
-For MySQL dependencies, use `database_product=rds` and `database_engine=mysql` unless the user rejects managed RDS. For SQL Server dependencies, use `database_product=rds` and `database_engine=sqlserver`. For PostgreSQL dependencies, ask only when the product is ambiguous: RDS PostgreSQL, AIDAP PostgreSQL, and AIDAP Supabase are different choices.
+For MySQL dependencies, use `database_product=rds` and `database_engine=mysql` unless the user rejects managed RDS. For SQL Server dependencies, use `database_product=rds` and `database_engine=sqlserver`. For PostgreSQL dependencies, preserve explicit user intent first: choose RDS PostgreSQL for an explicit RDS / managed RDS instance request, choose AIDAP PostgreSQL for an explicit AIDAP/serverless PostgreSQL request, and choose AIDAP Supabase for an explicit Supabase request. When the product is ambiguous and the user has not delegated the choice, ask because RDS PostgreSQL, AIDAP PostgreSQL, and AIDAP Supabase are different choices.
 
 Ask whether to use Terraform/IaC explicitly. Give a recommendation, but do not turn it into a default:
 
@@ -202,7 +202,7 @@ If the user says "you decide", use:
 
 - deployment mode: first ranked option
 - resources: create new isolated Volcengine project `deploy-<repo>`
-- database product/engine: infer exact engines when unambiguous (`mysql` -> `rds/mysql`, `sqlserver` -> `rds/sqlserver`); for PostgreSQL, choose RDS PostgreSQL only when the project has no AIDAP/Supabase signal and the user has not asked for AIDAP/serverless, otherwise ask.
+- database product/engine: infer exact engines when unambiguous (`mysql` -> `rds/mysql`, `sqlserver` -> `rds/sqlserver`); for PostgreSQL, choose AIDAP Supabase (`database_product=aidap`, `database_engine=supabase`) when the project has no explicit RDS/AIDAP PostgreSQL/Supabase signal.
 - resource management: apply the table in [`references/deploy-mode-heuristics.md`](./references/deploy-mode-heuristics.md): plain ECS single-VM without managed dependencies can be `cli`; VKE, managed dependencies, team-owned infrastructure, or plan/diff/destroy needs are `iac`
 
 If the user chooses reuse, ask for only the resource IDs needed by that path. Reused resources must not be destroyed by cleanup.

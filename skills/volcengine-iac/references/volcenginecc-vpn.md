@@ -39,7 +39,7 @@ terraform plan -input=false
 terraform destroy
 ```
 
-Observed final verification result: VPC `vpc-3pt51f4vo1m9s6csxyvco722c`, customer gateway `cgw-1a0zcvib6zoxs8nvepjy0llcy`, VPN gateway `vgw-btzcqmhnnpc05h0b2up8ejy9`, IPsec connection `vgc-3pt5ffr1i2ebk6csxyvylm6md`, and VPN gateway route `vgr-1joogbk6xolc01n7amqg4w93v` were created. Follow-up plan returned `No changes`.
+Observed final verification result: VPC `vpc-<id>`, customer gateway `cgw-<customer-gateway-id>`, VPN gateway `vgw-<vpn-gateway-id>`, IPsec connection `vgc-<vpn-connection-id>`, and VPN gateway route `vgr-<vpn-route-id>` were created. Follow-up plan returned `No changes`.
 
 Destroy removed all seven resources. Final Terraform state was empty, and cloud-side checks returned `TotalCount: 0` for `DescribeVpnGateways --VpnGatewayName cc-iac-vpn-gateway`, `DescribeCustomerGateways --CustomerGatewayName cc-iac-vpn-customer`, `DescribeVpnConnections --VpnConnectionName cc-iac-vpn-connection`, and `DescribeVpcs --VpcName cc-iac-vpn-vpc`.
 

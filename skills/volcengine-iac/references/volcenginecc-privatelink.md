@@ -42,7 +42,7 @@ terraform destroy -auto-approve -input=false
 terraform state list
 ```
 
-Observed apply result: endpoint service `epsvc-1mxfpfwqz9e681qigxqv417g5` was created for private CLB `clb-mj3su951ld6o5smt1bkinzsv`, then endpoint `ep-1mxfpg2o2lk3k1qigxqfoigf8` connected from a second VPC. A follow-up plan returned `No changes`; `ve privatelink DescribeVpcEndpoints --body '{"EndpointName":"cc-iac-pl-retry-endpoint"}'` showed the endpoint `ConnectionStatus = "Connected"`.
+Observed apply result: endpoint service `epsvc-<endpoint-service-id>` was created for private CLB `clb-<id>`, then endpoint `ep-<endpoint-id>` connected from a second VPC. A follow-up plan returned `No changes`; `ve privatelink DescribeVpcEndpoints --body '{"EndpointName":"cc-iac-pl-retry-endpoint"}'` showed the endpoint `ConnectionStatus = "Connected"`.
 
 Destroy removed endpoint, endpoint service, CLB, security group, route tables, subnets, and both VPCs. Final Terraform state was empty. `DescribeVpcEndpointServices` for the service ID returned `TotalCount: 0`, `DescribeVpcEndpoints` for the endpoint ID no longer returned the endpoint, `ve clb DescribeLoadBalancers --body '{"LoadBalancerName":"cc-iac-pl-retry-clb"}'` returned `TotalCount: 0`, and exact VPC-name matching for both temporary VPCs returned no rows.
 

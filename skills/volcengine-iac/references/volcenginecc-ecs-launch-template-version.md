@@ -37,7 +37,7 @@ Observed apply result: VPC, subnet, route table, security group, launch template
 Observed IDs in the verification account:
 
 ```text
-launch_template_id             = lt-yenb337aj1lex0v2nfdd
+launch_template_id             = lt-<template-id>
 launch_template_version_number = 2
 ```
 

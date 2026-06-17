@@ -33,7 +33,7 @@ terraform destroy -auto-approve -input=false
 terraform state list
 ```
 
-Observed apply result: traffic mirror filter `tmf-3pst38p3t0jcw6csxyvwz4zbl` and ingress rule `tmr-3pst47jzgnfnk6csxyw7yh4ip` were created successfully. A follow-up plan returned `No changes`. Destroy removed both resources and final state was empty.
+Observed apply result: traffic mirror filter `tmf-<traffic-mirror-filter-id>` and ingress rule `tmr-<traffic-mirror-rule-id>` were created successfully. A follow-up plan returned `No changes`. Destroy removed both resources and final state was empty.
 
 ## Pitfalls found during verification
 

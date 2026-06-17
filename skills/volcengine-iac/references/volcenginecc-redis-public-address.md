@@ -40,9 +40,9 @@ Observed apply result: VPC, subnet, route table, EIP, Redis allowlist, Redis ins
 Observed IDs in the verification account:
 
 ```text
-instance_id             = redis-cnlf96ar26lsgs38a
-eip_id                  = eip-mz3smbpfahog39ek6xcvgtk1
-public_endpoint_address = redis-cnlf96ar26lsgs38a.redis.volces.com
+instance_id             = redis-<id>
+eip_id                  = eip-<id>
+public_endpoint_address = redis-<id>.redis.volces.com
 ```
 
 Observed timings: EIP create about 16s, Redis allowlist create about 11s, Redis instance create about 3m19s, public endpoint create about 46s, public endpoint destroy about 16s, EIP destroy about 21s, Redis instance destroy about 38s.

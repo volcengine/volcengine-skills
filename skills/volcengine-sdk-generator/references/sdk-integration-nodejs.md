@@ -88,7 +88,7 @@ import { EcsClient } from "@volcengine/ecs";
 const credentialProvider = new StsAssumeRoleProvider({
   accessKeyId: process.env.VOLCENGINE_ACCESS_KEY!,
   secretAccessKey: process.env.VOLCENGINE_SECRET_KEY!,
-  roleTrn: "trn:iam::2110400000:role/role123",
+  roleTrn: "trn:iam::<account-id>:role/role123",
   roleSessionName: "sdk-node-demo",
   region: "cn-beijing",
   host: "sts.volcengineapi.com",
@@ -121,7 +121,7 @@ import { OidcCredentialProvider } from "@volcengine/sdk-core";
 import { EcsClient } from "@volcengine/ecs";
 
 const credentialProvider = new OidcCredentialProvider({
-  roleTrn: "trn:iam::2110400000:role/oidc-role",
+  roleTrn: "trn:iam::<account-id>:role/oidc-role",
   oidcTokenFile: "/path/to/oidc/token",
   roleSessionName: "sdk-node-oidc",
   host: "sts.volcengineapi.com",
@@ -151,9 +151,9 @@ import { SamlCredentialProvider } from "@volcengine/sdk-core";
 import { EcsClient } from "@volcengine/ecs";
 
 const credentialProvider = new SamlCredentialProvider({
-  roleTrn: "trn:iam::2110400000:role/saml-role",
-  accountId: "2110400000",
-  samlProviderTrn: "trn:iam::2110400000:saml-provider/my-provider",
+  roleTrn: "trn:iam::<account-id>:role/saml-role",
+  accountId: "<account-id>",
+  samlProviderTrn: "trn:iam::<account-id>:saml-provider/my-provider",
   samlAssertion: "BASE64_ENCODED_SAML_ASSERTION",
   host: "sts.volcengineapi.com",
 });

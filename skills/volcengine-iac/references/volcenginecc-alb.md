@@ -77,7 +77,7 @@ Observed apply result: private Basic ALB, empty IP-type HTTP server group, disab
 
 Observed timings in `cn-beijing`: full private ALB chain creation took about 1.5 minutes after VPC dependencies existed and deletion took about 1.5 minutes; health check template creation took about 7s and deletion took about 10s; ALB server certificate creation and deletion each took about 6s; ALB ACL creation took about 21s and deletion about 15s; ALB customized config creation took about 15s and deletion about 6s.
 
-Formal full-chain verification for `assets/examples/volcenginecc-alb` created VPC `vpc-3nqz7ptxs0etc931ebqmyyo0`, server group `rsp-xoaavdcpzaww54ov5fdq8lgi`, ALB `alb-bdgz9vls883k8dv40o8v1rkb`, listener `lsn-1pf9tl8kalfcw845wfafraq0l`, and rule `rule-bdgz9xktca2o8dv40obuj4s5`. `terraform plan -detailed-exitcode` returned `No changes`.
+Formal full-chain verification for `assets/examples/volcenginecc-alb` created VPC `vpc-<id>`, server group `rsp-<id>`, ALB `alb-<id>`, listener `lsn-<id>`, and rule `rule-<id>`. `terraform plan -detailed-exitcode` returned `No changes`.
 
 ## Pitfalls found during verification
 

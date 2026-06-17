@@ -118,7 +118,7 @@ Historical failed shapes:
 NotFound: ResourceNotFound: Sandbox image not found in pre cache sandbox image list, you need to precache your sandbox image first
 TypeName: Volcengine::VEFAAS::Function
 Operation: CREATE
-TaskID: task-ada9f3fc-e2a4-4d18-9edf-e0bb4700ce5d
+TaskID: task-<id>
 EventTime: 2026-05-30T06:46:56+08:00
 ```
 
@@ -126,7 +126,7 @@ EventTime: 2026-05-30T06:46:56+08:00
 
 ```text
 EventTime: 2026-05-30T12:08:19+08:00
-TaskID: task-513c24a4-8820-4d03-b57b-d70ed7985092
+TaskID: task-<id>
 InvalidOperation: error_code: "function_exited", error_message "function exited unexpectedly(exit status 127) ... bash: ./run.sh: No such file or directory"
 TypeName: Volcengine::VEFAAS::Sandbox
 Operation: CREATE
@@ -137,7 +137,7 @@ OperationStatus: FAILED
 
 ```text
 EventTime: 2026-05-30T12:09:44+08:00
-TaskID: task-0ee19f79-96c6-46f0-a8b8-eb6f2dc72e78
+TaskID: task-<id>
 InvalidOperation: error_code: "function_exited", error_message "function exited unexpectedly(exit status 1) ... /etc/sudoers.d/: Is a directory"
 TypeName: Volcengine::VEFAAS::Sandbox
 Operation: CREATE

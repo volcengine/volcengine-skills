@@ -43,7 +43,7 @@ terraform destroy -auto-approve -input=false
 terraform state list
 ```
 
-Observed apply result: TransitRouter `cc-iac-tr-retry` created successfully with ID `tr-mjpyegwsyeps5smt1a042pya`, `asn = 64512`, and `multicast_enabled = false`. A follow-up plan returned `No changes`. Destroy removed the router, final Terraform state was empty, and `ve transitrouter DescribeTransitRouters --body '{"TransitRouterName":"cc-iac-tr-retry"}'` returned `TotalCount: 0`.
+Observed apply result: TransitRouter `cc-iac-tr-retry` created successfully with ID `tr-<transit-router-id>`, `asn = 64512`, and `multicast_enabled = false`. A follow-up plan returned `No changes`. Destroy removed the router, final Terraform state was empty, and `ve transitrouter DescribeTransitRouters --body '{"TransitRouterName":"cc-iac-tr-retry"}'` returned `TotalCount: 0`.
 
 Observed timings in `cn-beijing`: TransitRouter create took about 6 seconds. Destroy took about 6 seconds.
 

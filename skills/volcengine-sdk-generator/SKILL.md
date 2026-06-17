@@ -98,13 +98,15 @@ python3 scripts/rg_rank.py \
 
 Direct API mode:
 
+In TRN examples, `<account-id>` is the Volcengine account ID segment, such as a masked `2134xxxyyy`.
+
 ```bash
 python3 scripts/make_code.py \
   --service-code sts \
   --api-version 2018-01-01 \
   --action AssumeRole \
   --language python \
-  --params-json '{"DurationSeconds":3600,"RoleSessionName":"demo","RoleTrn":"trn:iam::123456789012:role/demo"}'
+  --params-json '{"DurationSeconds":3600,"RoleSessionName":"demo","RoleTrn":"trn:iam::<account-id>:role/demo"}'
 ```
 
 Use `--refresh-swagger` when API Explorer metadata has just changed or generated code looks stale:

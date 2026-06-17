@@ -5,8 +5,11 @@ Thumbs.db
 .venv/
 .cache/
 .local/
+.idea/
+.claude/settings.local.json
 
 __pycache__/
+**/.pytest_cache/
 *.pyc
 *.pyo
 

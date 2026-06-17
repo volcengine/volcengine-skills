@@ -33,7 +33,7 @@ terraform destroy -auto-approve -input=false
 terraform state list
 ```
 
-Observed apply result: EFS file system `cc-iac-efs-retry` created successfully in `cn-beijing-a` with ID `efs-cnbja3a96f8f938a6`, `instance_type = "Premium"`, `performance_density = "Premium_125"`, `bandwidth_mode = "Provisioned"`, and `provisioned_bandwidth = 300`. A follow-up plan returned `No changes`. Destroy removed the file system, final Terraform state was empty, and `ve efs DescribeFileSystems --body '{"FileSystemName":"cc-iac-efs-retry"}'` returned `TotalCount: 0`.
+Observed apply result: EFS file system `cc-iac-efs-retry` created successfully in `cn-beijing-a` with ID `efs-<efs-id>`, `instance_type = "Premium"`, `performance_density = "Premium_125"`, `bandwidth_mode = "Provisioned"`, and `provisioned_bandwidth = 300`. A follow-up plan returned `No changes`. Destroy removed the file system, final Terraform state was empty, and `ve efs DescribeFileSystems --body '{"FileSystemName":"cc-iac-efs-retry"}'` returned `TotalCount: 0`.
 
 Observed timings in `cn-beijing`: EFS file system create took about 16 seconds. Destroy took about 15 seconds.
 

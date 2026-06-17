@@ -39,8 +39,8 @@ Observed apply result: 5 resources created successfully, including private NAT g
 Observed IDs in the verification account:
 
 ```text
-nat_gateway_id = ngw-a8out78tbbb4592uas4yn1y9
-nat_ip_id      = vpcnatip-a8out97ufda8592uat8oa1zp
+nat_gateway_id = ngw-<id>
+nat_ip_id      = vpcnatip-<id>
 ```
 
 ## Pitfalls found during verification

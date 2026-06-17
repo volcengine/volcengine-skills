@@ -32,8 +32,6 @@ terraform plan -detailed-exitcode -input=false
 terraform destroy -auto-approve -input=false
 ```
 
-Observed result: disabled ECS CPU rule `cc-iac-cm-ecs-cpu-retry2` created successfully with ID `2060620425061621760`, a follow-up plan returned `No changes`, destroy removed the rule, and `ve cloudmonitor ListRules --body '{"PageNumber":1,"PageSize":10,"RuleName":"cc-iac-cm-ecs-cpu-retry2"}'` returned an empty `Data` list.
-
 ## Pitfalls found during verification
 
 1. `cloudmonitor:CreateRule` permission is required. Earlier attempts failed at the permission boundary before the rule resource was created.

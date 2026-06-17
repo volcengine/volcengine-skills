@@ -171,7 +171,7 @@ The default chain can read OIDC settings from environment variables:
 ```go
 provider := credentials.NewOIDCCredentialsProviderWithOptions(
 	"/path/to/oidc-token",
-	"trn:iam::1234567890:role/oidc-role",
+	"trn:iam::<account-id>:role/oidc-role",
 	func(o *credentials.OIDCProviderOptions) {
 		o.DurationSeconds = 3600
 		o.Endpoint = "sts.volcengineapi.com"
@@ -188,8 +188,8 @@ config := volcengine.NewConfig().
 
 ```go
 provider := credentials.NewSAMLCredentialsProviderWithOptions(
-	"trn:iam::1234567890:role/saml-role",
-	"trn:iam::1234567890:saml-provider/MyIdp",
+	"trn:iam::<account-id>:role/saml-role",
+	"trn:iam::<account-id>:saml-provider/MyIdp",
 	"BASE64_ENCODED_SAML_RESPONSE",
 	func(o *credentials.SAMLProviderOptions) {
 		o.DurationSeconds = 3600

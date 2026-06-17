@@ -33,7 +33,7 @@ terraform plan -input=false
 terraform destroy
 ```
 
-Observed apply result: volume `vol-3x4l1la8g54i4t7woc0y` created in about 16s, snapshot `snap-3x4l1lwpj94i4t7woexd` created in about 2m6s, follow-up plan returned `No changes`, and destroy removed the snapshot in about 7s and the volume in about 1m15s. Final Terraform state was empty.
+Observed timings: volume create about 16s, snapshot create about 2m6s, snapshot destroy about 7s, volume destroy about 1m15s.
 
 ## Pitfalls found during verification
 

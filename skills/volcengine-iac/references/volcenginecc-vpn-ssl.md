@@ -34,7 +34,7 @@ terraform plan -input=false
 terraform destroy
 ```
 
-Observed final verification result: VPC `vpc-3psb1ti39cum86csxyuvbzpo1`, subnet `subnet-1jp832fsb5csg1n7amq2nlyxx`, route table `vtb-3nr160mt17rb4931ec8to31u`, VPN gateway `vgw-3nr16uvy3e1og931eb9v4m8n`, and SSL VPN server `vss-ijh95fubdqm874o8cv2fkow7` were created. Follow-up plan returned `No changes`.
+Observed final verification result: VPC `vpc-<id>`, subnet `subnet-<id>`, route table `vtb-<id>`, VPN gateway `vgw-<vpn-gateway-id>`, and SSL VPN server `vss-<ssl-vpn-server-id>` were created. Follow-up plan returned `No changes`.
 
 Destroy removed all five resources. Final Terraform state was empty, and cloud-side checks returned `TotalCount: 0` for `DescribeVpnGateways --VpnGatewayName cc-iac-vpn-ssl-current-gateway` and `DescribeVpcs --VpcName cc-iac-vpn-ssl-current-vpc`.
 
@@ -44,7 +44,7 @@ Destroy removed all five resources. Final Terraform state was empty, and cloud-s
 
 ```text
 EventTime: 2026-05-30T13:41:39+08:00
-TaskID: task-74e7b4b9-a036-4170-afaf-7ab2fc368424
+TaskID: task-<id>
 InvalidRequest: InvalidSslVpnClientIpPool.Conflict: The specified ClientIpPool conflicts with that of local subnets.
 TypeName: Volcengine::VPN::SslVpnServer
 Operation: CREATE

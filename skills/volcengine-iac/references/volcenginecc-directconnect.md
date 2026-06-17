@@ -40,7 +40,7 @@ terraform destroy -auto-approve -input=false
 terraform state list
 ```
 
-Observed apply result: Direct Connect gateway `cc-iac-dc-retry-gw` created successfully with ID `dcg-aq8wpaltal8g17ng66bqjovt`. A follow-up plan returned `No changes`. Destroy removed the gateway, final Terraform state was empty, and `ve directconnect DescribeDirectConnectGateways --body '{"DirectConnectGatewayName":"cc-iac-dc-retry-gw"}'` returned `TotalCount: 0`.
+Observed apply result: Direct Connect gateway `cc-iac-dc-retry-gw` created successfully with ID `dcg-<directconnect-gateway-id>`. A follow-up plan returned `No changes`. Destroy removed the gateway, final Terraform state was empty, and `ve directconnect DescribeDirectConnectGateways --body '{"DirectConnectGatewayName":"cc-iac-dc-retry-gw"}'` returned `TotalCount: 0`.
 
 Observed timings in `cn-beijing`: Direct Connect gateway create took about 37 seconds. Destroy took about 36 seconds.
 

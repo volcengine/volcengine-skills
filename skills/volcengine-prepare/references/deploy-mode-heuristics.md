@@ -90,7 +90,7 @@ Mention these in the relevant option, but do not hide the option:
 | WebSocket / long-lived connections | ECS or VKE is usually safer than veFaaS. |
 | Compose file with Redis/MySQL/etc. | ECS compose can run it quickly, but data durability and scaling are weaker than managed services or VKE. |
 | Many stateful dependencies | VKE or managed services may be more appropriate; ECS remains possible for quick validation. |
-| External MySQL/PostgreSQL/SQL Server/Redis dependency | Recommend managed RDS/Redis by default; same VPC, private endpoint, explicit migration step. For AIDAP database workspaces, ask for the AIDAP engine (`supabase` or `postgresql`) instead of treating Supabase as an RDS PostgreSQL variant. |
+| External MySQL/PostgreSQL/SQL Server/Redis dependency | Recommend managed services with the same VPC, private endpoint, and explicit migration step. Use RDS for MySQL and SQL Server. For PostgreSQL, preserve explicit user intent; when ambiguous ask for RDS PostgreSQL, AIDAP PostgreSQL, or AIDAP Supabase, and if the user delegates the choice default to AIDAP Supabase. For Redis, use managed Redis by default. |
 | Project only uses SQLite | Keep it as a valid choice; warn about single-node/disk durability, but do not imply RDS migration is required. |
 | Long-lived cloud resources | Recommend IaC for VKE, managed dependencies, team-owned infrastructure, or plan/diff/destroy needs. Recommend CLI for pure ECS single-VM services when speed and fewer dependencies matter more. |
 | Static frontend | veFaaS/static serving may be possible, but ECS/VKE are still valid if the user wants one service shape. |

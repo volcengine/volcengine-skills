@@ -38,9 +38,9 @@ terraform destroy
 terraform state list
 ```
 
-Observed first apply result after removing the invalid snapshot group description: ECS instance `i-yenb6ggdfkxjd1u6a5gq`, system volume `vol-3x4l625l4h42xlzbc9tb`, and snapshot group `sg-3x4l645av94i4t7xb043` created successfully. A follow-up plan returned `No changes`, and destroy removed all seven resources; final Terraform state was empty.
+Observed first apply result after removing the invalid snapshot group description: ECS instance `i-<instance-id>`, system volume `vol-<id>`, and snapshot group `sg-<volume-id>` created successfully. A follow-up plan returned `No changes`, and destroy removed all seven resources; final Terraform state was empty.
 
-Observed fresh apply result from an empty state with the final example shape: ECS instance `i-yenb6rc9vkxjd1utivbg`, system volume `vol-3x4l6d2w4x42xlzbepss`, and snapshot group `sg-3x4l6dnynl42xlzbet12` created successfully. Destroy removed the snapshot group, ECS instance, keypair, security group, route table, subnet, and VPC; final Terraform state was empty.
+Observed fresh apply result from an empty state with the final example shape: ECS instance `i-<instance-id>`, system volume `vol-<id>`, and snapshot group `sg-<volume-id>` created successfully. Destroy removed the snapshot group, ECS instance, keypair, security group, route table, subnet, and VPC; final Terraform state was empty.
 
 ## Pitfalls found during verification
 
@@ -48,7 +48,7 @@ Observed fresh apply result from an empty state with the final example shape: EC
 
    ```text
    EventTime: 2026-05-30T10:00:58+08:00
-   TaskID: task-b2e1aefd-5c81-4f9c-8d61-8c5d828b1398
+   TaskID: task-<id>
    InvalidRequest: InvalidParameter.Description: The specified description is invalid.
    TypeName: Volcengine::StorageEBS::SnapshotGroup
    Operation: CREATE

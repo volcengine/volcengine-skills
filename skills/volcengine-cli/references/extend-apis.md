@@ -471,8 +471,6 @@ The VMP action-specific parameter details are in "VMP Metric API Notes" above. T
 
 ## Verification Notes
 
-Validated with AK/SK for account `2109984414` on 2026-06-02:
-
 - `ListPipelineRunStagesInner` was tested with an existing CP workspace, pipeline, and pipeline run and returned HTTP 200 with stage/task data.
 - `ListVirtualNodes` returned HTTP 200 with an empty list.
 - `ListPreagg` returned HTTP 200 with an empty response.

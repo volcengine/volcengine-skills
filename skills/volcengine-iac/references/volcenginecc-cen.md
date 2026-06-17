@@ -45,8 +45,6 @@ terraform destroy -auto-approve -input=false
 terraform state list
 ```
 
-Observed apply result: CEN `cc-iac-cen-retry-cen` created successfully with ID `cen-rrxduo4y1mo0v0x58jvanh7` and attached VPC `vpc-iindwi39pudc74o8cuxqgrn2`. A follow-up plan returned `No changes`. Destroy removed the CEN first, then the VPC. Final Terraform state was empty, `ve cen DescribeCens --body '{"CenName":"cc-iac-cen-retry-cen"}'` returned `TotalCount: 0`, and exact VPC-name matching for `cc-iac-cen-retry-vpc` returned no rows.
-
 Observed timings in `cn-beijing`: VPC create took about 7 seconds, CEN create took about 28 seconds, CEN destroy took about 11 seconds, and VPC destroy took about 10 seconds.
 
 ## Pitfalls found during verification

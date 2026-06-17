@@ -71,7 +71,7 @@ ve rdsmysql CreateDBInstance --help
 - `database_product=aidap`, `database_engine=postgresql`: AIDAP PostgreSQL engine workspace via `volcengine-db-supabase`.
 - `database_product=aidap`, `database_engine=supabase`: AIDAP Supabase engine workspace via `volcengine-db-supabase`.
 
-When the user explicitly chooses an AIDAP engine from the console choices, preserve that choice. If they only say "PostgreSQL", ask whether they want RDS PostgreSQL or AIDAP PostgreSQL unless the surrounding deployment context already makes one product clear.
+When the user explicitly chooses an AIDAP engine from the console choices, preserve that choice. If they only say "PostgreSQL", ask whether they want RDS PostgreSQL, AIDAP PostgreSQL, or AIDAP Supabase unless the surrounding deployment context already makes one product clear or the user has delegated the choice. If the user says "you decide" and there is no explicit RDS/AIDAP PostgreSQL/Supabase signal, use AIDAP Supabase.
 
 **Recommended spec**:
 - Instance type: `HA`

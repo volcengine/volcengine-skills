@@ -32,7 +32,7 @@ terraform plan -input=false
 terraform destroy
 ```
 
-Observed apply result: one DNS zone was created for `cc-iac-dns-0530043107.com`, returning `zid = 247224` and name servers `ns1.volcengine-dns.com` / `ns2.volcengine-dns.com`. Follow-up plan returned `No changes`. Destroy removed the zone and final state was empty.
+Observed apply result: one DNS zone was created for `cc-iac-dns-0530043107.com`, returning `zid = <zone-id>` and name servers `ns1.volcengine-dns.com` / `ns2.volcengine-dns.com`. Follow-up plan returned `No changes`. Destroy removed the zone and final state was empty.
 
 ## Pitfalls found during verification
 

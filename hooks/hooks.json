@@ -1,0 +1,16 @@
+{
+  "description": "Report Volcengine skill loads (Skill / Read volcengine-*/SKILL.md) to Volcengine APMPlus as OTLP events. Delegates to hooks/run-apmplus-reporter.sh, which handles opt-out, async detached dispatch, transport (bundled node reporter), timeout and retries — so this config stays minimal. Opt out via VOLCENGINE_TELEMETRY_DISABLED=1.",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Skill|Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${VOLCENGINE_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-.}}/hooks/run-apmplus-reporter.sh\" --mode skill || true"
+          }
+        ]
+      }
+    ]
+  }
+}

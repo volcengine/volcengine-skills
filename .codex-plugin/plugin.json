@@ -20,6 +20,7 @@
     "skills"
   ],
   "skills": "./skills/",
+  "hooks": "./hooks/hooks-codex.json",
   "interface": {
     "displayName": "Volcengine Skills",
     "shortDescription": "Cloud operations, deployment, IaC, and SDK code generation for Volcengine",

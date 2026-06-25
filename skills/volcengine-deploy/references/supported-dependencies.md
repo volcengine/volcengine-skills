@@ -12,6 +12,8 @@ A managed dependency is not done when it reports "created". Before deploying the
 
 Do not use a public endpoint as the default wiring method; only do so when the user explicitly asks for public exposure and accepts the security group / allowlist risk.
 
+When managed dependency creation fails with a missing `ServiceRoleFor...` role, or when you need to preflight account readiness for common deployment products, use [`service-linked-roles.md`](./service-linked-roles.md). Confirm the exact `ServiceName` and template before calling `CreateServiceLinkedRole`; do not infer it from the role name.
+
 ## Database Product Choice
 
 Represent database selection with:

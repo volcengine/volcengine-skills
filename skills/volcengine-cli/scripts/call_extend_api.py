@@ -4,8 +4,7 @@
 """
 Call selected Volcengine extension APIs.
 
-This helper intentionally keeps the Universal client code inline and does not import
-from any external repository.
+This helper intentionally keeps request signing inline.
 """
 
 from __future__ import annotations
@@ -16,6 +15,7 @@ import hashlib
 import hmac
 import json
 import os
+import subprocess
 import sys
 from dataclasses import dataclass
 from typing import Any
@@ -23,18 +23,11 @@ from urllib import error as urllib_error
 from urllib import request as urllib_request
 from urllib.parse import quote, urlencode
 
-try:
-    from volcenginesdkcore import UniversalApi, UniversalInfo, ApiClient, Configuration
-except ImportError as exc:  # pragma: no cover - depends on user environment
-    print(
-        "Missing dependency: volcenginesdkcore. Install the Volcengine Python SDK before using this script.",
-        file=sys.stderr,
-    )
-    raise SystemExit(2) from exc
-
 
 DEFAULT_REGION = "cn-beijing"
 DEFAULT_HOST = "open.volcengineapi.com"
+CLI_CONFIG_FILE_ENV = "VOLCENGINE_CLI_CONFIG_FILE"
+LOGIN_CACHE_DIRECTORY_ENV = "VOLCENGINE_LOGIN_CACHE_DIRECTORY"
 
 
 @dataclass(frozen=True)
@@ -49,35 +42,18 @@ class CredentialResolutionError(RuntimeError):
     pass
 
 
-def create_universal_info(service, action, version="2021-09-01", method="POST", content_type="application/json"):
-    if content_type is None:
-        content_type = "application/json"
-    if method == "GET":
-        content_type = "text/plain"
-
-    return UniversalInfo(
-        method=method,
-        service=service,
-        version=version,
-        action=action,
-        content_type=content_type,
-    )
-
-
-def create_api_client(ak, sk, session_token="", region=DEFAULT_REGION, host=DEFAULT_HOST, scheme="https"):
-    config = Configuration()
-    config.ak = ak
-    config.sk = sk
-    config.host = host
-    config.scheme = scheme
-    config.region = region
-    if session_token:
-        config.session_token = session_token
-
-    return UniversalApi(ApiClient(config))
-
-
 API_REGISTRY: list[dict[str, Any]] = [
+    {
+        "name": "GetVerifyInfo",
+        "service": "account_verify",
+        "version": "2018-01-01",
+        "method": "POST",
+        "content_type": "application/json",
+        "host": "open.volcengineapi.com",
+        "scheme": "https",
+        "call_style": "action_version",
+        "summary": "Check account real-name verification status.",
+    },
     {
         "name": "DescribeOriginTopStatisticalData",
         "service": "CDN",
@@ -105,7 +81,7 @@ API_REGISTRY: list[dict[str, Any]] = [
         "method": "POST",
         "content_type": "application/json",
         "host": "open.volcengineapi.com",
-        "scheme": "http",
+        "scheme": "https",
         "call_style": "action_version",
         "summary": "DCDN realtime edge data.",
     },
@@ -116,7 +92,7 @@ API_REGISTRY: list[dict[str, Any]] = [
         "method": "POST",
         "content_type": "application/json",
         "host": "open.volcengineapi.com",
-        "scheme": "http",
+        "scheme": "https",
         "call_style": "action_version",
         "summary": "DCDN realtime origin data.",
     },
@@ -127,7 +103,7 @@ API_REGISTRY: list[dict[str, Any]] = [
         "method": "POST",
         "content_type": "application/json",
         "host": "open.volcengineapi.com",
-        "scheme": "http",
+        "scheme": "https",
         "call_style": "action_version",
         "summary": "DCDN top client IP ranking.",
     },
@@ -138,7 +114,7 @@ API_REGISTRY: list[dict[str, Any]] = [
         "method": "POST",
         "content_type": "application/json",
         "host": "open.volcengineapi.com",
-        "scheme": "http",
+        "scheme": "https",
         "call_style": "action_version",
         "summary": "DCDN top referer ranking.",
     },
@@ -149,7 +125,7 @@ API_REGISTRY: list[dict[str, Any]] = [
         "method": "POST",
         "content_type": "application/json",
         "host": "open.volcengineapi.com",
-        "scheme": "http",
+        "scheme": "https",
         "call_style": "action_version",
         "summary": "DCDN top URL ranking.",
     },
@@ -160,7 +136,7 @@ API_REGISTRY: list[dict[str, Any]] = [
         "method": "POST",
         "content_type": "application/json",
         "host": "open.volcengineapi.com",
-        "scheme": "http",
+        "scheme": "https",
         "call_style": "action_version",
         "summary": "Global Accelerator listener logs.",
     },
@@ -171,7 +147,7 @@ API_REGISTRY: list[dict[str, Any]] = [
         "method": "POST",
         "content_type": "application/json",
         "host": "open.volcengineapi.com",
-        "scheme": "http",
+        "scheme": "https",
         "call_style": "action_version",
         "summary": "Global Accelerator metric dimensions for accelerator resources.",
     },
@@ -182,7 +158,7 @@ API_REGISTRY: list[dict[str, Any]] = [
         "method": "POST",
         "content_type": "application/json",
         "host": "open.volcengineapi.com",
-        "scheme": "http",
+        "scheme": "https",
         "call_style": "action_version",
         "summary": "Global Accelerator bandwidth package detail.",
     },
@@ -193,7 +169,7 @@ API_REGISTRY: list[dict[str, Any]] = [
         "method": "POST",
         "content_type": "application/json",
         "host": "open.volcengineapi.com",
-        "scheme": "http",
+        "scheme": "https",
         "call_style": "action_version",
         "summary": "Global Accelerator related basic accelerator instance info for an endpoint.",
     },
@@ -204,7 +180,7 @@ API_REGISTRY: list[dict[str, Any]] = [
         "method": "POST",
         "content_type": "application/json",
         "host": "open.volcengineapi.com",
-        "scheme": "http",
+        "scheme": "https",
         "call_style": "action_version",
         "summary": "Global Accelerator related accelerator instance info for an endpoint.",
     },
@@ -215,7 +191,7 @@ API_REGISTRY: list[dict[str, Any]] = [
         "method": "GET",
         "content_type": "text/plain",
         "host": "open.volcengineapi.com",
-        "scheme": "http",
+        "scheme": "https",
         "call_style": "action_version",
         "summary": "List Global Accelerator acceleration areas.",
     },
@@ -226,7 +202,7 @@ API_REGISTRY: list[dict[str, Any]] = [
         "method": "POST",
         "content_type": "application/json",
         "host": "open.volcengineapi.com",
-        "scheme": "http",
+        "scheme": "https",
         "call_style": "action_version",
         "summary": "List Global Accelerator bandwidth packages.",
     },
@@ -259,7 +235,7 @@ API_REGISTRY: list[dict[str, Any]] = [
         "method": "GET",
         "content_type": "text/plain",
         "host": "open.volcengineapi.com",
-        "scheme": "http",
+        "scheme": "https",
         "call_style": "action_version",
         "summary": "MCDN CDN domain configuration.",
     },
@@ -406,7 +382,7 @@ add_actions(
     summary_prefix="Domain service",
     content_type="text/plain",
     host="open.volcengineapi.com",
-    scheme="http",
+    scheme="https",
 )
 add_actions(
     ["RegisterDomain"],
@@ -415,7 +391,7 @@ add_actions(
     method="POST",
     summary_prefix="Domain service",
     host="open.volcengineapi.com",
-    scheme="http",
+    scheme="https",
 )
 
 add_actions(
@@ -455,7 +431,7 @@ add_actions(
     summary_prefix="Trademark query",
     content_type="text/plain",
     host="open.volcengineapi.com",
-    scheme="http",
+    scheme="https",
 )
 add_actions(
     ["SearchTrademarkInfo", "SearchTrademark"],
@@ -464,7 +440,7 @@ add_actions(
     method="POST",
     summary_prefix="Trademark search",
     host="open.volcengineapi.com",
-    scheme="http",
+    scheme="https",
 )
 
 add_actions(
@@ -642,16 +618,6 @@ def env(name: str, default: str = "") -> str:
     return os.getenv(name, default)
 
 
-def _credential_attr(credentials: Any, attr: str) -> str:
-    if isinstance(credentials, dict):
-        value = credentials.get(attr)
-    else:
-        value = getattr(credentials, attr, None)
-    if value is None:
-        return ""
-    return str(value).strip()
-
-
 def _env_value(env_getter, name: str) -> str:
     try:
         value = env_getter(name, "")
@@ -662,20 +628,194 @@ def _env_value(env_getter, name: str) -> str:
     return str(value).strip()
 
 
+def check_ve_login_status() -> str:
+    try:
+        completed = subprocess.run(
+            ["ve", "sts", "GetCallerIdentity"],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+    except FileNotFoundError:
+        return "`ve` command not found."
+    except subprocess.TimeoutExpired:
+        return "`ve sts GetCallerIdentity` timed out."
+
+    output = "\n".join(part.strip() for part in (completed.stdout, completed.stderr) if part and part.strip())
+    if completed.returncode == 0:
+        return "`ve sts GetCallerIdentity` succeeded; current ve credentials are usable."
+    return output or f"`ve sts GetCallerIdentity` failed with exit code {completed.returncode}."
+
+
+def _config_path(env_getter=env) -> str:
+    return _env_value(env_getter, CLI_CONFIG_FILE_ENV) or os.path.expanduser("~/.volcengine/config.json")
+
+
+def _load_cli_config(env_getter=env) -> tuple[dict[str, Any], str]:
+    path = _config_path(env_getter)
+    if not os.path.isfile(path):
+        raise CredentialResolutionError(f"Volcengine CLI config file not found at {path}.")
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            value = json.load(f)
+    except OSError as exc:
+        raise CredentialResolutionError(f"Failed to read Volcengine CLI config file {path}: {exc}") from exc
+    except json.JSONDecodeError as exc:
+        raise CredentialResolutionError(f"Failed to parse Volcengine CLI config file {path}: {exc}") from exc
+    if not isinstance(value, dict):
+        raise CredentialResolutionError(f"Volcengine CLI config file {path} must contain a JSON object.")
+    return value, path
+
+
+def _select_profile_name(
+    config: dict[str, Any],
+    *,
+    profile: str | None,
+    env_getter=env,
+) -> tuple[str, str]:
+    explicit_profile = str(profile).strip() if profile else ""
+    if explicit_profile:
+        return explicit_profile, "--profile"
+    current = config.get("current")
+    if isinstance(current, str) and current.strip():
+        return current.strip(), "current"
+    env_profile = _env_value(env_getter, "VOLCENGINE_PROFILE")
+    if env_profile:
+        return env_profile, "VOLCENGINE_PROFILE"
+    stack_profile = _env_value(env_getter, "VOLCSTACK_PROFILE")
+    if stack_profile:
+        return stack_profile, "VOLCSTACK_PROFILE"
+    raise CredentialResolutionError(
+        "No active Volcengine CLI profile is configured. Run `ve configure profile --profile <name>`, "
+        "pass --profile after the user selects one, or set VOLCENGINE_ACCESS_KEY and VOLCENGINE_SECRET_KEY."
+    )
+
+
+def _get_profile(config: dict[str, Any], profile_name: str, profile_source: str) -> dict[str, Any]:
+    profiles = config.get("profiles")
+    if not isinstance(profiles, dict):
+        raise CredentialResolutionError("Volcengine CLI config does not contain a valid profiles object.")
+    profile = profiles.get(profile_name)
+    if not isinstance(profile, dict):
+        raise CredentialResolutionError(
+            f"Volcengine CLI profile {profile_name!r} from {profile_source} was not found in config."
+        )
+    return profile
+
+
+def _profile_value(profile: dict[str, Any], key: str) -> str:
+    value = profile.get(key)
+    return value.strip() if isinstance(value, str) else ""
+
+
+def _login_cache_filename(login_session: str) -> str:
+    return hashlib.sha1(login_session.encode("utf-8")).hexdigest() + ".json"
+
+
+def _login_cache_dir(config_path: str, env_getter=env) -> str:
+    custom = _env_value(env_getter, LOGIN_CACHE_DIRECTORY_ENV)
+    if custom:
+        return custom
+    return os.path.join(os.path.dirname(config_path), "login", "cache")
+
+
+def _parse_rfc3339(value: str) -> datetime.datetime:
+    raw = value.strip()
+    if raw.endswith("Z"):
+        raw = raw[:-1] + "+00:00"
+    parsed = datetime.datetime.fromisoformat(raw)
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=datetime.timezone.utc)
+    return parsed.astimezone(datetime.timezone.utc)
+
+
+def _parse_console_login_access_token(access_token: Any, cache_path: str) -> tuple[str, str, str]:
+    if isinstance(access_token, dict):
+        creds = access_token
+    elif isinstance(access_token, str):
+        try:
+            parsed = json.loads(access_token)
+        except json.JSONDecodeError as exc:
+            raise CredentialResolutionError(f"Failed to parse console-login access_token in {cache_path}: {exc}") from exc
+        if not isinstance(parsed, dict):
+            raise CredentialResolutionError(f"console-login access_token in {cache_path} is not a JSON object.")
+        creds = parsed
+    else:
+        raise CredentialResolutionError(f"console-login token cache {cache_path} does not contain valid access_token.")
+
+    ak = creds.get("access_key_id")
+    sk = creds.get("secret_access_key")
+    token = creds.get("session_token")
+    ak = ak.strip() if isinstance(ak, str) else ""
+    sk = sk.strip() if isinstance(sk, str) else ""
+    token = token.strip() if isinstance(token, str) else ""
+    if not ak or not sk or not token:
+        raise CredentialResolutionError(f"console-login access_token in {cache_path} is missing STS credential fields.")
+    return ak, sk, token
+
+
+def _read_console_login_cache(
+    *,
+    profile_name: str,
+    profile: dict[str, Any],
+    config_path: str,
+    env_getter=env,
+) -> ResolvedCredentials:
+    login_session = _profile_value(profile, "login-session")
+    if not login_session:
+        raise CredentialResolutionError(
+            f"Volcengine CLI profile {profile_name!r} does not contain usable access-key/secret-key "
+            "or login-session. Run `ve login` or `ve configure set` first."
+        )
+    cache_path = os.path.join(_login_cache_dir(config_path, env_getter), _login_cache_filename(login_session))
+    try:
+        with open(cache_path, "r", encoding="utf-8") as f:
+            cache = json.load(f)
+    except OSError as exc:
+        raise CredentialResolutionError(
+            f"Failed to read console-login cache for profile {profile_name!r} at {cache_path}: {exc}. "
+            "Run `ve login` first."
+        ) from exc
+    except json.JSONDecodeError as exc:
+        raise CredentialResolutionError(f"Failed to parse console-login cache {cache_path}: {exc}") from exc
+    if not isinstance(cache, dict):
+        raise CredentialResolutionError(f"console-login cache {cache_path} must contain a JSON object.")
+
+    issued_at_raw = cache.get("issued_at")
+    issued_at = issued_at_raw.strip() if isinstance(issued_at_raw, str) else ""
+    try:
+        expires_in = int(cache.get("expires_in", 0))
+    except (TypeError, ValueError):
+        expires_in = 0
+    if not issued_at or expires_in <= 0:
+        raise CredentialResolutionError(f"console-login cache {cache_path} is missing valid issued_at/expires_in.")
+    try:
+        expiration = _parse_rfc3339(issued_at) + datetime.timedelta(seconds=expires_in)
+    except ValueError as exc:
+        raise CredentialResolutionError(f"Failed to parse issued_at in console-login cache {cache_path}: {exc}") from exc
+    if utc_now() >= expiration - datetime.timedelta(seconds=60):
+        raise CredentialResolutionError(
+            f"console-login cache for profile {profile_name!r} is expired. Run `ve login` to refresh it."
+        )
+
+    ak, sk, token = _parse_console_login_access_token(cache.get("access_token"), cache_path)
+    return ResolvedCredentials(
+        ak=ak,
+        sk=sk,
+        session_token=token,
+        provider_name="VolcengineCLIConsoleLoginCache",
+    )
+
+
 def resolve_volcengine_credentials(
     *,
     profile: str | None = None,
-    config_file: str | None = None,
     session_token: str | None = None,
     env_getter=env,
-    cli_provider_factory=None,
     notify=None,
 ) -> ResolvedCredentials:
-    """Resolve AK/SK from env first, then from the Volcengine CLI credential provider.
-
-    CLIConfigCredentialProvider handles the CLI profile modes supported by the
-    SDK: ak, ramrolearn, oidc, ecsrole, sso, and console-login.
-    """
+    """Resolve AK/SK from env first, then from existing Volcengine CLI credentials."""
     env_ak = _env_value(env_getter, "VOLCENGINE_ACCESS_KEY")
     env_sk = _env_value(env_getter, "VOLCENGINE_SECRET_KEY")
     if env_ak and env_sk:
@@ -697,51 +837,51 @@ def resolve_volcengine_credentials(
         if not env_sk:
             missing.append("VOLCENGINE_SECRET_KEY")
         notify(
-            "{} not detected; trying Volcengine CLI credentials from ve login/profile.".format(
+            "{} not detected; checking `ve sts GetCallerIdentity` before reading existing ve profile/login-cache credentials.".format(
                 " and ".join(missing)
             )
         )
-
-    if cli_provider_factory is None:
-        try:
-            from volcenginesdkcore.auth.providers.cli_config_provider import CLIConfigCredentialProvider
-        except ImportError as exc:
-            raise CredentialResolutionError(
-                "VOLCENGINE_ACCESS_KEY/VOLCENGINE_SECRET_KEY are not set, and the installed "
-                "volcenginesdkcore cannot load CLIConfigCredentialProvider. Install or upgrade "
-                "the Volcengine Python SDK, run ve login/configure, or set AK/SK environment variables."
-            ) from exc
-        cli_provider_factory = CLIConfigCredentialProvider
+        ve_status = check_ve_login_status()
+        notify(f"ve credential check: {ve_status}")
 
     try:
-        provider = cli_provider_factory(profile_name=profile, config_path=config_file)
-        credentials = provider.get_credentials()
-    except Exception as exc:
+        config, resolved_config_path = _load_cli_config(env_getter)
+        profile_name, profile_source = _select_profile_name(config, profile=profile, env_getter=env_getter)
+        selected_profile = _get_profile(config, profile_name, profile_source)
+
+        ak = _profile_value(selected_profile, "access-key")
+        sk = _profile_value(selected_profile, "secret-key")
+        if ak and sk:
+            return ResolvedCredentials(
+                ak=ak,
+                sk=sk,
+                session_token=(
+                    str(session_token).strip()
+                    if session_token is not None
+                    else _profile_value(selected_profile, "session-token")
+                ),
+                provider_name=f"VolcengineCLIProfile({profile_name})",
+            )
+
+        resolved = _read_console_login_cache(
+            profile_name=profile_name,
+            profile=selected_profile,
+            config_path=resolved_config_path,
+            env_getter=env_getter,
+        )
+    except CredentialResolutionError as exc:
         raise CredentialResolutionError(
-            "VOLCENGINE_ACCESS_KEY/VOLCENGINE_SECRET_KEY are not set, and Volcengine CLI "
-            "credential resolution failed. Run ve login, configure a ve profile, or set "
-            "VOLCENGINE_ACCESS_KEY and VOLCENGINE_SECRET_KEY. Underlying error: {}".format(exc)
+            f"{exc} Run `ve login` or set VOLCENGINE_ACCESS_KEY and VOLCENGINE_SECRET_KEY environment variables."
         ) from exc
 
-    ak = _credential_attr(credentials, "ak")
-    sk = _credential_attr(credentials, "sk")
-    if not ak or not sk:
-        provider_name = _credential_attr(credentials, "provider_name") or "Volcengine CLI credential provider"
-        raise CredentialResolutionError(
-            "{} returned incomplete credentials. Run ve login, configure a ve profile, or set "
-            "VOLCENGINE_ACCESS_KEY and VOLCENGINE_SECRET_KEY.".format(provider_name)
+    if session_token is not None:
+        return ResolvedCredentials(
+            ak=resolved.ak,
+            sk=resolved.sk,
+            session_token=str(session_token).strip(),
+            provider_name=resolved.provider_name,
         )
-
-    return ResolvedCredentials(
-        ak=ak,
-        sk=sk,
-        session_token=(
-            str(session_token).strip()
-            if session_token is not None
-            else _credential_attr(credentials, "session_token")
-        ),
-        provider_name=_credential_attr(credentials, "provider_name") or "CLIConfigCredentialProvider",
-    )
+    return resolved
 
 
 def split_query_body(
@@ -991,65 +1131,26 @@ def call_flink_path(
     preserve_query_keys_in_body: list[str] | None,
     scheme: str,
 ) -> tuple[Any, int, dict[str, str]]:
-    configuration = Configuration()
-    configuration.host = host
-    configuration.scheme = scheme
-    configuration.ak = ak
-    configuration.sk = sk
-    configuration.region = region
-    if session_token:
-        configuration.session_token = session_token
-    client = ApiClient(configuration)
-    headers = {
-        "Accept": client.select_header_accept(["application/json"]),
-        "Content-Type": client.select_header_content_type([content_type]),
-    }
     if method == "GET":
-        query_params = list(params.items())
-        body_params = {}
+        query = params
+        body: dict[str, Any] = {}
     else:
         query, body = split_query_body(params, query_keys, preserve_query_keys_in_body)
-        query_params = list(query.items())
-        body_params = body
-    path = f"/{action}/{version}/{service}/{method.lower()}/{content_type.lower().replace('/', '_')}"
-    response = client.call_api(
-        path,
-        method,
-        {},
-        query_params,
-        headers,
-        body=body_params,
-        post_params=[],
-        files={},
-        response_type=object,
-        auth_settings=["volcengineSign"],
-        async_req=False,
-        _return_http_data_only=False,
-        _preload_content=True,
-        _request_timeout=None,
-        collection_formats={},
+    return signed_action_version_request(
+        ak=ak,
+        sk=sk,
+        session_token=session_token,
+        region=region,
+        host=host,
+        service=service,
+        version=version,
+        action=action,
+        method=method,
+        content_type=content_type,
+        query=query,
+        body=body,
+        scheme=scheme,
     )
-    if isinstance(response, tuple) and len(response) == 3:
-        return response
-    return response, 200, {}
-
-
-def response_from_sdk_api_exception(exc: Exception) -> tuple[Any, int, dict[str, str]] | None:
-    status = getattr(exc, "status", None)
-    body = getattr(exc, "body", None)
-    if status is None or body is None:
-        return None
-    if isinstance(body, bytes):
-        body = body.decode("utf-8", errors="replace")
-    if isinstance(body, str):
-        try:
-            payload = json.loads(body)
-        except json.JSONDecodeError:
-            payload = body
-    else:
-        payload = body
-    headers = getattr(exc, "headers", None) or {}
-    return payload, int(status), dict(headers)
 
 
 def resolve_host(entry: dict[str, Any], region: str, explicit_host: str | None) -> str:
@@ -1096,6 +1197,26 @@ def action_kind(action: str) -> str:
     return "unknown"
 
 
+def summarize_verify_info(payload: Any) -> dict[str, Any]:
+    info = payload.get("Result", payload) if isinstance(payload, dict) else {}
+    if not isinstance(info, dict):
+        info = {}
+    is_verified = info.get("IsVerified") is True
+    identity_type = info.get("IdentityType")
+    return {
+        "is_verified": is_verified,
+        "identity_type": identity_type,
+        "individual_verified": is_verified and identity_type == "individual",
+        "enterprise_verified": is_verified and identity_type == "enterprise",
+    }
+
+
+def derived_summary(entry: dict[str, Any], payload: Any) -> dict[str, Any] | None:
+    if entry["service"] == "account_verify" and entry["name"] == "GetVerifyInfo":
+        return {"verification": summarize_verify_info(payload)}
+    return None
+
+
 def print_list(include_test: bool = False) -> None:
     entries = [entry for entry in API_REGISTRY if include_test or not entry.get("test_only")]
     for entry in sorted(entries, key=lambda e: (e["service"], e["name"])):
@@ -1120,12 +1241,13 @@ def call_api(args: argparse.Namespace) -> int:
     region = args.region or entry.get("region") or env("VOLCENGINE_REGION") or DEFAULT_REGION
     host = resolve_host(entry, region, args.host)
     scheme = args.scheme or entry.get("scheme") or "https"
+    if scheme != "https":
+        raise SystemExit("Only HTTPS endpoints are supported by this helper.")
     content_type = args.content_type or entry.get("content_type") or "application/json"
 
     try:
         credentials = resolve_volcengine_credentials(
             profile=args.profile,
-            config_file=args.config_file,
             session_token=args.session_token,
             notify=lambda message: print(message, file=sys.stderr),
         )
@@ -1135,21 +1257,6 @@ def call_api(args: argparse.Namespace) -> int:
     sk = credentials.sk
     session_token = credentials.session_token
 
-    info = create_universal_info(
-        service=entry["service"],
-        action=entry["name"],
-        version=entry["version"],
-        method=expected_method,
-        content_type=content_type,
-    )
-    client = create_api_client(
-        ak=ak,
-        sk=sk,
-        session_token=session_token,
-        region=region,
-        host=host,
-        scheme=scheme,
-    )
     if entry.get("call_style") == "flink_path":
         response, status_code, response_headers = call_flink_path(
             ak=ak,
@@ -1182,7 +1289,7 @@ def call_api(args: argparse.Namespace) -> int:
             body=body_params,
             scheme=scheme,
         )
-    elif entry.get("call_style") == "action_version":
+    else:
         response, status_code, response_headers = signed_action_version_request(
             ak=ak,
             sk=sk,
@@ -1198,20 +1305,16 @@ def call_api(args: argparse.Namespace) -> int:
             body=body_params,
             scheme=scheme,
         )
-    else:
-        try:
-            response, status_code, response_headers = client.do_call_with_http_info(info=info, body=params)
-        except Exception as exc:
-            sdk_error_response = response_from_sdk_api_exception(exc)
-            if sdk_error_response is None:
-                raise
-            response, status_code, response_headers = sdk_error_response
 
+    summary = derived_summary(entry, response)
     if args.output == "json":
         print(json.dumps(response, ensure_ascii=False))
     else:
         print(f"Status Code: {status_code}")
         print(json.dumps(response, ensure_ascii=False, indent=2))
+        if summary:
+            print("Derived Summary:")
+            print(json.dumps(summary, ensure_ascii=False, indent=2))
         if args.show_headers:
             print("Response Headers:")
             print(json.dumps(dict(response_headers), ensure_ascii=False, indent=2, default=str))
@@ -1226,17 +1329,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--service", help="ServiceCode disambiguator for duplicate API names")
     parser.add_argument("--region", help="Request region, default VOLCENGINE_REGION or cn-beijing")
     parser.add_argument("--host", help="Override endpoint host; otherwise uses the registry host or VOLCENGINE_ENDPOINT fallback")
-    parser.add_argument("--scheme", choices=["https", "http"], help="Override endpoint scheme")
+    parser.add_argument("--scheme", choices=["https"], help="Override endpoint scheme; HTTPS only")
     parser.add_argument("--content-type", help="Override content type")
     parser.add_argument("--session-token", help="Override VOLCENGINE_SESSION_TOKEN")
     parser.add_argument("--profile", help="Volcengine CLI profile name for ve login/config credentials")
-    parser.add_argument(
-        "--config-file",
-        help=(
-            "Volcengine CLI config file path; defaults to "
-            "VOLCENGINE_CLI_CONFIG_FILE or ~/.volcengine/config.json"
-        ),
-    )
     parser.add_argument("--output", choices=["pretty", "json"], default="pretty")
     parser.add_argument("--show-headers", action="store_true")
     parser.add_argument("--include-test", action="store_true", help="Include test-only APIs in --list/--describe/calls")

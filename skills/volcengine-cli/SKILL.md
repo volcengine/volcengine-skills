@@ -37,13 +37,13 @@ metadata:
         description: Optional fallback endpoint for extension calls that do not define a product endpoint
       - name: VOLCENGINE_PROFILE
         required: false
-        description: Optional Volcengine CLI profile name used by SDK CLI credential fallback
+        description: Optional Volcengine CLI profile name used by extension helper credential fallback
       - name: VOLCENGINE_CLI_CONFIG_FILE
         required: false
-        description: Optional Volcengine CLI config path used by SDK CLI credential fallback
+        description: Optional full path to the Volcengine CLI config file; defaults to ~/.volcengine/config.json when unset
       - name: VOLCENGINE_LOGIN_CACHE_DIRECTORY
         required: false
-        description: Optional console-login cache directory used by SDK CLI credential fallback
+        description: Optional console-login cache directory used by extension helper credential fallback
 ---
 
 # Volcengine CLI Skill
@@ -70,6 +70,19 @@ Verify the installation: `ve --version`
 
 ## 1. Initialization (run at the start of every session)
 
+### Profile Selection (fixed for the conversation)
+
+`ve` can use different credentials through profiles, but the agent must not choose a profile by itself.
+
+- If the user did not explicitly select a profile, use the CLI default resolution: run `ve sts GetCallerIdentity` directly. Do not list all profiles first and choose one yourself.
+- If the user explicitly selected a profile, keep using that same profile for all later commands in this conversation.
+- Ordinary service API calls use fixed flags with three hyphens: `---profile <profile-name>`, for example `ve ecs DescribeInstances ---profile prod`.
+- CLI management commands use normal flags with two hyphens: `ve configure ... --profile`, `ve login --profile`, and `ve sso login --profile`.
+- Skill helper scripts use normal flags with two hyphens, for example `python3 scripts/call_extend_api.py --profile prod ...`.
+- Do not infer the desired profile from profile name, region, list order, recent availability, success rate, or task content.
+- If the default identity does not match the task risk, or a profile choice is required, tell the user the current default identity, list candidate profile names only, and wait for the user to choose.
+- Once a profile is fixed for this conversation, do not switch to another profile unless the user explicitly asks to switch.
+
 Run the identity verification command to confirm that credentials are usable:
 
 ```bash
@@ -78,7 +91,7 @@ ve sts GetCallerIdentity
 
 **Success** — inform the user of the current account identity and region, then proceed with the task.
 
-> **Switching regions later**: once a profile is set up, `--region` and `VOLCENGINE_REGION` do **not** override the region baked into it. Switch via `ve configure profile --profile <name>` (use `ve configure list` to see profiles). This does not apply to the `--region` flag on `ve login` itself, which is required (see below).
+> **Switching regions later**: once a profile is set up, `---region` on ordinary service API calls and `VOLCENGINE_REGION` do **not** override the region baked into it. Switch profiles with `ve configure profile --profile <name>` only when the user explicitly asks. Use `ve configure list` only to show candidate profile names; after listing, do not choose a profile yourself. This does not apply to the `--region` flag on `ve login` itself, which is required (see below).
 
 **Failure** — no usable profile. Default plan: use `ve login` (Console Login, OAuth 2.0 + PKCE). Announce this to the user up front, and tell them they can say "use AK/SK", "use STS token", or "use SSO" to switch.
 
@@ -279,7 +292,9 @@ For those, consult [references/extend-apis.md](references/extend-apis.md) and us
 python3 scripts/call_extend_api.py --api <APIName> --params '{"Key":"Value"}'
 ```
 
-The helper resolves `service`, `version`, `method`, endpoint, content type, and credentials from its registry/environment. Credentials prefer `VOLCENGINE_ACCESS_KEY`/`VOLCENGINE_SECRET_KEY`; when those environment variables are missing, it warns the user and falls back to the Python SDK's `CLIConfigCredentialProvider` so `ve` profiles from `ak`, `ramrolearn`, `oidc`, `ecsrole`, `sso`, and `console-login` modes can be reused. Apply the same read/write/destructive confirmation rules before running extension APIs.
+The helper resolves `service`, `version`, `method`, endpoint, content type, and credentials from its registry/environment. For credential resolution details, see [references/extend-apis.md](references/extend-apis.md). Apply the same read/write/destructive confirmation rules before running extension APIs.
+
+For extension helpers, do not pass `--profile` unless the user has explicitly selected one for this conversation.
 
 ---
 
@@ -318,6 +333,8 @@ ve redis CreateDBInstance --body '{"InstanceName":"demo","RegionId":"cn-beijing"
 { "ResponseMetadata": { "Error": { "Code": "...", "Message": "..." } } }
 ```
 
+When a response includes `ResponseMetadata.Error`, first classify whether it is request-format, missing dependency, account state, service activation, real-name verification, purchase qualification, or permission related. For account/service-state patterns, consult [references/common-errors.md](references/common-errors.md). For product-specific errors, also consult the matching service note below. For permission errors (`AccessDenied`, `NoPermission`, `RoleNotExist`, `Forbidden`, or STS-related failures), activate the `volcengine-troubleshooting` skill and use its account-permission diagnosis capability to locate the root cause and guide the user through remediation.
+
 ### Async Resource Creation Requires Polling
 
 Some resources (VKE clusters, RDS instances, ECS instances, etc.) take several minutes to create. After creation, poll the Describe endpoint until the resource reaches the desired status before proceeding.
@@ -354,6 +371,7 @@ done
 
 Consult or update the corresponding notes file when encountering service-specific issues:
 
+- Common errors: [references/common-errors.md](references/common-errors.md)
 - ECS: [references/ecs.md](references/ecs.md)
 - VPC: [references/vpc.md](references/vpc.md)
 - CR: [references/cr.md](references/cr.md)

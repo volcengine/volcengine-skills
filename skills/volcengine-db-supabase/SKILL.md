@@ -6,8 +6,8 @@ description: >-
   API keys, endpoint or database connection information, service activation, enterprise real-name
   verification, SQL execution, migrations, Edge Functions, Storage buckets, TypeScript type
   generation, or using AIDAP as the database for a Volcengine deployment. Prefer `ve aidap`
-  for control-plane operations; use bundled scripts only for non-public bootstrap APIs and
-  Supabase data-plane APIs missing from the current `ve` CLI.
+  for control-plane operations; use bundled scripts only for Supabase data-plane APIs missing from
+  the current `ve` CLI.
 license: MIT
 ---
 
@@ -19,11 +19,12 @@ AIDAP refers to Volcengine's `AI 原生 BaaS 平台 Supabase 版` product. This 
 
 - Supported by `ve aidap`: workspace, branch, compute, database, DB account, endpoint, API key, ACL, schema diff, start/stop, and deletion operations.
 - AIDAP deploy engine choices are `supabase` and `postgresql`. Preserve the user's selected engine instead of treating Supabase as an RDS PostgreSQL provider.
-- Not covered by current `ve` CLI: enterprise real-name verification (`account_verify/GetVerifyInfo/2018-01-01`). Use `scripts/aidap_bootstrap.py` for that check when needed.
-- `scripts/aidap_bootstrap.py` signs non-public API requests from `VOLCENGINE_ACCESS_KEY` and `VOLCENGINE_SECRET_KEY`; it does not reuse `ve login` cached credentials.
+- Real-name verification requires the `volcengine-cli` skill's `GetVerifyInfo` extension API capability; activate that skill first to use it.
 - Not covered by current `ve` CLI: SQL execution, migration application, Supabase Edge Function management, Supabase Storage bucket management, and TypeScript type generation. Use `scripts/supabase_dataplane.py` for those old-skill capabilities.
 - `scripts/supabase_dataplane.py` uses `ve aidap` only to resolve endpoint, default branch, and API keys. The data-plane calls use the Supabase service-role key in `apikey` and `Authorization` headers, not Volcengine AK/SK.
-- Service activation is a console flow. If the service is not enabled, direct the user to `https://console.volcengine.com/iam/service/attach_role/?ServiceName=aidap`.
+- Service activation is a console flow. If the service is not enabled, direct the user to `https://console.volcengine.com/aidap`.
+- A successful `ve aidap DescribeWorkspaces --body '{"Limit":1,"Offset":0}'` response with `Total: 0` or `Workspaces: []` only means no workspaces exist; do not treat it as a service-disabled signal.
+- AIDAP workspace creation requires the service-linked role `ServiceRoleForAIDAP`. If `CreateWorkspace` fails with `RoleNotExist`, follow the [Service-Linked Role Repair](#service-linked-role-repair) procedure.
 
 ## Initial Checks
 
@@ -34,13 +35,7 @@ AIDAP refers to Volcengine's `AI 原生 BaaS 平台 Supabase 版` product. This 
 ve aidap --help
 ```
 
-3. If AK/SK environment variables are available, check enterprise real-name status when creating a workspace or troubleshooting creation failure:
-
-```bash
-python3 scripts/aidap_bootstrap.py get-verify-info
-```
-
-The account is enterprise verified only when the response has `IsVerified=true` and `IdentityType="enterprise"`. The script also emits `verification.enterprise_verified` from those two fields.
+3. When creating a workspace or troubleshooting creation failure, activate the `volcengine-cli` skill and use its `GetVerifyInfo` extension API capability to check real-name verification. Personal verification is `IsVerified=true` with `IdentityType="individual"`; enterprise verification is `IsVerified=true` with `IdentityType="enterprise"`.
 
 ## Workspace Bootstrap
 
@@ -49,11 +44,12 @@ When the user has no workspace:
 1. Ensure the AIDAP service is enabled. If not, ask the user to open:
 
 ```text
-https://console.volcengine.com/iam/service/attach_role/?ServiceName=aidap
+https://console.volcengine.com/aidap
 ```
 
-2. Check enterprise verification with the bootstrap script when AK/SK environment variables are available.
-3. Create the workspace with `ve aidap CreateWorkspace`, using the selected AIDAP engine and the current official enum mapping from [`references/tool-reference.md`](./references/tool-reference.md).
+2. Ensure the service-linked role `ServiceRoleForAIDAP` exists. If `CreateWorkspace` fails with `RoleNotExist`, follow the [Service-Linked Role Repair](#service-linked-role-repair) procedure below, then retry once.
+3. Activate the `volcengine-cli` skill and use its `GetVerifyInfo` extension API capability to check enterprise verification.
+4. Create the workspace with `ve aidap CreateWorkspace`, using the selected AIDAP engine and the current official enum mapping from [`references/tool-reference.md`](./references/tool-reference.md).
 
 Minimal explicit-network body shape:
 
@@ -103,7 +99,7 @@ For PostgreSQL workspaces, pass both `BranchId` and `ComputeId` to endpoint and 
 Use `ve aidap <Action> --help` before writing command arguments; AIDAP is evolving and the CLI help is the local source of truth.
 
 ```bash
-ve aidap DescribeWorkspaces --Limit 20
+ve aidap DescribeWorkspaces --body '{"Limit":20,"Offset":0}'
 ve aidap DescribeWorkspaceDetail --WorkspaceId ws-xxxx
 ve aidap DescribeDefaultBranch --WorkspaceId ws-xxxx
 ve aidap DescribeBranches --WorkspaceId ws-xxxx
@@ -123,6 +119,24 @@ Branch-scoped actions must pass the explicit `BranchId`; do not rely on an impli
 If `CreateDBAccount` or `CreateDatabase` reports `PrimaryComputeNotFound`, first compare `DescribeDefaultBranch`, `DescribeBranches`, and `DescribeComputes` for the same workspace and branch. If the branch is the default branch and `DescribeComputes` shows a `Primary` database compute in `Active` state, stop guessing branch IDs and record the case as an AIDAP control-plane inconsistency. Use the PostgreSQL fallback in [`references/deploy-provider.md`](./references/deploy-provider.md) only when a credential-bearing admin `POSTGRES_URL` is available and the user accepts using it.
 
 Never print passwords, API keys, JWT secrets, service-role keys, or connection strings containing credentials in final answers. Write `DATABASE_URL` into a local env file with mode `600`, then verify it with `psql` (`select 1` or a table-list query). Summarize the host/port, resource IDs, verification result, and credential file path, not the full connection string.
+
+## Service-Linked Role Repair
+
+If `ve aidap CreateWorkspace` fails with a message like:
+
+```text
+RoleNotExist: Role 'trn:iam::<account-id>:role/ServiceRoleForAIDAP' does not exist
+```
+
+do not immediately classify it as a service-disabled condition. Repair the missing AIDAP service-linked role through IAM:
+
+```bash
+ve iam GetServiceLinkedRoleTemplate --ServiceName aidap
+ve iam CreateServiceLinkedRole --ServiceName aidap
+ve iam GetRole --RoleName ServiceRoleForAIDAP
+```
+
+After `GetRole` confirms `RoleName=ServiceRoleForAIDAP` and `IsServiceLinkedRole=1`, retry `CreateWorkspace` once. If the retry returns `NotVerifiedAccount` or `账号未实名认证`, stop and ask the user to complete real-name verification at `https://console.volcengine.com/user/authentication/detail/`.
 
 `CreateAccessControlList` currently has fragile CLI array parameter handling and has returned `InvalidParameterFormat` for common array forms. Do not tell the user that an ACL has been tightened until you verify the effective `AllowHost` from `DescribeDBAccountConnection`. If `AllowHost` still includes broad ranges such as `0.0.0.0/0` or `::/0`, warn clearly and recommend tightening in the console or with a separately verified API call.
 

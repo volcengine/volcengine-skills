@@ -1,14 +1,12 @@
 ---
 name: volcengine-deploy
 description: >-
-  Use when deploying a local project directory or, when provided, a Git repository to Volcengine as a running service.
-  Supports ECS (EIP + binary/systemd, Docker, or compose), VKE (container image + Kubernetes),
-  and veFaaS execution through the `volcengine-vefaas` skill. Trigger when the user says "deploy to
-  Volcengine", "deploy this repo", "push to VKE", "run on ECS", "deploy as serverless", or
-  "volcengine deploy" — even without specifying the deploy mode. Run `volcengine-prepare`
-  when the user has not chosen a deployment path. Ask the user to choose resource
-  management (`cli` or `iac`): use `volcengine-iac` only when the user chooses Terraform/IaC
-  or already has an IaC workflow; otherwise use direct `ve` CLI creation with a resource ledger.
+  Deploy a local project directory or Git repository to Volcengine as a running, reachable cloud service.
+  USE WHEN: deploy to Volcengine, deploy to 火山引擎/火山, deploy this repo/project, publish current code,
+  launch the app, run it in the cloud, expose it as a service, deploy to ECS/VKE/veFaaS, run on ECS,
+  push to VKE, deploy as serverless/FaaS, or the user wants the agent to choose a Volcengine hosting target.
+  If the user only asks which Volcengine deployment target to choose, use `volcengine-prepare` skill first.
+  Not for creating a single standalone resource — use `volcengine-cli` skill for that.
 license: MIT
 ---
 
@@ -44,11 +42,33 @@ Persistent local state lives under `.volcengine/` in the repo root:
 
 ```text
 .volcengine/
+  deployment-plan.md       # human-readable approval gate
   deploy-choice.json
-  created-resources.json      # CLI fast path only
+  created-resources.json   # CLI fast path only
   iac-outputs.json
-  terraform/                  # IaC-managed resources
+  terraform/               # IaC-managed resources
 ```
+
+---
+
+## Steps
+
+This table is a navigation overview. Detailed rules live in the sections or reference files named in `Details`.
+
+| # | Action | Details |
+|---|---|---|
+| 1 | **Resolve target** — Resolve local path or Git URL; record `repo_name`, `repo_dir`, and `git_sha`. | Stage 0 |
+| 2 | **Load or choose path** — Load `.volcengine/deploy-choice.json`; if missing, use the `volcengine-prepare` skill, or ask for `mode`, resource strategy, and resource management. | Stage 0 |
+| 3 | **Create plan** — Create/update `.volcengine/deployment-plan.md` in the user's original language. | `references/deployment-plan-template.md` |
+| 4 | **Show resources** — Present every resource to create or reuse, such as VPC, ECS, VKE, RDS, Redis, CR, EIP, or dependencies. | `references/deployment-plan-template.md` |
+| 5 | **Validate gate** — Require `status: validated`, populated Validation Proof, and `approval: granted` with non-empty `approval_evidence` before provisioning. | `references/deployment-plan-template.md` |
+| 6 | **Dispatch resource management** — Use the `volcengine-iac` skill for Terraform/IaC; otherwise use `ve` CLI plus `.volcengine/created-resources.json`. | Resource management dispatch |
+| 7 | **Provision resources** — Create or reuse resources; append each CLI-created resource to `.volcengine/created-resources.json`. | Resource ledger |
+| 8 | **Wire runtime config** — Resolve config and secrets; never print secrets. | Environment and Dependency Wiring |
+| 9 | **Execute deployment** — Run the selected case: `ecs`, `vke`, or use the `volcengine-vefaas` skill for `vefaas`. | Branch references |
+| 10 | **Verify success** — Check public endpoint, health, logs, and one core behavior when possible. | Branch references |
+| 11 | **Handle failure** — Print reverse-order CLI cleanup commands; never delete reused resources without confirmation. | Resource ledger |
+| 12 | **Report result** — Print URL, health, acceptance, logs, resource records, cleanup path, and warnings. | Deployment summary |
 
 ---
 
@@ -77,33 +97,18 @@ git_sha=$(cd "$repo_dir" && git rev-parse --short HEAD 2>/dev/null || echo "$(da
 
 Local directories are deployed in place and are not cloned. For Git URLs, use shallow clone first; if clone repeatedly fails, try an archive/subdirectory path or stop with a clear "not suitable for quick remote build" message. Do not claim a README/static mirror is the deployed application.
 
-Load `.volcengine/deploy-choice.json` if present. If absent, ask the fixed decisions above or run `volcengine-prepare`.
+Load `.volcengine/deploy-choice.json` if present. It is produced by `volcengine-prepare`, which keeps the choice schema authoritative; `volcengine-deploy` only consumes the selected repo, region, mode, port, dependencies, database choice, resource strategy, project, and `infra_management`.
 
-Choice file shape:
+If `.volcengine/deploy-choice.json` is missing, run `volcengine-prepare` or ask only the missing decisions needed to create it. Do not maintain a second full choice schema in this skill.
 
-```json
-{
-  "schema_version": "1",
-  "repo_dir": "/absolute/path",
-  "repo_name": "my-app",
-  "git_sha": "abc1234",
-  "region": "cn-beijing",
-  "mode": "ecs",
-  "port": 8080,
-  "dependencies": ["postgresql", "redis"],
-  "database_product": "aidap",
-  "database_engine": "supabase",
-  "resource_strategy": "create-isolated-project",
-  "project": "deploy-my-app",
-  "infra_management": "cli"
-}
-```
+After loading or creating the choice file, create or update `.volcengine/deployment-plan.md`; read [`references/deployment-plan-template.md`](./references/deployment-plan-template.md) first. The plan body must use the user's original language, list the expected resources, and gate provisioning on `status: validated`, `approval: granted`, and a non-empty `approval_evidence`.
 
-Confirm before creating resources:
+If `approval` is `pending`, confirm before creating resources, using the same language as the user:
 
 ```text
 Deploying <repo_name> via <mode> in <region>.
-Resources: <new isolated project deploy-... | reuse existing resources>
+Resource plan:
+- <create|reuse> <resource type>: <name>, <purpose/exposure/cleanup>
 Proceed? [y/N]
 ```
 
@@ -142,21 +147,31 @@ Rules:
 
 ## 3. Resource management dispatch
 
-Before provisioning, confirm one resource management path with the user:
+### Deployment plan gate
 
-| Condition | Path |
+Creating cloud resources costs money and is not freely reversible, so the plan frontmatter records two independent facts:
+
+- `status`: `draft` | `validated` — whether validation checks passed.
+- `approval`: `pending` | `granted` — whether the user authorized creating resources.
+- `approval_evidence`: a quote of the user's authorizing words; `approval: granted` is invalid while this is empty.
+
+Create, modify, or reuse a resource only when all of these hold: `status: validated`, the Validation Proof section is populated with real checks and has no failed required check, `approval: granted`, and `approval_evidence` is non-empty. Otherwise stop and complete the gate first.
+
+Rules:
+
+- `approval_evidence` must quote the user authorizing execution — "just deploy it", "open the resources for me", "go ahead". A configuration choice such as "use ecs" is selection, not spend authorization, and must not be used as evidence.
+- Never set `approval: granted` without real authorizing words, and never set `status: validated` while a required decision or secret is missing or a check was not actually run — record an unrun check as `deferred` with its reason instead of faking a `pass`.
+- If the user authorizes autonomous deployment ("deploy it for me", "资源也帮我开好", "go ahead and deploy"), show the resource plan once, set `approval: granted` with that quote, then proceed without interrupting before each resource. Treat this as authorization only when the words clearly authorize deployment or resource creation, not mere mode selection.
+- If the plan's core changes — `mode`, `region`, `infra_management`, or the resource plan — reset `status: draft`, `approval: pending`, and `approval_evidence: ""`, re-show the resource plan, and ask again.
+
+Before provisioning, dispatch from `infra_management` in `.volcengine/deploy-choice.json`. `volcengine-prepare` owns the `cli` vs `iac` recommendation and the user's choice; this skill only consumes it.
+
+| `infra_management` | Action |
 |---|---|
-| VKE, managed DB/cache/storage/LB/domain/certificate, team-owned infra, or plan/diff/destroy matters | `volcengine-iac` |
-| Pure ECS single-VM service with no managed dependencies and no explicit plan/diff/destroy requirement | CLI fast path |
-| User says temporary/demo/quick validation/just run it | CLI fast path |
-| Terraform/provider registry is unavailable, especially in China networks, and the target is not VKE/managed dependencies/team-owned infra | CLI fallback |
-| User explicitly says no Terraform/IaC | CLI fast path |
+| `iac` | Use `volcengine-iac` (see *When using IaC* below). |
+| `cli` | Use the `ve` CLI plus the resource ledger (see *When using CLI* below). |
 
-These are recommendations, not defaults. If `.volcengine/deploy-choice.json` lacks `infra_management`, ask before creating resources:
-
-```text
-Resource management recommendation: <cli|iac>, reason: <short reason>. Confirm the CLI resource ledger or Terraform/IaC? (`cli` / `iac`)
-```
+If `infra_management` is missing or invalid, do not infer a default here. Return to `volcengine-prepare`, or ask the user to choose `cli` or `iac`, then update `.volcengine/deploy-choice.json` and refresh `.volcengine/deployment-plan.md`.
 
 When using IaC:
 
@@ -307,8 +322,9 @@ Do not add custom domain, HTTPS, dashboards, or cost cards unless the user asks;
 
 ## 10. Reference details
 
-Use these references only when executing the corresponding path:
+Use these references as needed:
 
+- Always before provisioning: deployment plan template, gate, and resource plan in [`references/deployment-plan-template.md`](./references/deployment-plan-template.md)
 - ECS build/systemd/upload details: [`references/ecs-deploy-steps.md`](./references/ecs-deploy-steps.md)
 - VKE deploy pipeline (cluster/kubeconfig/addons/CR/rollout): [`references/vke-deploy-steps.md`](./references/vke-deploy-steps.md)
 - veFaaS deploy handoff details: [`references/faas-deploy-steps.md`](./references/faas-deploy-steps.md)
@@ -328,3 +344,4 @@ Common gotchas are intentionally kept as references so the main skill stays adap
 - Kubernetes readiness, LoadBalancer, probes, and manifest issues: [`references/k8s-manifests.md`](./references/k8s-manifests.md)
 - Managed dependency wiring and migrations: [`references/supported-dependencies.md`](./references/supported-dependencies.md)
 - veFaaS CLI/auth/framework setup: [`references/faas-deploy-steps.md`](./references/faas-deploy-steps.md) and `volcengine-vefaas`
+- Permission / role / STS errors during deployment: activate the `volcengine-troubleshooting` skill and use its account-permission diagnosis capability to locate the root cause and guide the user through remediation

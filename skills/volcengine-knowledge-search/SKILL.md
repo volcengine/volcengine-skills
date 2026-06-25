@@ -23,7 +23,7 @@ metadata:
 
 ## 命令速查
 
-脚本位于 `scripts/volcengine_docs.py`，`{skill_dir}` 为本 skill 目录。
+脚本位于 `scripts/volcengine_docs.py`，命令均相对本 skill 目录根执行。
 
 | 子命令 | 用途 | 形式 |
 |--------|------|------|
@@ -33,7 +33,7 @@ metadata:
 ### search
 
 ```bash
-python3 {skill_dir}/scripts/volcengine_docs.py search "tos 怎么计费" 3
+python3 scripts/volcengine_docs.py search "tos 怎么计费" 3
 ```
 
 参数：
@@ -73,10 +73,10 @@ ServiceCodes: <产品编码,逗号分隔>
 
 ```bash
 # 坏 query:直接用短英文营销词,语义稀疏 → 召回空 / 命中 DataFinder、RTC 等完全无关产品
-python3 {skill_dir}/scripts/volcengine_docs.py search "Coding Plan" 5
+python3 scripts/volcengine_docs.py search "Coding Plan" 5
 
 # 好 query:补全产品全称(火山方舟)+ 能力(AI 编程订阅套餐)+ 方向(价格 计费)
-python3 {skill_dir}/scripts/volcengine_docs.py search "火山方舟 Coding Plan AI 编程订阅套餐 价格 计费规则" 5
+python3 scripts/volcengine_docs.py search "火山方舟 Coding Plan AI 编程订阅套餐 价格 计费规则" 5
 # → 5 条结果全部命中 ark 产品:套餐概览 / 接入三方工具 / 限时邀请活动 / 常见问题 / 模型价格
 ```
 
@@ -85,7 +85,7 @@ python3 {skill_dir}/scripts/volcengine_docs.py search "火山方舟 Coding Plan 
 ### fetch
 
 ```bash
-python3 {skill_dir}/scripts/volcengine_docs.py fetch "https://www.volcengine.com/docs/6349/162514?lang=zh"
+python3 scripts/volcengine_docs.py fetch "https://www.volcengine.com/docs/6349/162514?lang=zh"
 ```
 
 脚本会自动剥离 URL 的 query / fragment 参数（如 `?lang=zh`），只用纯净路径请求。**输出是整理好的 markdown 文本**：首行 `# 标题`、次行纯净链接、空行后是正文。
@@ -111,7 +111,7 @@ python3 {skill_dir}/scripts/volcengine_docs.py fetch "https://www.volcengine.com
 
 ## 常见使用示例
 
-下面每个场景对应一种典型用户提问，演示「怎么选命令 + 怎么回答」。命令里的 `{skill_dir}` 换成本 skill 目录。
+下面每个场景对应一种典型用户提问，演示「怎么选命令 + 怎么回答」。命令均相对本 skill 目录根执行。
 
 ### 示例 1 · 产品概念 / 计费咨询（最常见，search 直接答）
 
@@ -120,7 +120,7 @@ python3 {skill_dir}/scripts/volcengine_docs.py fetch "https://www.volcengine.com
 直接检索，用脚本输出的摘要组织回答，末尾附官方链接：
 
 ```bash
-python3 {skill_dir}/scripts/volcengine_docs.py search "对象存储 TOS 是什么 计费方式" 3
+python3 scripts/volcengine_docs.py search "对象存储 TOS 是什么 计费方式" 3
 ```
 
 ### 示例 2 · 报错 / 故障排查（search 报错关键词）
@@ -130,7 +130,7 @@ python3 {skill_dir}/scripts/volcengine_docs.py search "对象存储 TOS 是什�
 把报错码 + 场景作为关键词检索，从结果里定位排查文档：
 
 ```bash
-python3 {skill_dir}/scripts/volcengine_docs.py search "OpenAPI SignatureDoesNotMatch 签名错误 排查" 3
+python3 scripts/volcengine_docs.py search "OpenAPI SignatureDoesNotMatch 签名错误 排查" 3
 ```
 
 ### 示例 3 · 用户直接给了文档链接（跳过 search，直接 fetch）
@@ -140,7 +140,7 @@ python3 {skill_dir}/scripts/volcengine_docs.py search "OpenAPI SignatureDoesNotM
 不需要检索，直接取全文，再用脚本输出的 markdown 正文总结（长文用 `start_index` 翻页）：
 
 ```bash
-python3 {skill_dir}/scripts/volcengine_docs.py fetch "https://www.volcengine.com/docs/6349/74820"
+python3 scripts/volcengine_docs.py fetch "https://www.volcengine.com/docs/6349/74820"
 ```
 
 ### 示例 4 · 首次检索太宽 → 带产品编码二次缩范围
@@ -150,8 +150,8 @@ python3 {skill_dir}/scripts/volcengine_docs.py fetch "https://www.volcengine.com
 先宽泛检索，看首次结果里目标文档的 `ServiceCodes`（如对象存储是 `tos`），原样带上做二次检索：
 
 ```bash
-python3 {skill_dir}/scripts/volcengine_docs.py search "跨区域复制 怎么配置" 5
-python3 {skill_dir}/scripts/volcengine_docs.py search "跨区域复制 怎么配置" 3 tos
+python3 scripts/volcengine_docs.py search "跨区域复制 怎么配置" 5
+python3 scripts/volcengine_docs.py search "跨区域复制 怎么配置" 3 tos
 ```
 
 ### 示例 5 · 要完整步骤 → 先 search 定位，再 fetch 取全文
@@ -161,8 +161,8 @@ python3 {skill_dir}/scripts/volcengine_docs.py search "跨区域复制 怎么配
 第 1 步检索找到最匹配的一篇，从输出里每条的 URL 行取链接；第 2 步对该链接 `fetch` 取全文，再整理成步骤：
 
 ```bash
-python3 {skill_dir}/scripts/volcengine_docs.py search "TOS Browser 上传文件 步骤" 3
-python3 {skill_dir}/scripts/volcengine_docs.py fetch "https://www.volcengine.com/docs/6349/162514"
+python3 scripts/volcengine_docs.py search "TOS Browser 上传文件 步骤" 3
+python3 scripts/volcengine_docs.py fetch "https://www.volcengine.com/docs/6349/162514"
 ```
 
 ## 结果处理规则

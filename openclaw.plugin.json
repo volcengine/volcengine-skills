@@ -4,7 +4,7 @@
   "description": "Volcengine cloud operations skill bundle for OpenClaw-compatible agents, covering ve CLI resource management, deployment, IaC, SDK generation, TOS, veFaaS, AIDAP database workspaces, and troubleshooting.",
   "version": "1.0.5",
   "activation": {
-    "onStartup": false
+    "onStartup": true
   },
   "capabilityTags": [
     "volcengine",
@@ -18,5 +18,9 @@
     "database",
     "troubleshooting"
   ],
-  "skills": ["./skills"]
+  "skills": ["./skills"],
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false
+  }
 }

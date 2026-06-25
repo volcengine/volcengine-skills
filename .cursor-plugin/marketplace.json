@@ -1,0 +1,17 @@
+{
+  "name": "volcengine-skills",
+  "owner": {
+    "name": "Volcengine Team",
+    "email": "volcengine@bytedance.com"
+  },
+  "metadata": {
+    "description": "Volcengine (火山引擎) skills marketplace: cloud operations, deployment, IaC, and SDK code generation for AI coding agents."
+  },
+  "plugins": [
+    {
+      "name": "volcengine-skills",
+      "source": "./",
+      "description": "Skills for Volcengine (火山引擎) scenarios: cloud resource operations (ECS/VPC/VKE/CLB/RDS/Redis/TOS), deployment, IaC, and SDK code generation."
+    }
+  ]
+}

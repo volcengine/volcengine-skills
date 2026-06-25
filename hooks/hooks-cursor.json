@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "hooks": {
+    "beforeReadFile": [
+      {
+        "matcher": "Read",
+        "command": "VOLCENGINE_HOOK_AGENT=cursor bash \"${CURSOR_PLUGIN_ROOT:-${CURSOR_PROJECT_DIR:-.}}/hooks/run-apmplus-reporter.sh\" --mode skill --require-skill-md || true"
+      }
+    ]
+  }
+}

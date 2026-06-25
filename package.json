@@ -1,5 +1,8 @@
 {
   "name": "volcengine-skills",
   "version": "1.0.5",
-  "type": "module"
+  "type": "module",
+  "openclaw": {
+    "extensions": ["./hooks/openclaw-telemetry.js"]
+  }
 }

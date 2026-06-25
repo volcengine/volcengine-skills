@@ -45,7 +45,7 @@
 - `.cursor/rules/volcengine-skills.mdc` — Available skills 列表
 - `GEMINI.md` — Available skills 列表
 
-**不需要改**：`.claude-plugin/plugin.json`、`.claude-plugin/marketplace.json`、`.codex-plugin/plugin.json`、`.opencode/opencode.json`、`gemini-extension.json` —— 这些都用 `./skills/` 整目录引用，新增 skill 会被自动发现。
+**不需要改**：`.claude-plugin/plugin.json`、`.claude-plugin/marketplace.json`、`.codex-plugin/plugin.json`、`.cursor-plugin/plugin.json`、`.cursor-plugin/marketplace.json`、`.opencode/opencode.json`、`gemini-extension.json` —— 这些都用 `./skills/` 整目录引用，新增 skill 会被自动发现。
 
 > 改完后核对一遍：上面 4 个清单文件里的 skill 名称必须完全一致（含 `volcengine-` 前缀），不要出现漏项或简写。
 

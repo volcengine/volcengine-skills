@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Skill|Read|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "async": false,
+            "statusMessage": "volcengine telemetry",
+            "command": "VOLCENGINE_HOOK_AGENT=codex bash \"${VOLCENGINE_PLUGIN_ROOT:-${PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-.}}}/hooks/run-apmplus-reporter.sh\" --mode skill --require-skill-md || true"
+          }
+        ]
+      }
+    ]
+  }
+}

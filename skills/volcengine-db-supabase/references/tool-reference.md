@@ -12,6 +12,12 @@ Current `ve aidap` coverage includes:
 
 Run `ve aidap <Action> --help` before composing a command because parameter names and body shapes are authoritative there.
 
+Some AIDAP list/read actions use a JSON body instead of flat CLI flags. For example, current `DescribeWorkspaces` help exposes `--body`:
+
+```bash
+ve aidap DescribeWorkspaces --body '{"Limit":20,"Offset":0}'
+```
+
 Branch-scoped operations require an explicit `BranchId`. This includes `DescribeWorkspaceEndpoint`, `DescribeAPIKeys`, `DescribeSupabaseDeployEnvVars`, `DescribeDBAccounts`, `DescribeDatabases`, `CreateDBAccount`, `CreateDatabase`, `DescribeDBAccountConnection`, and related endpoint/account/database actions. A real `DescribeWorkspaceEndpoint` call without `BranchId` returned `InvalidParameter`, so do not omit it even when the workspace has a default branch.
 
 For PostgreSQL workspaces, endpoint and account-connection reads are also compute-scoped. Resolve the primary database compute first:
@@ -42,6 +48,32 @@ After creation, wait in this order:
 3. `DescribeComputes` until the primary database compute is `Active`; save its `ComputeId`.
 
 Only after those checks should you fetch endpoints or database-account connection strings.
+
+## AIDAP Service-Linked Role
+
+`CreateWorkspace` may fail even when `DescribeWorkspaces` succeeds if the AIDAP service-linked role is missing:
+
+```text
+RoleNotExist: Role 'trn:iam::<account-id>:role/ServiceRoleForAIDAP' does not exist
+```
+
+Repair the service-linked role through IAM only for the verified AIDAP service name:
+
+```bash
+ve iam GetServiceLinkedRoleTemplate --ServiceName aidap
+ve iam CreateServiceLinkedRole --ServiceName aidap
+ve iam GetRole --RoleName ServiceRoleForAIDAP
+```
+
+Expected role properties after repair:
+
+```text
+RoleName: ServiceRoleForAIDAP
+IsServiceLinkedRole: 1
+Trust principal: aidap
+```
+
+Retry `CreateWorkspace` once after the role exists. If the next failure is `NotVerifiedAccount` or `账号未实名认证`, the control-plane dependency is fixed and the remaining blocker is account real-name verification.
 
 ## Verified Control-Plane Failure Pattern
 
@@ -140,37 +172,28 @@ Environment:
 - `SUPABASE_ENDPOINT_SCHEME` defaults to `http` to match the old skill's endpoint URL behavior.
 - `READ_ONLY=true` blocks data-plane write actions.
 
-## Bootstrap API Missing From ve
+## Real-Name Verification
 
-Use `scripts/aidap_bootstrap.py` only for enterprise verification checks:
+Activate the `volcengine-cli` skill and use its `GetVerifyInfo` extension API capability for real-name verification checks. 
 
-```bash
-python3 scripts/aidap_bootstrap.py get-verify-info
-```
-
-`get-verify-info` calls `account_verify/GetVerifyInfo/2018-01-01` without request parameters. Treat the account as enterprise verified only when the response has `IsVerified=true` and `IdentityType="enterprise"`; the script emits `verification.enterprise_verified` from that rule.
-
-The bootstrap script requires `VOLCENGINE_ACCESS_KEY` and `VOLCENGINE_SECRET_KEY` in the environment. It does not read or reuse cached `ve login` credentials.
-
-If either non-public API changes, adjust with:
-
-```text
-python3 scripts/aidap_bootstrap.py <operation> --method <GET|POST> --params '{"Key":"Value"}'
-```
+- Personal verification is `IsVerified=true` with `IdentityType="individual"`.
+- Enterprise verification is `IsVerified=true` with `IdentityType="enterprise"`.
 
 ## Service Activation
 
 When the account has not enabled AIDAP, ask the user to open:
 
 ```text
-https://console.volcengine.com/iam/service/attach_role/?ServiceName=aidap
+https://console.volcengine.com/aidap
 ```
 
 After the console flow completes, rerun a read action such as:
 
 ```bash
-ve aidap DescribeWorkspaces --Limit 1
+ve aidap DescribeWorkspaces --body '{"Limit":1,"Offset":0}'
 ```
+
+A successful response with `Total: 0` or an empty `Workspaces` list only means the account has no AIDAP workspaces. Do not treat an empty list as a service-disabled signal.
 
 ## Safety
 

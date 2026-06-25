@@ -5,8 +5,8 @@ description: >-
   needs the project analyzed, the app shape understood, and a ranked recommendation across
   ECS, VKE, and veFaaS before choosing an execution path. Also trigger when the user asks
   "what deploy mode should I use", "is this repo ready for Volcengine", or "check my repo
-  before deploying". This skill prepares the decision; `volcengine-deploy` performs the
-  chosen deployment, and `volcengine-iac` is used only when the user chooses Terraform/IaC
+  before deploying". This skill prepares the decision; `volcengine-deploy` skill performs the
+  chosen deployment, and `volcengine-iac` skill is used only when the user chooses Terraform/IaC
   or the task already has an IaC workflow.
 license: MIT
 metadata:
@@ -40,7 +40,7 @@ Default flow:
 2. Run the analyzer to identify language, framework, port, Docker/compose shape, dependencies, migrations, entrypoint, and the deployable service surface.
 3. Optionally verify the current Volcengine identity and region when credentials are available.
 4. Present a ranked list of ECS / VKE / veFaaS only after a deployable service surface is clear. Include every materially viable path; explain why each path is attractive or costly. Use `ecs | vke | vefaas` as machine-readable mode values.
-5. Recommend a resource management path, but ask the user to choose `cli` or `iac`. Recommend IaC for VKE, managed dependencies, team-managed infrastructure, or plan/diff/destroy requirements; recommend CLI for pure ECS single-VM deployments, temporary validation, missing Terraform, blocked provider registry access, or explicit CLI preference.
+5. Recommend a resource management path (`cli` or `iac`) per [`references/deploy-mode-heuristics.md`](./references/deploy-mode-heuristics.md), and ask the user to confirm.
 6. Ask only for product/lifecycle ambiguity, resource reuse, and the resource management choice. If the user says "you decide", use the first ranked runtime path, the recommended resource management path from these rules, and new isolated resources.
 7. Persist only minimal state in `.volcengine/` when the work will continue across steps.
 
@@ -84,8 +84,7 @@ git_sha=$(cd "$repo_dir" && git rev-parse --short HEAD 2>/dev/null || echo "unve
 Run:
 
 ```bash
-skill_dir="$(dirname "$0")"   # or the path to this skill
-analysis=$(bash "$skill_dir/scripts/analyze-repo.sh" "$repo_dir")
+analysis=$(bash scripts/analyze-repo.sh "$repo_dir")
 echo "$analysis" | jq .
 ```
 
@@ -131,7 +130,7 @@ Do not read `~/.volcengine/config.json`; it may contain secrets. If env vars are
 If cloud service availability matters for a near-term choice, run the read-only probe:
 
 ```bash
-services=$(bash "$skill_dir/scripts/check-region-services.sh")
+services=$(bash scripts/check-region-services.sh)
 echo "$services" | jq .
 ```
 
@@ -169,10 +168,10 @@ Include:
 - known blockers or setup needed if the user chooses it
 - resource management recommendation (`iac` or `cli`) and why
 
-Do not check every tool before the user chooses. Phrase setup needs as decision guidance:
+Do not check every tool before the user chooses. Phrase setup needs as decision guidance. Fill the resource management recommendation from [`references/deploy-mode-heuristics.md`](./references/deploy-mode-heuristics.md), but do not mention that internal reference path to the user:
 
 ```text
-Resource management needs user confirmation: recommend Terraform/volcenginecc for VKE, managed database/cache/storage/LB/domain/certificate, or long-lived team resources; recommend the ve CLI fast path (record a resource ledger) for plain single-VM ECS, temporary validation, or when Terraform / the provider registry is unavailable.
+Resource management recommendation: <iac|cli>. Reason: <one short user-facing reason>. Confirm `iac` or `cli`.
 Choosing VKE will check kubectl; if you choose IaC it will also check terraform/provider availability.
 Choosing veFaaS switches to / calls the `volcengine-vefaas` skill to check the vefaas CLI, login status, and framework detection; on failure it returns here so you can fix it and retry, or switch to ECS/VKE.
 ```
@@ -192,18 +191,14 @@ After showing the ranked list, ask only what cannot be safely inferred:
 
 For MySQL dependencies, use `database_product=rds` and `database_engine=mysql` unless the user rejects managed RDS. For SQL Server dependencies, use `database_product=rds` and `database_engine=sqlserver`. For PostgreSQL dependencies, preserve explicit user intent first: choose RDS PostgreSQL for an explicit RDS / managed RDS instance request, choose AIDAP PostgreSQL for an explicit AIDAP/serverless PostgreSQL request, and choose AIDAP Supabase for an explicit Supabase request. When the product is ambiguous and the user has not delegated the choice, ask because RDS PostgreSQL, AIDAP PostgreSQL, and AIDAP Supabase are different choices.
 
-Ask whether to use Terraform/IaC explicitly. Give a recommendation, but do not turn it into a default:
-
-```text
-Resource management recommendation: choose Terraform/volcenginecc for VKE, managed dependencies, long-lived team resources, or when you need plan/diff/destroy; choose the ve CLI fast path (record a resource ledger) for plain single-VM ECS, a temporary demo, or when Terraform / the provider registry is unavailable. Confirm `iac` or `cli`.
-```
+Ask whether to use Terraform/IaC explicitly. Give a recommendation per [`references/deploy-mode-heuristics.md`](./references/deploy-mode-heuristics.md), but do not turn it into a default. Ask the user to confirm `iac` or `cli`.
 
 If the user says "you decide", use:
 
 - deployment mode: first ranked option
 - resources: create new isolated Volcengine project `deploy-<repo>`
 - database product/engine: infer exact engines when unambiguous (`mysql` -> `rds/mysql`, `sqlserver` -> `rds/sqlserver`); for PostgreSQL, choose AIDAP Supabase (`database_product=aidap`, `database_engine=supabase`) when the project has no explicit RDS/AIDAP PostgreSQL/Supabase signal.
-- resource management: apply the table in [`references/deploy-mode-heuristics.md`](./references/deploy-mode-heuristics.md): plain ECS single-VM without managed dependencies can be `cli`; VKE, managed dependencies, team-owned infrastructure, or plan/diff/destroy needs are `iac`
+- resource management: apply [`references/deploy-mode-heuristics.md`](./references/deploy-mode-heuristics.md)
 
 If the user chooses reuse, ask for only the resource IDs needed by that path. Reused resources must not be destroyed by cleanup.
 
@@ -248,7 +243,7 @@ Project detection:
 - Dependencies: <deps or none>
 - Database choice: <none | database_product=rds engine=mysql|postgresql|sqlserver | database_product=aidap engine=supabase|postgresql>
 - Migrations: <paths or none>
-- Resource management recommendation: <iac|cli> (VKE/managed dependencies/team resources usually suggest iac; plain single-VM ECS or unavailable IaC usually suggests cli)
+- Resource management recommendation: <iac|cli>
 
 Ranked order:
 1. <mode>

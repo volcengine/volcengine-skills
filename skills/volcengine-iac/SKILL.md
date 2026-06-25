@@ -64,12 +64,11 @@ If invoked by `volcengine-deploy`, return outputs in `.volcengine/iac-outputs.js
 ### Path A — driven by `.volcengine/deploy-choice.json`
 
 ```bash
-skill_dir="$(dirname "$0")"
 work_dir="${work_dir:-.volcengine/terraform}"
 workload="${workload:-standard}"
 mkdir -p "$work_dir"
 
-python3 "$skill_dir/scripts/gen_tfvars.py" \
+python3 scripts/gen_tfvars.py \
   --input ".volcengine/deploy-choice.json" \
   --output "$work_dir/terraform.tfvars" \
   --workload "$workload"
@@ -109,7 +108,7 @@ The full per-module variable schema lives in [`references/modules.md`](./referen
 Copy the relevant verified example, then run the same init/validate/plan sequence:
 
 ```bash
-cp -R "$skill_dir/assets/examples/<example-name>" "$work_dir/<component>"
+cp -R "assets/examples/<example-name>" "$work_dir/<component>"
 cd "$work_dir/<component>"
 terraform init -backend=false -input=false
 terraform validate
@@ -184,7 +183,7 @@ For the TOS bucket prerequisite (must exist before `init`), see [`references/bac
 ```bash
 terraform plan -out=tfplan.binary -input=false
 terraform show -json tfplan.binary > tfplan.json
-bash "$skill_dir/scripts/plan_summary.sh" tfplan.json
+bash scripts/plan_summary.sh tfplan.json
 ```
 
 `plan_summary.sh` groups changes by action (CREATE / UPDATE / DELETE / REPLACE) and prints a one-line summary at the end. Show this to the user before any apply.
@@ -214,7 +213,7 @@ VKE cluster creation takes ~10–15 minutes. RDS HA instances take ~20 minutes. 
 After apply succeeds, run `export_outputs.sh` automatically:
 
 ```bash
-bash "$skill_dir/scripts/export_outputs.sh"
+bash scripts/export_outputs.sh
 echo "Resources ready. .volcengine/iac-outputs.json now contains downstream consumption keys."
 ```
 
@@ -231,7 +230,7 @@ echo "Resources ready. .volcengine/iac-outputs.json now contains downstream cons
 ```bash
 # Show what will be destroyed first
 terraform plan -destroy -out=destroy.binary
-terraform show -json destroy.binary | bash "$skill_dir/scripts/plan_summary.sh"
+terraform show -json destroy.binary | bash scripts/plan_summary.sh
 ```
 
 Then:
@@ -258,7 +257,7 @@ Workspace = prod. Re-confirm destroy by typing 'destroy prod':
 ## 9. Drift Detection
 
 ```bash
-bash "$skill_dir/scripts/check_drift.sh"
+bash scripts/check_drift.sh
 ```
 
 Returns:

@@ -15,9 +15,19 @@ It embeds the extension API registry and the request-signing code needed by thes
 The script resolves credentials in this order:
 
 1. Environment variables.
-2. Volcengine CLI config through the Python SDK `CLIConfigCredentialProvider`.
+2. Existing Volcengine CLI profile credentials from `VOLCENGINE_CLI_CONFIG_FILE`, or the default `~/.volcengine/config.json`.
 
-If `VOLCENGINE_ACCESS_KEY` or `VOLCENGINE_SECRET_KEY` is not detected, the helper prints a notice and then tries to reuse the active `ve` CLI profile. The SDK provider supports CLI profiles whose `mode` is `ak`, `ramrolearn`, `oidc`, `ecsrole`, `sso`, or `console-login`.
+If `VOLCENGINE_ACCESS_KEY` or `VOLCENGINE_SECRET_KEY` is not detected, the helper prints a notice and then tries the default `ve` CLI profile resolution. It reads local credentials directly.
+
+`VOLCENGINE_CLI_CONFIG_FILE` expects a full config file path such as `/path/to/config.json`, not a config directory. When it is unset, the helper uses `~/.volcengine/config.json`.
+
+For any profile mode, if the selected profile already contains `access-key` and `secret-key`, the helper uses them with optional `session-token`. For `console-login`, it can also read an unexpired local `ve login` cache. The helper does not refresh SSO, assume RAM roles, exchange OIDC tokens, or fetch ECS metadata; if the selected profile has no usable AK/SK/cache, ask the user to run the matching `ve` login/configure command or set environment credentials.
+
+Profile selection must follow the conversation-scoped rule in the main `SKILL.md`:
+
+- Do not pass `--profile` unless the user explicitly selected a profile for this conversation.
+- If the user did select a profile, keep using the same `--profile <profile-name>` for subsequent extension helper calls.
+- Do not inspect profile names, regions, list order, or config contents to decide a profile yourself.
 
 Environment variables:
 
@@ -27,18 +37,27 @@ export VOLCENGINE_SECRET_KEY="SK..."
 export VOLCENGINE_REGION="cn-beijing"
 # Optional:
 export VOLCENGINE_SESSION_TOKEN="..."
+export VOLCENGINE_CLI_CONFIG_FILE="/path/to/config.json"
 ```
 
-CLI profile fallback:
+CLI profile fallback when the user explicitly selected a profile:
 
 ```bash
 python3 scripts/call_extend_api.py \
-  --profile default \
+  --profile <user-selected-profile> \
   --api QueryMetrics \
   --params '{"workspace":"vmp-workspace-id","query":"up"}'
 ```
 
-Use `--config-file /path/to/config.json` only when the CLI config is not in the default location. Do not print or echo secrets in the conversation. If both environment credentials and CLI profile resolution fail, ask the user to run `ve login`, configure a `ve` profile, or set `VOLCENGINE_ACCESS_KEY` and `VOLCENGINE_SECRET_KEY` in their shell.
+Default fallback when the user did not select a profile:
+
+```bash
+python3 scripts/call_extend_api.py \
+  --api QueryMetrics \
+  --params '{"workspace":"vmp-workspace-id","query":"up"}'
+```
+
+Do not print or echo secrets in the conversation. If both environment credentials and CLI profile resolution fail, ask the user to run `ve login`, configure a `ve` profile, or set `VOLCENGINE_ACCESS_KEY` and `VOLCENGINE_SECRET_KEY` in their shell.
 
 ## Discover Supported APIs
 
@@ -98,6 +117,21 @@ python3 scripts/call_extend_api.py \
 
 The script resolves `service`, `version`, `method`, default endpoint, scheme, and default `content_type` from the registry. If `--method` disagrees with the registry, it fails before making a request.
 For APIs marked with query parameters in the registry, include those keys in `--params`; the helper signs them as URL query parameters and sends the remaining keys as the body.
+
+## Account Verification
+
+Use `GetVerifyInfo` to check real-name verification status:
+
+```bash
+python3 scripts/call_extend_api.py --api GetVerifyInfo
+```
+
+The default pretty output includes a derived summary:
+
+- `verification.is_verified`: `IsVerified=true`.
+- `verification.identity_type`: raw `IdentityType`, such as `individual` or `enterprise`.
+- `verification.individual_verified`: `IsVerified=true` and `IdentityType="individual"`.
+- `verification.enterprise_verified`: `IsVerified=true` and `IdentityType="enterprise"`.
 
 ## VMP Metric API Notes
 
@@ -184,6 +218,7 @@ Use this index for quick lookup by service or API name.
 
 | Service | APIs |
 | --- | --- |
+| `account_verify` | `GetVerifyInfo` |
 | `CDN` | `DescribeOriginTopStatisticalData` |
 | `cp` | `ListPipelineRunStagesInner` |
 | `dcdn` | `DescribeOriginRealtimeData`, `DescribeRealtimeData`, `DescribeTopIPs`, `DescribeTopReferers`, `DescribeTopUrls` |
@@ -204,6 +239,7 @@ Use this index for quick lookup by service or API name.
 
 | APIName | Service | Version | Method | Purpose |
 | --- | --- | --- | --- | --- |
+| `GetVerifyInfo` | `account_verify` | `2018-01-01` | POST | Account real-name verification status |
 | `DescribeOriginTopStatisticalData` | `CDN` | `2021-03-01` | POST | CDN origin-side top statistical data |
 | `ListPipelineRunStagesInner` | `cp` | `2023-05-01` | POST | CodePipeline stage/task list for a pipeline run |
 | `DescribeRealtimeData` | `dcdn` | `2021-04-01` | POST | DCDN realtime edge data |
@@ -228,6 +264,14 @@ Use this index for quick lookup by service or API name.
 ## Parameter Reference
 
 Unless noted otherwise, pass all fields in `--params` as one JSON object. The helper resolves `Action`, `Version`, `Service`, `Method`, endpoint host, and content type from the registry.
+
+### Account Verification
+
+`GetVerifyInfo`:
+
+- No request parameters are required.
+- Personal real-name verification is `IsVerified=true` with `IdentityType="individual"`.
+- Enterprise real-name verification is `IsVerified=true` with `IdentityType="enterprise"`.
 
 ### CDN
 
@@ -483,10 +527,10 @@ Implementation notes:
 
 | Implementation style | Services observed | Validation note |
 | --- | --- | --- |
-| Universal client path | `cp`, `vke` | Uses the SDK Universal client path with the registry's service, version, method, and content type. |
+| Signed Action/Version root path for former universal entries | `cp`, `vke` | Uses `/?Action=...&Version=...` with the registry's service, version, method, and content type. |
 | Signed Action/Version root path | `CDN`, `dcdn`, `domain_openapi`, `ga`, `live`, `mcdn`, `metrics`, `sec_agent`, `trademark`, `veenedge` | Uses `/?Action=...&Version=...` with service-specific signing region, endpoint, scheme, and method from the registry. |
 | Signed Prometheus-compatible Action/Version path | `vmp` | Uses the VMP regional endpoint, URL query keys for `workspace`/`label`, and form-encoded body parameters. |
-| Flink SDK path | `flink` | Uses `/{Action}/{Version}/{service}/{method}/{content_type}` with query parameters for GET actions. |
+| Signed Flink compatibility request | `flink` | Keeps the Flink registry style for parameter routing, then sends the wire request through `/?Action=...&Version=...` like the SDK interceptor. |
 
 Current business validation status:
 
@@ -500,7 +544,7 @@ Current business validation status:
 | `metrics` | `ListWorkspace`, `ListQueryClusters`, `ListPreagg` | Validated with required fields such as `ListGlobal`, pagination, and `onlyShowMine`. Current account has no Metrics workspaces/query clusters/pre-aggregation rules, so responses were HTTP 200 with empty/null business payloads. `Get*`/query APIs need real workspace or cluster IDs. |
 | `ga` | `ListAccelerateAreas`, `ListBandwidthPackages`, `GetAcceleratorDimension`, related endpoint info APIs | `ListAccelerateAreas` returned real area metadata. Bandwidth/accelerator/dimension/endpoint-related APIs returned empty results, consistent with `ve ga ListAccelerators` and `ve ga ListPublicBandwidthPackages` showing zero resources. Resource-detail APIs need GA accelerator, bandwidth package, listener, or endpoint IDs. |
 | `live` | `DescribeLiveBatchStreamTranscodeData`, `DescribeLiveBatchStreamSessionData` | Validated through signed Action/Version calls and RFC3339 time strings. `ListDomainDetail` returned no live domains; both private stats APIs returned zero totals and empty stream lists, matching current resource state. |
-| `flink` | `ListGMSProject`, `ListGMCSResourcePool` | Validated with the Flink SDK path. Both returned valid empty lists. Other GWS/GAS APIs require Flink project/resource pool/application/draft IDs and should not be called without creating those resources. |
+| `flink` | `ListGMSProject`, `ListGMCSResourcePool` | Validated with the Flink compatibility request. `ListGMCSResourcePool` returned a valid empty list; `ListGMSProject` reached Flink business logic and reported the current account is not initialized. Other GWS/GAS APIs require Flink project/resource pool/application/draft IDs and should not be called without creating those resources. |
 | `vke` | `ListVirtualNodes`, `CreateVirtualNode` | `ListVirtualNodes` returned an empty list, consistent with no VKE clusters. `CreateVirtualNode` reached VKE and returned missing `VirtualNodeConfig`; real validation requires an existing Kubernetes cluster/kubeconfig and cleanup plan. |
 | `CDN` | `DescribeOriginTopStatisticalData` | Request reached the service, but CDN is stopped/not opened for the account (`OperationDenied.ServiceStopped` / `NotFound.Service`). Positive validation requires CDN service activation and a CDN domain with origin traffic. |
 | `mcdn` | `DescribeCdnDomainConfig` | Service is unsubscribed (`mcdn.UnsupportedOperation.ServiceUnsubscribed`). Positive validation requires MCDN activation and a CDN domain. |

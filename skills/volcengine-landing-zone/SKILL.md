@@ -16,7 +16,7 @@ For clarity, the skill is organized as an intent router plus shared playbooks an
 
 Relative paths in this skill such as `./skills/volcengine-landing-zone/...` and
 `./volcengine-landing-zone-workspace/...` are **not relative to an arbitrary current working directory**.
-Resolve them against these two absolute anchors once, then reuse them throughout the run before any preflight, login, Terraform, or write action:
+Resolve them through these two anchors once, then reuse them throughout the run:
 
 - `SKILL_ROOT`: the absolute install root of this skill, which contains this `SKILL.md`. Read-only assets such as built-in blueprints, HTML templates, `tos_activate.py`, and `baseline.schema.json` live here. Any `./skills/volcengine-landing-zone/<x>` path resolves to `${SKILL_ROOT}/<x>`.
 - `WORKSPACE_ROOT`: the writable runtime root for this run. By default it is `<current working directory>/volcengine-landing-zone-workspace/`, unless the user explicitly provides another writable location. Execution copies, output files, and baseline runtime state all live here. Any `./volcengine-landing-zone-workspace/<x>` path resolves to `${WORKSPACE_ROOT}/<x>`.
@@ -45,7 +45,7 @@ Handling principles:
 
 - The user does not need to understand directory layout, phase numbers, or blueprint structure first. The agent should directly take ownership of the goal and do the necessary reference reading and execution preparation.
 - `Create baseline` and `apply baseline` are not listed as a separate first-screen path, but if the user asks for them directly, take the request as-is and do not push them back into path selection.
-- **Exception for Initial Landing Zone Setup**: once routed into `Initial Landing Zone Setup`, "execution preparation" does **not** include preflight, login, reading phase blueprints for warm-up, init, plan, or any write action. The only allowed first step is to display the solution confirmation file under G1 and stop. Before the user explicitly confirms the solution, do not pre-read phase blueprints and do not start any real execution.
+- **Exception for Initial Landing Zone Setup**: once routed into `Initial Landing Zone Setup`, "execution preparation" does **not** include preflight, credential setup, reading phase blueprints for warm-up, init, plan, or any write action. The only allowed first step is to display the solution confirmation file under G1 and stop. Before the user explicitly confirms the solution, do not pre-read phase blueprints and do not start any real execution.
 
 ## Hard Gates Before Any Real Execution
 
@@ -53,7 +53,7 @@ Handling principles:
 
 ### G1. Solution Confirmation (Initial Landing Zone Setup)
 **Trigger**: the user has entered the real execution path for initial setup, and the solution confirmation file has not yet been displayed in this run.
-**Action**: before any preflight, login, Terraform, or write action, the first thing you do must be to follow [display-protocol.md](references/display-protocol.md) and put the solution confirmation file `./skills/volcengine-landing-zone/assets/html/landing-zone-solution-plan.html` in front of the user: **open it for the user first**; only if opening is unavailable or fails, degrade to delivering its workspace absolute path plus a short guidance line; only when neither is possible, retell the plan in chat as an explicitly marked degraded fallback. Ask the user to confirm the solution or request changes, then stop and wait. The only allowed outward wording is one short guidance line such as "I have opened the solution confirmation file, please review it in the browser and confirm whether we should proceed". **Do not output a body summary, section-by-section explanation, or key-point rewrite before the file is in front of the user.**
+**Action**: before any preflight, credential setup, Terraform, or write action, the first thing you do must be to follow [display-protocol.md](references/display-protocol.md) and put the solution confirmation file `./skills/volcengine-landing-zone/assets/html/landing-zone-solution-plan.html` in front of the user: **open it for the user first**; only if opening is unavailable or fails, degrade to delivering its workspace absolute path plus a short guidance line; only when neither is possible, retell the plan in chat as an explicitly marked degraded fallback. Ask the user to confirm the solution or request changes, then stop and wait. The only allowed outward wording is one short guidance line such as "I have opened the solution confirmation file, please review it in the browser and confirm whether we should proceed". **Do not output a body summary, section-by-section explanation, or key-point rewrite before the file is in front of the user.**
 **Forbidden**: before the user explicitly confirms, do not start preflight, do not run init/plan/apply, do not "prepare things in the background first", and do not assume consent just because the user previously said they wanted a landing zone. **Never treat a chat summary or paraphrase of the solution HTML as if the file had been displayed.** The openable HTML file itself must be delivered.
 **Self-check**: have I delivered the solution HTML according to the display protocol, rather than merely retelling it in chat, and obtained explicit confirmation from the user? If not, stop now.
 
@@ -72,7 +72,7 @@ The same turn must **not** contain any of the following before the user confirms
 - a phase overview
 - an explanation of organization / finance / identity / log / network design
 - a proposed implementation sequence
-- any preflight or login preparation language
+- any preflight or credential-setup language
 
 Bad pattern:
 
@@ -103,7 +103,7 @@ Good pattern:
 ### G5. Consulting Is Read-Only
 **Trigger**: the user intent is consulting, design, evaluation, or learning about concepts, ordering, or value.
 **Action**: provide explanation and recommendations only.
-**Forbidden**: do not run preflight, do not invoke `ve login`, do not run Terraform, and do not perform any write action, even if it would be convenient.
+**Forbidden**: do not run preflight, do not start credential setup, do not run Terraform, and do not perform any write action, even if it would be convenient.
 **Self-check**: has the user clearly asked for real execution? If not, explain only and do not act.
 
 ### G6. Authorization Does Not Carry Forward
@@ -129,7 +129,7 @@ Good pattern:
 
 ### Initial Landing Zone Setup
 
-> The step order in this path is mandatory. **Until STEP 0 is complete, meaning the user has explicitly confirmed the solution, do not enter STEP 1 or anything later**, including preflight, login, reading phase blueprints for execution prep, init, plan, or apply.
+> The step order in this path is mandatory. **Until STEP 0 is complete, meaning the user has explicitly confirmed the solution, do not enter STEP 1 or anything later**, including preflight, credential setup, reading phase blueprints for execution prep, init, plan, or apply.
 
 - **STEP 0. Display the Solution and Stop (G1, mandatory and the only allowed first step)**: after entering this path, the first thing you do is automatically put the solution confirmation document `./skills/volcengine-landing-zone/assets/html/landing-zone-solution-plan.html` in front of the user per [display-protocol.md](references/display-protocol.md) (**open it first**; degrade to its workspace absolute path plus one guidance line if opening is unavailable or fails; retell in chat only as an explicitly marked last-resort fallback), ask the user to confirm the solution or request adjustments, then **stop and wait**. This step only allows "put the file in front of the user (open / degrade to path) + one guidance line + one confirmation question". **Do not summarize the HTML content before sending it to the user.** Before explicit confirmation arrives, do nothing else.
 - **STEP 0 response budget is intentionally tiny**: treat this as a file-delivery checkpoint, not a discussion turn. If your first reply contains any concrete solution details from the HTML body, you have already violated G1.
@@ -145,6 +145,12 @@ Good pattern:
 ### Account Creation and Baseline Setup
 
 - The overall execution flow is in [guidebook.md](references/account-factory/guidebook.md).
+- Treat the agent as the Terraform operator. Do not introduce a separate runner, control-plane service, or central baseline orchestrator root for account factory.
+- `account create` and `baseline apply` are separate tasks under G2/G6. Never auto-carry authorization from one into the other.
+- For `account create`, resolve or create a dedicated `run_id`, copy the package into `account-factory/runs/<run_id>/account-create/terraform/`, write the resolved inputs, and execute Terraform inside that isolated run directory.
+- For `baseline apply`, read the selected `*.baseline.json` files, resolve baseline packages by name, copy each package into `account-factory/runs/<run_id>/baselines/<baseline-name>/terraform/`, write `terraform.tfvars.json`, and execute Terraform serially inside those isolated run directories.
+- Built-in and workspace baselines are the same execution unit: both are Terraform packages resolved by name, with workspace `account-factory/baselines/` overriding built-in `assets/blueprints/account-factory/baselines/` when names collide.
+- `run.json`, `context.json`, `account-create/status.json`, and `baselines/<baseline-name>/status.json` are recovery artifacts for the agent to resume, inspect, and summarize the current run. They are not a separate orchestration layer.
 
 ### Failure Recovery
 

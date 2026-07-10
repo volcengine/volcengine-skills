@@ -30,14 +30,14 @@ purpose: Provide a unified organization-level audit and log-ingestion entry for 
 
 ## Execution Conventions
 
-- Check the cross-account `AssumeRole` prerequisite only once before entering this phase. If the current login comes from the primary account, stop and ask the user to switch to an IAM sub-user with `STSAssumeRoleAccess`
-- First run `ve organization RegisterDelegatedAdministrator --body '{"AccountId":"<log_archive_account_id>","ServicePrincipal":"cloud_trail"}'` in the organization-administrator context
+- Check the cross-account `AssumeRole` prerequisite only once before entering this phase. If the current `ve` login identity cannot perform the required `AssumeRole`, stop and ask the user to switch to an IAM sub-user identity with `STSAssumeRoleAccess`
+- Before running Terraform for this phase, first run `ve organization RegisterDelegatedAdministrator --body '{"AccountId":"<log_archive_account_id>","ServicePrincipal":"cloud_trail"}'` in the organization-administrator context
 - Duplicate or already-exists style results may be treated as satisfying the delegated-administrator prerequisite. Permission-denied, trusted-service-disabled, or organization-access-restricted errors should stop the phase
-- Do not treat `AssumeRole succeeded + export STS environment variables` as a reliable identity-switch strategy for `ve` CLI. Use a temporary log profile instead
-- Recommended order: record the original default profile -> register the delegated administrator -> assume role -> write a temporary log profile -> use the temporary profile for the TOS helper and CloudTrail commands -> restore the original profile and delete the temporary profile
-- For `CreateTrail`, `StartLogging`, `DescribeTrails`, and `GetCallerIdentity`, pass `--profile <temp_log_profile>` explicitly as a second layer of safety
-- The lifecycle of the temporary log profile must be managed with finally-style cleanup semantics. Whether this phase succeeds, fails, or is interrupted, always try to restore the original default profile and delete the temporary profile. Do not place cleanup only in the success branch
-- Before this phase starts, if a same-name temporary log profile is left over from a previous run, clean the dirty state first and recreate it. Do not reuse it directly
+- Terraform in this phase assumes the delegated-administrator prerequisite is already satisfied and does not register it again inside the blueprint
+- Use an isolated temporary CLI home after `AssumeRole` so the phase keeps one explicit `ve` execution target for TOS and CloudTrail commands without touching the user's global current profile
+- Recommended order: register the delegated administrator -> run Terraform -> inside Terraform assume role -> write an isolated temporary CLI home -> use that isolated home together with explicit `--profile` for the TOS helper and CloudTrail commands -> delete the temporary home directory
+- For `CreateTrail`, `StartLogging`, `DescribeTrails`, and `GetCallerIdentity`, bind the same isolated CLI home and pass `--profile <temp_log_profile>` explicitly as a second layer of safety
+- The lifecycle of the isolated temporary CLI home must be managed with finally-style cleanup semantics. Whether this phase succeeds, fails, or is interrupted, always try to delete the temporary home directory. Do not place cleanup only in the success branch
 
 ## TOS Branch
 
@@ -49,6 +49,6 @@ purpose: Provide a unified organization-level audit and log-ingestion entry for 
 
 ## Acceptance and Output
 
-- Acceptance must include at least two steps: `ve sts GetCallerIdentity --profile <temp_log_profile>` and `ve cloudtrail20180101 DescribeTrails --profile <temp_log_profile> --TrailNames.1 <trail_name> --IncludeOrganizationTrail 1`
+- Acceptance must include at least two steps: `HOME=<temp_home> ve sts GetCallerIdentity --profile <temp_log_profile>` and `HOME=<temp_home> ve cloudtrail20180101 DescribeTrails --profile <temp_log_profile> --TrailNames.1 <trail_name> --IncludeOrganizationTrail 1`
 - After the phase completes, record at least the log destination bucket and the trail name
 - Explain only confirmed results and real blockers to the user. Do not expand helper implementation details, signature details, or CLI parameter trial-and-error

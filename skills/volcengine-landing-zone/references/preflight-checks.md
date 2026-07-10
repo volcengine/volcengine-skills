@@ -13,52 +13,108 @@ which python3 && python3 --version
 - If `ve` is unavailable, prefer the latest installation instructions from the official README instead of maintaining fixed install steps inside this skill.
 - Official README: <https://github.com/volcengine/volcengine-cli/blob/master/README.MD>
 
-## 2. Credential and Provider Checks
+## 2. Credential Checks
+
+Before recommending any credential setup, first consult the two official references and keep the guidance aligned with what they support:
+
+- Volcengine CLI README: <https://github.com/volcengine/volcengine-cli/blob/master/README.MD>
+- Volcengine Terraform Provider README: <https://github.com/volcengine/terraform-provider-volcenginecc>
+
+The goal is to **reuse the customer's existing authentication style** whenever possible instead of forcing one path.
+
+Ask which credential method the customer already uses or prefers for:
+
+- `ve` CLI
+- Terraform Provider
+
+Record the selected credential source and runtime form, then reuse them consistently for the rest of the run. At minimum, record:
+
+- `region`
+- the chosen `ve` CLI auth path
+- the chosen Terraform Provider credential source
+- the Terraform runtime env shape that will actually be present during `terraform init/plan/apply`
+- profile name and optional config file path when profile-based auth is used as a source
+- whether a session token is required
+
+If the customer has no clear preference, use this default:
+
+- `ve` CLI: reuse an already working local login first; if none exists, profile-based auth through `ve configure set` is an acceptable default, following the CLI README at <https://github.com/volcengine/volcengine-cli/blob/master/README.MD>
+- Terraform Provider: run Terraform with the standard provider runtime environment-variable form documented in the Terraform Provider README at <https://github.com/volcengine/terraform-provider-volcenginecc>
+
+Profile-based auth remains a supported **source** for Terraform Provider credentials, but it should not be the only recommended runtime form. When the customer already has a stable `ve` login or named profile, prefer to reuse it as the source of truth and standardize Terraform execution into environment variables instead of assuming `VOLCENGINE_PROFILE` will always be consumed reliably by the provider.
+
+Use AK/SK environment variables when the customer prefers shell-scoped credentials. For cross-account Terraform phases that rely on provider-level `assume_role` such as `04-log`, `05-network`, and member-account baseline packages, prefer environment variables even when the original credential source is a `ve` profile. Avoid writing long-lived credentials inline into Terraform files unless the customer explicitly asks for that path and understands the leakage risk.
+
+Record the selected `region` once during preflight and reuse it for the rest of the run.
+
+### 2a. `ve` CLI login verification
+
+Before real execution, verify that the selected `ve` credential path is already usable.
+
+The CLI README supports at least these common paths:
+
+- profile-based config through `ve configure set`
+- environment variables
+
+If the customer already has a working local auth flow and `ve sts GetCallerIdentity` succeeds, reuse it. Do not force a migration to another auth style.
+
+For a default profile-based setup, follow the profile-based configuration example in the CLI README at <https://github.com/volcengine/volcengine-cli/blob/master/README.MD> and set the selected profile active before continuing.
+
+When the customer explicitly prefers environment variables for `ve`, follow the CLI README and guide them to export the corresponding variables instead.
+
+If the customer already uses a console-login flow such as `ve login`, keep that path and verify it for **CLI identity only**; do not replace it just because another option exists. Use `ve login --region <region>` only when the customer explicitly chooses that path or already depends on it. Use `--remote` only when the environment cannot complete the normal local browser flow.
+
+After the selected `ve` auth path is ready, verify it with:
 
 ```bash
 ve sts GetCallerIdentity 2>&1
 ```
 
-Core rules:
+If this check still fails, stop and ask the user to repair the selected `ve` auth path first, then rerun preflight.
 
-- A working `ve` CLI does **not** automatically mean the Terraform Provider is usable. They use **separate** credential sources.
-- The `ve` CLI console login (`ve login`) stores only a `login-session` token in `~/.volcengine/config.json`; the credential fields required by the Terraform provider stay **empty**. The CLI exchanges the session for temporary credentials internally per request and never writes AK/SK to disk. **Therefore the agent cannot extract AK/SK/SessionToken from the `ve` profile, and the Terraform `volcenginecc` provider cannot reuse the console-login profile** (its profile mode expects explicit credential fields, which remain empty here).
-- The `volcenginecc` provider needs its own credentials. If `terraform plan` reports `Either (AccessKey and SecretKey) or Profile must be provided`, treat it as **Terraform provider credentials not configured**, not a blueprint bug.
-- **Guide the user to configure Terraform provider credentials themselves** before real execution, following the official provider docs: <https://github.com/volcengine/terraform-provider-volcenginecc>. The current blueprints declare `provider "volcenginecc" { region = var.region }` with no inline credentials, so the recommended path is **environment variables**:
-  - `export VOLCENGINE_ACCESS_KEY=<ak>` / `export VOLCENGINE_SECRET_KEY=<sk>` / `export VOLCENGINE_REGION=<region>` (recommended; nothing written to disk).
-  - Alternatively a profile holding real AK/SK referenced via `VOLCENGINE_PROFILE` (provider default `file_path` is `~/.volcengine`). Note this must be an AK/SK profile, **not** the console-login profile.
-  - Static `access_key`/`secret_key` inside the `.tf` is officially discouraged (secret-leak risk) and should not be suggested.
-- Before Terraform runs, confirm the current process can actually read valid `VOLCENGINE_ACCESS_KEY`, `VOLCENGINE_SECRET_KEY`, and `VOLCENGINE_REGION` (or an AK/SK profile). If not, stop and ask the user to complete the credential setup above; do not paste AK/SK on their behalf and do not create extra credential files.
+### 2b. Terraform environment setup
 
-If `ve sts GetCallerIdentity` fails:
+The Terraform Provider README supports these authentication paths:
 
-- Prefer the `Console 登录 (login)` section in the official Volcengine CLI README.
-- Console login docs: <https://github.com/volcengine/volcengine-cli/blob/master/README.MD#console-%E7%99%BB%E5%BD%95-login>
-- The default profile name is `landingzone`.
-- During consulting, design, or evaluation, only explain that a valid login state will be required before real execution. Do not start the login flow directly.
-- Enter the login branch only after the user explicitly decides to continue with real execution.
-- When a reusable existing profile is available, reuse it first. Re-login only if it is clearly expired, conflicting, or otherwise unusable.
-- When a login is needed, the agent **runs it directly and non-interactively**: `ve login -p <selected_profile> -r <region>`. Do not hand this command back to the user to run manually. Use `--remote` only when the current environment cannot complete the local redirect flow.
-- Within the same preflight run, once `selected_profile` is confirmed reusable or one successful login is completed, reuse it for later phases by default and do not trigger a second `ve login`.
-- Later login checks should prefer read-only commands. Re-enter the login branch only when the profile is clearly missing, expired, invalid, or absent.
+- AK/SK credentials from environment variables
+- profile-based auth through `profile` / `file_path`, which can also be supplied through `VOLCENGINE_PROFILE` and `VOLCENGINE_FILE_PATH`
+- inline provider credentials, which are supported but should not be the default because they write secrets into Terraform configuration
+
+Prefer to mirror the customer's existing operational style at the **source** layer, then normalize the Terraform execution environment into the standard provider runtime environment-variable form documented in the Terraform Provider README at <https://github.com/volcengine/terraform-provider-volcenginecc>. If the customer has no preference, default to reusing an AK/SK-capable credential source such as a named `ve` profile with explicit credentials or existing shell-scoped AK/SK variables.
+
+Treat `ve login` separately: it can prove that CLI identity is already usable, but it must not be described as the Terraform Provider credential source. Terraform runtime credentials must come from explicit AK/SK material or a profile that actually stores those credential fields.
+
+Recommended runtime example: follow the environment-variable form shown in the Terraform Provider README at <https://github.com/volcengine/terraform-provider-volcenginecc>, and keep the actual values outside the repository and outside chat.
+
+If the customer's stable source is a named `ve` profile with explicit credential fields, keep using that profile for CLI operations as needed, but resolve the profile's current credential values into that standard Terraform runtime environment form before `terraform init/plan/apply`. Keep credential fields unchanged when carrying them from the chosen source into runtime. Do not base64-decode any secret field or apply any other transformation. Do not treat provider profile mode as the only recommended execution form for Terraform.
+
+If the customer explicitly prefers Terraform profile mode and the run does not depend on cross-account provider `assume_role`, this is still supported:
+
+```bash
+export VOLCENGINE_PROFILE=<profile>
+export VOLCENGINE_REGION=<region>
+export VOLCENGINE_FILE_PATH=<YOUR_CONFIG_FILE_PATH>   # optional when not using ~/.volcengine
+```
+
+The user fills in their own values and runs the commands themselves. The skill records both the credential source and the Terraform runtime env form, then runs Terraform with those normalized environment variables already present in the agent process.
+
+Preflight verifies Terraform readiness with a read-only provider check such as `terraform plan`. If Terraform reports `Either (AccessKey and SecretKey) or Profile must be provided`, or returns expired/invalid credential errors, guide the user to refresh the **selected Terraform auth path** and then restart from preflight.
 
 ## 3. Execution Context Checks
 
 > Path anchors: any `./skills/volcengine-landing-zone/...` and `./volcengine-landing-zone-workspace/...` path in this file or elsewhere resolves through the `Path Anchors` section in `SKILL.md` as `${SKILL_ROOT}/...` and `${WORKSPACE_ROOT}/...`. Do not depend on process cwd.
 
-- Resolve `SKILL_ROOT` first, the install root that contains `SKILL.md`, and `WORKSPACE_ROOT`, the writable runtime root that defaults to `<current working directory>/volcengine-landing-zone-workspace/`.
-- Confirm that the current working directory is correct and writable, or that the user explicitly provided a writable runtime root.
 - Confirm that `./skills/volcengine-landing-zone/assets/blueprints/` exists and contains the blueprints required for this run.
 - If the flow will enter `04-log`, confirm that `./skills/volcengine-landing-zone/assets/blueprints/landing-zone-setup/04-log/tos_activate.py` exists.
-- The runtime root is always `./volcengine-landing-zone-workspace/`; create it automatically if it does not exist.
+- Confirm that `${WORKSPACE_ROOT}/` is writable; create it automatically if it does not exist.
 - Before real execution begins, sync the blueprints into `./volcengine-landing-zone-workspace/blueprints/`.
 - Built-in blueprint sources inside the skill are read-only in the execution chain. See G3. Custom changes must land only in workspace execution copies.
-- Runtime directories such as `account-factory/` and `account-factory/runs/` may be created automatically.
+- Runtime directories such as `account-factory/baseline-plans/`, `account-factory/baselines/`, and `account-factory/runs/` may be created automatically.
 
 ## 4. Path-Specific Extra Checks
 
 - `Consulting and Solution Design`
-  - Under G5, this path is read-only: explain concepts, ordering, value, and recommendations only. Do not start any real execution action such as preflight, login, blueprint sync, or writes.
+  - Under G5, this path is read-only: explain concepts, ordering, value, and recommendations only. Do not start any real execution action such as preflight, Terraform environment setup, blueprint sync, or writes.
 
 - `Initial Landing Zone Setup`
   - Under G1, confirm that solution confirmation is already complete, meaning the solution document has been displayed and the user has confirmed it, before entering further preflight.
@@ -70,15 +126,17 @@ If `ve sts GetCallerIdentity` fails:
 
 - `Account Creation and Baseline Setup`
   - Before account creation, check that the minimum account-creation input is complete.
-  - Before baseline creation, confirm that `account-factory/baseline/` can be created and written.
-  - Before baseline apply, confirm that the target `*.baseline.json` exists and conforms to `references/account-factory/baseline.schema.json`.
+  - For `account create`, resolve a dedicated `run_id` first and execute from `account-factory/runs/<run_id>/account-create/terraform/`, not from the read-only asset source or a shared workspace root.
+  - Before baseline creation, confirm that `account-factory/baseline-plans/` can be created and written.
+  - Before baseline apply, confirm that the target `*.baseline.json` exists in `account-factory/baseline-plans/` and conforms to `references/account-factory/baseline.schema.json`.
   - When applying a baseline, pass `workspace_root` explicitly and confirm that it points at `./volcengine-landing-zone-workspace/`.
-  - If the baseline includes `identity` capability, confirm that `ve cloudidentity GetServiceStatus` has already been checked. If the service is not enabled, run `EnableService` first.
+  - For `account create`, confirm that execution will happen in `account-factory/runs/<run_id>/account-create/terraform/` and that the run artifacts can be reused for later recovery or baseline continuation.
+  - For `baseline apply`, confirm that execution will happen in `account-factory/runs/<run_id>/baselines/<baseline-name>/terraform/` and not in a shared root.
 
 - `Cross-account execution phases`
   - Do not block earlier global preflight steps just because `AssumeRole` is not yet available.
   - Check cross-account `AssumeRole` suitability only right before entering `04-log`, `05-network`, or a cross-account networking module inside baseline apply.
-  - If the current `ve` login comes from the Volcengine primary account and the next step really needs cross-account `AssumeRole`, stop before that phase and tell the user to re-login with an IAM sub-user that has `STSAssumeRoleAccess`.
+  - If the current `ve` identity from the selected credential path cannot perform the required `AssumeRole`, stop before that phase and tell the user to switch to an IAM sub-user identity that has `STSAssumeRoleAccess`.
 
 - `Failure Recovery`
   - Confirm the failure point, the latest execution artifacts, and the current resource state first.

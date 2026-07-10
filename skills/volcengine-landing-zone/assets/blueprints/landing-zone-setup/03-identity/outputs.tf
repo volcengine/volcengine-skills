@@ -63,7 +63,7 @@ output "permission_set_catalog" {
     },
     {
       name        = "OpsAdministrator"
-      description = "运维管理权限，适合日常运维、监控和故障处理。"
+      description = "运维管理权限（除账号信息、企业组织、云身份中心、访问控制和费用中心外的其他全部权限），适合日常运维、监控和故障处理。"
       typical_scenarios = [
         "处理告警和运维变更",
         "执行日常运维操作",
@@ -111,9 +111,5 @@ output "cloud_identity_subdomain" {
 
 output "recommended_login_url" {
   description = "建议提供给用户的登录入口 URL（Cloud Identity 用户门户）"
-  value = (
-    data.external.portal_login.result.login_url != ""
-    ? data.external.portal_login.result.login_url
-    : "https://console.volcengine.com/auth/login"
-  )
+  value       = data.external.portal_login.result.login_url
 }

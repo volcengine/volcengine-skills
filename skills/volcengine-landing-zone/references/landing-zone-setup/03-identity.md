@@ -25,7 +25,7 @@ purpose: Provide a unified login entry and baseline administrative permissions f
 
 - Run `ve cloudidentity GetServiceStatus --body '{}'` first. If the service is not enabled, run `EnableService`
 - If it returns `AccessDenied`, tell the user to grant `cloudidentity:GetServiceStatus` and, when needed, `cloudidentity:EnableService`
-- `management_account_id` should default from the current login identity or execution context
+- `management_account_id` should default from the current execution identity or execution context
 - `core_account_ids` should default to the core account IDs produced by `01-organization`
 - Ask for `prefix` only when it is missing, because it is used for default administrator naming and resource naming
 - Ask for `admin_username`, `admin_display_name`, and `session_duration` only when the defaults are not suitable
@@ -37,7 +37,7 @@ purpose: Provide a unified login entry and baseline administrative permissions f
 - `terraform plan/apply` in this phase must explicitly use `-parallelism=1`
 - Other permission sets are created only and are not auto-assigned. The only auto-assigned set is `AdministratorAccess`
 - After Terraform creates the administrator user, the blueprint calls `ve cloudidentity ResetPassword` to generate the initial password and requires a password change on first login
-- If the instance name needs to be updated, confirm the exact field names first through `ve cloudidentity UpdateInstanceName --help`, then run it in the background. Do not expose parameter troubleshooting to the user
+- Resolve the user portal login entry from the live Cloud Identity service configuration.
 - The login entry shown to the user must come from this phase's Terraform output `recommended_login_url`. The blueprint resolves it dynamically from the live Cloud Identity instance (`GetPortalLoginConfig` → `PortalURL`, falling back to `GetServiceStatus` instance name/id) and appends `/userportal`, producing `https://${Subdomain}.volccloudidentity.com/userportal`. Do not hand-craft, guess, or hard-code this URL, and do not present the generic console login page `https://console.volcengine.com/auth/login` as the entry. If `recommended_login_url` cannot be resolved (empty), tell the user the user portal entry is not yet available and have them check the Cloud Identity console, rather than substituting the generic console URL silently.
 
 ## Files and Output

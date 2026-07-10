@@ -18,6 +18,7 @@ Available skills:
 - `volcengine-db-supabase` — manage AIDAP Supabase workspaces and use Supabase as a deployment database provider.
 - `volcengine-troubleshooting` — locally troubleshoot Volcengine errors across OpenAPI/CLI/SDK/IAM/billing/compute/network/storage/database/CDN/media/AI/security/VKE.
 - `volcengine-knowledge-search` — search Volcengine official documentation and fetch full document content.
+- `volcengine-landing-zone` — consult, set up, and manage a Volcengine Landing Zone, including initial setup, account factory, and baselines.
 
 Trigger on Volcengine / 火山引擎 / 火山 keywords, `ve` commands, or
 `VOLCENGINE_ACCESS_KEY` / `VOLCENGINE_SECRET_KEY` / `VOLCENGINE_REGION` usage.

@@ -23,6 +23,7 @@ A skills repository maintained by the Volcengine team, targeting Volcengine use 
 | `volcengine-supabase` | Manage Volcengine AIDAP database workspaces (Supabase / PostgreSQL) and use them as deployment database providers |
 | `volcengine-troubleshooting` | Troubleshoot and diagnose Volcengine issues |
 | `volcengine-knowledge-search` | Search Volcengine official docs and fetch full text (product concepts/usage/billing/deploy/best practices/terms) |
+| `volcengine-landing-zone` | Consult, set up, and manage a Volcengine Landing Zone, including initial setup, account factory, and baselines |
 
 ## Quick Install
 

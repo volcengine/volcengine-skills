@@ -69,7 +69,7 @@ The order is fixed: `01-organization` -> `02-finance` -> `03-identity` -> `04-lo
 For outward communication, use the user-language fields from each phase document frontmatter instead of dumping directory names and internal output chains. Every phase follows the same rhythm:
 
 1. Explain the phase goal, value, and minimum input before execution. G2 applies.
-2. In the background, complete directory preparation, `terraform init`, variable preparation, and `terraform plan`.
+2. In the background, complete directory preparation, `terraform init`, variable preparation, and `terraform plan`, always with the selected Terraform credential source already normalized into the standard provider runtime environment-variable form documented in the Terraform Provider README at <https://github.com/volcengine/terraform-provider-volcenginecc>. A `ve` profile may still be the source of those values, but should not be treated as the only recommended Terraform execution form.
 3. Write actions inside the phase run continuously. G2 means no prompting for each individual write.
 4. After execution, output the conclusion in the unified result summary format.
 5. If the phase produces a local file, G4 applies.
@@ -77,6 +77,9 @@ For outward communication, use the user-language fields from each phase document
 
 Execution conventions:
 
+- Use the `ve` credential path validated in preflight for phase-level CLI actions. Reuse the customer's working local auth method when it already passes `ve sts GetCallerIdentity`; do not force `ve login` if another supported method is already in place.
+- Run every phase-level `terraform init/plan/apply` with the selected Terraform credential source already normalized into runtime environment variables in the agent process.
+- If a phase-level Terraform command fails with missing-credential or expired/invalid credential errors, treat it as the selected Terraform auth path needing setup or refresh, then restart from preflight after it is ready again.
 - `01-organization`, `02-finance`, and `03-identity` use `terraform plan/apply -parallelism=1`.
 - After `03-identity` produces `identity-login-info.md`, handle it under G4 by opening or delivering it first, then waiting for the user to continue.
 - Record key phase outputs and summary-report material continuously in the background. Do not wait until all phases finish and reconstruct everything from memory.
@@ -84,16 +87,26 @@ Execution conventions:
 `04-log` specific branch:
 
 - Check TOS state only inside this phase, not earlier in global preflight.
-- First run `RegisterDelegatedAdministrator` in the organization administrator context. Duplicate or already-exists results may be treated as satisfying the prerequisite.
-- Then assume into the log archive account through `OrganizationAccessControlRole`, obtain temporary credentials, and write them into a temporary log profile.
+- Before running Terraform for `04-log`, first run `RegisterDelegatedAdministrator` in the organization administrator context. Duplicate or already-exists results may be treated as satisfying the prerequisite.
+- Treat delegated-administrator registration as a phase pre-step outside Terraform. The `04-log` blueprint assumes this prerequisite is already satisfied and does not register it again.
+- Inside Terraform, assume into the log archive account through `OrganizationAccessControlRole`, obtain temporary credentials, and write them into an isolated temporary CLI home.
 - The TOS helper always uses the `cn-beijing` control plane and should converge through `GetAccountStatus` -> optional `ActiveTosSvc` -> repeated `GetAccountStatus` until `Activated`.
-- When running `CreateTrail`, `StartLogging`, and `DescribeTrails`, pass `--profile <temp_log_profile>` explicitly. After the phase ends, restore the original default profile and delete the temporary profile.
+- When running `CreateTrail`, `StartLogging`, and `DescribeTrails`, bind the isolated CLI home and pass `--profile <temp_log_profile>` explicitly. After the phase ends, delete the temporary home directory.
 - Acceptance must include at least the two read-only checks `GetCallerIdentity` and `DescribeTrails`.
-- Check the cross-account `AssumeRole` prerequisite only right before this phase. If the current login comes from the primary account, stop and ask the user to switch to an IAM sub-user with `STSAssumeRoleAccess`.
+- Check the cross-account `AssumeRole` prerequisite only right before this phase. If the current `ve` identity from the selected credential path cannot perform the required `AssumeRole`, stop and ask the user to switch to an IAM sub-user identity with `STSAssumeRoleAccess`.
+- Even when the original Terraform credential source is a local profile, run the phase-level Terraform commands with normalized environment variables rather than relying on `VOLCENGINE_PROFILE` alone for the provider's cross-account `assume_role`.
 
 `05-network` specific branch:
 
-- Check the cross-account `AssumeRole` prerequisite only right before this phase. If the current login comes from the primary account, stop and ask the user to switch to an IAM sub-user with `STSAssumeRoleAccess`.
+- Check the cross-account `AssumeRole` prerequisite only right before this phase. If the current `ve` identity from the selected credential path cannot perform the required `AssumeRole`, stop and ask the user to switch to an IAM sub-user identity with `STSAssumeRoleAccess`.
+- Before sharing the TR, first call `RegisterDelegatedAdministrator` for trusted service `resource_share` in the organization administrator context, using the network account as the delegated administrator. Duplicate or already-exists results may be treated as satisfying the prerequisite.
+- Then run `EnableSharingWithOrganization` in the organization administrator context before entering the network-account execution path.
+- Then assume into the network account through `OrganizationAccessControlRole`, create an isolated temporary CLI home, and use that isolated home with explicit `--profile` for Resource Share creation and association commands.
+- Build the TR resource TRN as `trn:transitrouter:{region}:{network_account_id}:transitrouter/{transit_router_id}` and share it through Resource Share, not through a per-member Transit Router grant rule.
+- `05-network` creates or reuses the TR share container and associates the TR resource only. It does not associate the whole organization or any member account principal in this phase.
+- When reconciling the share, prefer the idempotent sequence `DescribeResourceShares` -> optional `CreateResourceShare` -> `AssociateResourceShare`.
+- Acceptance must include read-after-write verification that the share contains the TR resource in `ASSOCIATED` status. Member-account principals are added later by account-factory.
+- Even when the original Terraform credential source is a local profile, run the phase-level Terraform commands with normalized environment variables rather than relying on `VOLCENGINE_PROFILE` alone for the provider's cross-account `assume_role`.
 - Before creating the TR VPC attachment, ensure that `ServiceRoleForTransitRouter` already exists inside the network account.
 - Prefer the idempotent command `ve iam CreateServiceLinkedRole --ServiceName transitrouter`.
 - Treat `RoleAlreadyExists` as already authorized.

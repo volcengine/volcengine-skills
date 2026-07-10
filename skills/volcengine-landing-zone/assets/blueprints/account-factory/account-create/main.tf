@@ -12,16 +12,10 @@ provider "volcenginecc" {
 }
 
 locals {
-  account_tags_cli_args = join(" ", flatten([
-    for idx, tag in var.account_tags : [
-      format("--Tags.%d.Key %s", idx + 1, jsonencode(tag.key)),
-      format("--Tags.%d.Value %s", idx + 1, jsonencode(tag.value))
-    ]
-  ]))
-
-  account_tag_validation_pairs = join("\n", [
-    for tag in var.account_tags : "${tag.key}\t${tag.value}"
-  ])
+  # 标签键值通过 base64(JSON) 传给 Python helper，由 helper 以参数数组方式拼装并执行
+  # `ve organization TagResources`，避免在 shell 中直接插值带来词法拆分/命令注入风险。
+  account_tags_json_b64           = base64encode(jsonencode(var.account_tags))
+  account_tag_validation_json_b64 = local.account_tags_json_b64
 }
 
 resource "volcenginecc_organization_account" "account" {
@@ -162,10 +156,37 @@ resource "null_resource" "account_tags" {
 
       account_id="${volcenginecc_organization_account.account.account_id}"
 
-      tag_output=$(ve organization TagResources \
-        --ResourceIds.1 "$account_id" \
-        --ResourceType "account" \
-        ${local.account_tags_cli_args} 2>&1) || {
+      # 通过 Python helper 以参数数组方式调用 `ve organization TagResources`，
+      # 标签键值不进入 shell 词法解析，规避空格/特殊字符导致的拆分与命令注入。
+      tag_output="$(ACCOUNT_ID="$account_id" TAGS_JSON_B64='${local.account_tags_json_b64}' python3 - <<'PY'
+import base64
+import json
+import os
+import subprocess
+import sys
+
+account_id = os.environ["ACCOUNT_ID"]
+tags = json.loads(base64.b64decode(os.environ["TAGS_JSON_B64"]).decode("utf-8"))
+
+cmd = [
+    "ve",
+    "organization",
+    "TagResources",
+    "--ResourceIds.1",
+    account_id,
+    "--ResourceType",
+    "account",
+]
+for idx, tag in enumerate(tags, start=1):
+    cmd.extend([f"--Tags.{idx}.Key", str(tag["key"])])
+    cmd.extend([f"--Tags.{idx}.Value", str(tag["value"])])
+
+completed = subprocess.run(cmd, text=True, capture_output=True)
+sys.stdout.write(completed.stdout)
+sys.stderr.write(completed.stderr)
+raise SystemExit(completed.returncode)
+PY
+      )" || {
         echo "Failed to tag account $account_id" >&2
         echo "$tag_output" >&2
         exit 1
@@ -179,18 +200,56 @@ resource "null_resource" "account_tags" {
         exit 1
       }
 
-      while IFS="$(printf '\t')" read -r expected_key expected_value; do
-        [ -n "$expected_key" ] || continue
+      tag_validation_output="$(EXPECTED_TAGS_JSON_B64='${local.account_tag_validation_json_b64}' LIST_TAG_RESOURCES_OUTPUT="$verify_output" python3 - <<'PY'
+import base64
+import json
+import os
+import sys
 
-        if ! printf '%s' "$verify_output" | grep -Eq "\"(TagKey|Key)\"[[:space:]]*:[[:space:]]*\"$expected_key\"" ||
-           ! printf '%s' "$verify_output" | grep -Eq "\"(TagValue|Value)\"[[:space:]]*:[[:space:]]*\"$expected_value\""; then
-          echo "Account tag verification failed for $account_id: $expected_key=$expected_value" >&2
-          echo "$verify_output" >&2
-          exit 1
-        fi
-      done <<'EOF'
-${local.account_tag_validation_pairs}
-EOF
+expected_tags = json.loads(
+    base64.b64decode(os.environ["EXPECTED_TAGS_JSON_B64"]).decode("utf-8")
+)
+payload = json.loads(os.environ["LIST_TAG_RESOURCES_OUTPUT"])
+actual_pairs = set()
+
+
+def walk(node):
+    if isinstance(node, dict):
+        key = node.get("TagKey", node.get("Key"))
+        if key is not None:
+            if "TagValue" in node:
+                actual_pairs.add((str(key), str(node["TagValue"])))
+            elif "Value" in node:
+                actual_pairs.add((str(key), str(node["Value"])))
+        for value in node.values():
+            walk(value)
+    elif isinstance(node, list):
+        for item in node:
+            walk(item)
+
+
+walk(payload)
+missing_pairs = [
+    f'{tag["key"]}={tag["value"]}'
+    for tag in expected_tags
+    if (str(tag["key"]), str(tag["value"])) not in actual_pairs
+]
+
+if missing_pairs:
+    print(
+        "missing expected tag pairs: " + ", ".join(missing_pairs),
+        file=sys.stderr,
+    )
+    raise SystemExit(1)
+
+print("Account tag verification passed")
+PY
+      )" || {
+        echo "Account tag verification failed for $account_id" >&2
+        echo "$tag_validation_output" >&2
+        echo "$verify_output" >&2
+        exit 1
+      }
 
       echo "$tag_output"
     EOT

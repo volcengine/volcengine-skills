@@ -150,7 +150,8 @@
       }
       .toc-card {
         grid-column: 2;
-        grid-row: 1 / 100;
+          grid-row: 1 / span 4;
+          align-self: start;
         position: sticky;
         top: 28px;
         margin-top: 0;
@@ -676,11 +677,10 @@
 
           <!-- Services -->
           <rect x="740" y="32" width="190" height="450" rx="10" fill="#fafafa" stroke="#0b7bc1" stroke-width="1.5"/>
-          <text x="835" y="58" text-anchor="middle" font-size="14" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" fill="#0b7bc1">目标账号内服务</text>
-          <text x="835" y="78" text-anchor="middle" font-size="10" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" fill="#5b6573">业务能力与治理能力统一纳管</text>
+          <text x="835" y="58" text-anchor="middle" font-size="14" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" fill="#0b7bc1">目标账号</text>
 
           <rect x="760" y="96" width="150" height="24" rx="12" fill="#eef3fb"/>
-          <text x="835" y="112" text-anchor="middle" font-size="10" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" fill="#165dff">业务与平台服务</text>
+          <text x="835" y="112" text-anchor="middle" font-size="10" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" fill="#165dff">云产品</text>
 
           <rect x="760" y="132" width="150" height="48" rx="8" fill="#ffffff" stroke="#d8dee8" stroke-width="1.2"/>
           <text x="835" y="161" text-anchor="middle" font-size="12" font-weight="500" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" fill="#1f2328">ECS / VPC</text>
@@ -689,10 +689,10 @@
           <text x="835" y="225" text-anchor="middle" font-size="12" font-weight="500" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" fill="#1f2328">TOS / RDS</text>
 
           <rect x="760" y="260" width="150" height="48" rx="8" fill="#ffffff" stroke="#d8dee8" stroke-width="1.2"/>
-          <text x="835" y="289" text-anchor="middle" font-size="12" font-weight="500" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" fill="#1f2328">VKE / VCR</text>
+          <text x="835" y="289" text-anchor="middle" font-size="12" font-weight="500" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" fill="#1f2328">WAF / Kafka</text>
 
           <rect x="760" y="336" width="150" height="24" rx="12" fill="#fff7e8"/>
-          <text x="835" y="352" text-anchor="middle" font-size="10" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" fill="#ff7d00">治理与审计能力</text>
+          <text x="835" y="352" text-anchor="middle" font-size="10" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" fill="#ff7d00">平台服务</text>
 
           <rect x="760" y="372" width="150" height="44" rx="8" fill="#ffffff" stroke="#d8dee8" stroke-width="1.2"/>
           <text x="835" y="398" text-anchor="middle" font-size="12" font-weight="500" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" fill="#1f2328">IAM / CloudTrail</text>
@@ -740,6 +740,54 @@
         <li><strong>统一身份与最小特权：</strong>以企业自有 IdP 为唯一身份源，通过 SSO 接入云身份中心后集中分配权限集。相同身份可映射到多个账号，并在不同业务账号或环境中按职责分离（SoD）和最小特权（Least Privilege）获得权限。</li>
         <li><strong>集中生命周期治理：</strong>人员入职、调岗或离职时，只需在身份中心完成一次变更，即可同步收敛其在各成员账号中的访问权限，减少离职残留账号和跨账号权限失管风险。</li>
       </ul>
+
+      <h4 style="margin-top: 1.5rem; font-size: 1rem; color: #1f2328; margin-bottom: 0.5rem;">预置权限集总览</h4>
+      <p style="margin-bottom: 1rem; color: #5b6573; line-height: 1.6;">
+        在底座身份阶段（<code>03-identity</code>）会统一创建以下 5 个权限集，命名与火山引擎系统策略一致；只有 <code>AdministratorAccess</code> 会自动分配到管理员用户，并下发到管理账号与核心账号列表，其它权限集供后续在 account-factory baseline 中按需绑定到具体人员或用户组。下表为静态总览，便于快速理解；权限集的权威说明与实时分配状态以 <code>03-identity</code> 阶段输出的 <code>permission_set_catalog</code> 为准。
+      </p>
+
+      <table style="width: 100%; border-collapse: collapse; margin-bottom: 1.2rem; font-size: 0.9rem; color: #1f2328; line-height: 1.6;">
+        <thead>
+          <tr style="background-color: #fafafa;">
+            <th style="border: 1px solid #d8dee8; padding: 0.6rem 0.8rem; text-align: left; font-weight: 600;">权限集（Permission Set）</th>
+            <th style="border: 1px solid #d8dee8; padding: 0.6rem 0.8rem; text-align: left; font-weight: 600;">权限范围</th>
+            <th style="border: 1px solid #d8dee8; padding: 0.6rem 0.8rem; text-align: left; font-weight: 600;">典型适用角色</th>
+            <th style="border: 1px solid #d8dee8; padding: 0.6rem 0.8rem; text-align: left; font-weight: 600;">典型使用场景</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="border: 1px solid #d8dee8; padding: 0.6rem 0.8rem; font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace; font-size: 0.85rem;">AdministratorAccess</td>
+            <td style="border: 1px solid #d8dee8; padding: 0.6rem 0.8rem;">全局超级管理员权限</td>
+            <td style="border: 1px solid #d8dee8; padding: 0.6rem 0.8rem;">平台管理员 / Landing Zone 搭建负责人</td>
+            <td style="border: 1px solid #d8dee8; padding: 0.6rem 0.8rem;">首次搭建 Landing Zone；处理组织、网络、日志等基础设施变更；排查需要全局权限的问题</td>
+          </tr>
+          <tr>
+            <td style="border: 1px solid #d8dee8; padding: 0.6rem 0.8rem; font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace; font-size: 0.85rem;">ReadOnlyAccess</td>
+            <td style="border: 1px solid #d8dee8; padding: 0.6rem 0.8rem;">全局只读权限</td>
+            <td style="border: 1px solid #d8dee8; padding: 0.6rem 0.8rem;">审计与合规人员、日常巡检与查看配置人员</td>
+            <td style="border: 1px solid #d8dee8; padding: 0.6rem 0.8rem;">查看资源与配置状态；审计与合规检查；排障前信息确认</td>
+          </tr>
+          <tr>
+            <td style="border: 1px solid #d8dee8; padding: 0.6rem 0.8rem; font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace; font-size: 0.85rem;">OpsAdministrator</td>
+            <td style="border: 1px solid #d8dee8; padding: 0.6rem 0.8rem;">具备除账号信息、企业组织、云身份中心、访问控制和费用中心外的其他全部权限</td>
+            <td style="border: 1px solid #d8dee8; padding: 0.6rem 0.8rem;">运维人员</td>
+            <td style="border: 1px solid #d8dee8; padding: 0.6rem 0.8rem;">处理告警与运维变更；执行日常运维操作；定位与修复运行故障</td>
+          </tr>
+          <tr>
+            <td style="border: 1px solid #d8dee8; padding: 0.6rem 0.8rem; font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace; font-size: 0.85rem;">FinancialAdministrator</td>
+            <td style="border: 1px solid #d8dee8; padding: 0.6rem 0.8rem;">可管理财务信息，例如查看账单、开具发票等</td>
+            <td style="border: 1px solid #d8dee8; padding: 0.6rem 0.8rem;">财务管理人员</td>
+            <td style="border: 1px solid #d8dee8; padding: 0.6rem 0.8rem;">查看账单与费用分析；管理财务托管或财务关联；核对成本分摊与预算</td>
+          </tr>
+          <tr>
+            <td style="border: 1px solid #d8dee8; padding: 0.6rem 0.8rem; font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace; font-size: 0.85rem;">IAMAdministrator</td>
+            <td style="border: 1px solid #d8dee8; padding: 0.6rem 0.8rem;">可以进行账号内IAM管理（例如新建子用户、授予IAM权限策略）</td>
+            <td style="border: 1px solid #d8dee8; padding: 0.6rem 0.8rem;">身份与安全治理人员</td>
+            <td style="border: 1px solid #d8dee8; padding: 0.6rem 0.8rem;">管理用户与权限边界；调整访问授权策略；治理身份与访问控制配置</td>
+          </tr>
+        </tbody>
+      </table>
 
       <div style="margin-top: 1rem; margin-bottom: 1.5rem; padding: 0.8rem 1rem; background-color: #fff7e8; border-left: 4px solid #ff7d00; border-radius: 0 4px 4px 0;">
         <p style="margin: 0; font-size: 0.9rem; color: #8a4300; line-height: 1.5;">
@@ -815,50 +863,60 @@
           </defs>
 
           <rect x="250" y="30" width="360" height="282" rx="10" fill="#d9ecff" stroke="#0b7bc1" stroke-width="1.2"/>
-          <text x="430" y="70" text-anchor="middle" font-size="14" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" fill="#033e63">Network 账号</text>
+          <text x="430" y="55" text-anchor="middle" font-size="14" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" fill="#033e63">Network 账号</text>
 
-          <rect x="355" y="136" width="150" height="70" rx="10" fill="#165dff" stroke="#165dff" stroke-width="1.2"/>
-          <text x="430" y="165" text-anchor="middle" font-size="14" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" fill="#ffffff">中转路由器 (TR)</text>
-          <text x="430" y="186" text-anchor="middle" font-size="11" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" fill="#eef3fb">跨账号核心互联枢纽</text>
+          <rect x="370" y="70" width="120" height="56" rx="6" fill="#ffffff" stroke="#0b7bc1" stroke-width="1.2"/>
+          <text x="430" y="90" text-anchor="middle" font-size="13" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" fill="#033e63">NAT 网关</text>
+          
+          <rect x="380" y="98" width="100" height="22" rx="4" fill="#f0f7ff" stroke="#165dff" stroke-width="1"/>
+          <text x="430" y="113" text-anchor="middle" font-size="11" font-weight="500" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" fill="#165dff">公网 EIP</text>
+
+          <rect x="355" y="146" width="150" height="70" rx="10" fill="#165dff" stroke="#165dff" stroke-width="1.2"/>
+          <text x="430" y="175" text-anchor="middle" font-size="14" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" fill="#ffffff">中转路由器 (TR)</text>
+          <text x="430" y="196" text-anchor="middle" font-size="11" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" fill="#eef3fb">跨账号核心互联枢纽</text>
 
           <rect x="330" y="248" width="200" height="52" rx="8" fill="#ffffff" stroke="#0b7bc1" stroke-width="1.2"/>
           <text x="430" y="279" text-anchor="middle" font-size="13" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" fill="#033e63">中心 VPC</text>
 
-          <rect x="40" y="118" width="170" height="96" rx="8" fill="#bffdfd" stroke="#11a2a2" stroke-width="1.2"/>
-          <text x="125" y="148" text-anchor="middle" font-size="13" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" fill="#034949">业务账号 A</text>
-          <rect x="60" y="160" width="130" height="42" rx="6" fill="#ffffff" stroke="#11a2a2" stroke-width="1.2"/>
-          <text x="125" y="186" text-anchor="middle" font-size="13" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" fill="#034949">业务 VPC</text>
+          <rect x="40" y="128" width="170" height="96" rx="8" fill="#bffdfd" stroke="#11a2a2" stroke-width="1.2"/>
+          <text x="125" y="158" text-anchor="middle" font-size="13" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" fill="#034949">业务账号 A</text>
+          <rect x="60" y="170" width="130" height="42" rx="6" fill="#ffffff" stroke="#11a2a2" stroke-width="1.2"/>
+          <text x="125" y="196" text-anchor="middle" font-size="13" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" fill="#034949">业务 VPC</text>
 
-          <rect x="650" y="118" width="170" height="96" rx="8" fill="#bffdfd" stroke="#11a2a2" stroke-width="1.2"/>
-          <text x="735" y="148" text-anchor="middle" font-size="13" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" fill="#034949">业务账号 B</text>
-          <rect x="670" y="160" width="130" height="42" rx="6" fill="#ffffff" stroke="#11a2a2" stroke-width="1.2"/>
-          <text x="735" y="186" text-anchor="middle" font-size="13" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" fill="#034949">业务 VPC</text>
+          <rect x="650" y="128" width="170" height="96" rx="8" fill="#bffdfd" stroke="#11a2a2" stroke-width="1.2"/>
+          <text x="735" y="158" text-anchor="middle" font-size="13" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" fill="#034949">业务账号 B</text>
+          <rect x="670" y="170" width="130" height="42" rx="6" fill="#ffffff" stroke="#11a2a2" stroke-width="1.2"/>
+          <text x="735" y="196" text-anchor="middle" font-size="13" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" fill="#034949">业务 VPC</text>
 
           <rect x="340" y="360" width="180" height="44" rx="8" fill="#fafafa" stroke="#d8dee8" stroke-width="1.2"/>
           <text x="430" y="387" text-anchor="middle" font-size="13" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" fill="#5b6573">本地数据中心 (IDC)</text>
 
-          <path d="M 190 181 L 355 181" stroke="#165dff" stroke-width="1.5" fill="none" marker-start="url(#arrow-net)" marker-end="url(#arrow-net)"/>
-          <text x="272" y="166" text-anchor="middle" font-size="11" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" fill="#165dff">跨账号 VPC Attachment</text>
+          <path d="M 190 191 L 355 191" stroke="#165dff" stroke-width="1.5" fill="none" marker-start="url(#arrow-net)" marker-end="url(#arrow-net)"/>
+          <text x="272" y="176" text-anchor="middle" font-size="11" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" fill="#165dff">跨账号 VPC Attachment</text>
 
-          <path d="M 670 181 L 505 181" stroke="#165dff" stroke-width="1.5" fill="none" marker-start="url(#arrow-net)" marker-end="url(#arrow-net)"/>
-          <text x="587" y="166" text-anchor="middle" font-size="11" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" fill="#165dff">跨账号 VPC Attachment</text>
+          <path d="M 670 191 L 505 191" stroke="#165dff" stroke-width="1.5" fill="none" marker-start="url(#arrow-net)" marker-end="url(#arrow-net)"/>
+          <text x="587" y="176" text-anchor="middle" font-size="11" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" fill="#165dff">跨账号 VPC Attachment</text>
 
-          <path d="M 430 206 L 430 248" stroke="#165dff" stroke-width="1.5" fill="none" marker-start="url(#arrow-net)" marker-end="url(#arrow-net)"/>
+          <path d="M 430 216 L 430 248" stroke="#165dff" stroke-width="1.5" fill="none" marker-start="url(#arrow-net)" marker-end="url(#arrow-net)"/>
           <path d="M 430 360 L 430 300" stroke="#165dff" stroke-width="1.5" fill="none" stroke-dasharray="4,4"/>
+          <path d="M 430 146 L 430 124" stroke="#165dff" stroke-width="1.5" fill="none" marker-start="url(#arrow-net)" marker-end="url(#arrow-net)"/>
           <text x="530" y="330" text-anchor="middle" font-size="11" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" fill="#165dff">云专线 / IPsec VPN</text>
           <text x="530" y="346" text-anchor="middle" font-size="10" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" fill="#165dff">本地 IDC 接入</text>
         </svg>
       </div>
 
-      <ul style="color: #1f2328; line-height: 1.8; padding-left: 1.2rem;">
-        <li><strong>枢纽式网络底座：</strong>在 Network 账号中集中部署中转路由器（TR）作为跨账号互联枢纽，由其统一承担路由收敛；中心 VPC 是接入对象之一，而非 TR 的容器或内部组件。</li>
-        <li><strong>跨账号统一接入：</strong>各业务账号的业务 VPC 通过标准化的跨账号接入方式连接到 TR，在保持网络拓扑清晰的同时，为后续新增业务账号和环境扩展预留统一接入路径。</li>
-        <li><strong>按需互通与边界隔离：</strong>本地数据中心可通过云专线或 IPsec VPN 接入网络枢纽，再由统一路由策略决定与中心 VPC、业务 VPC 的互通范围，避免默认全互通带来的横向移动风险。</li>
-      </ul>
+        <ul style="color: #1f2328; line-height: 1.8; padding-left: 1.2rem;">
+          <li><strong>枢纽式网络底座：</strong>在 Network 账号中集中部署中转路由器（TR）作为跨账号互联枢纽，由其统一承担路由收敛；中心 VPC 是接入对象之一，而非 TR 的容器或内部组件。</li>
+          <li><strong>统一公网出向：</strong>在 Network 账号中集中预置 NAT 网关与 EIP，作为标准的共享公网出向（Egress）通道，收敛企业的公网访问边界。</li>
+          <li><strong>委派资源共享管理：</strong>为避免由管理账号长期直接操作共享单元，先在企业组织中将资源共享服务的委派管理员授权给 Network 账号，使网络共享能力的管理职责收敛到网络账号。</li>
+          <li><strong>通过资源共享预置接入入口：</strong>由 Network 账号以资源所有者身份先创建并持有 TR 共享单元，仅在网络底座阶段完成共享能力预置和 TR 资源关联，不在此阶段把共享范围一次性扩展到整个组织。</li>
+          <li><strong>跨账号统一接入：</strong>后续每个新业务账号在账号工厂 baseline 中被逐个加入该共享单元，再通过标准化的跨账号接入方式连接到共享 TR；这样既保留统一接入路径，也避免对未启用账号预先放开共享范围。</li>
+          <li><strong>按需互通与边界隔离：</strong>本地数据中心可通过云专线或 IPsec VPN 接入网络枢纽，再由统一路由策略决定与中心 VPC、业务 VPC 的互通范围，避免默认全互通带来的横向移动风险。</li>
+        </ul>
 
       <div style="margin-top: 1rem; padding: 0.8rem 1rem; background-color: #fff7e8; border-left: 4px solid #ff7d00; border-radius: 0 4px 4px 0;">
         <p style="margin: 0; font-size: 0.9rem; color: #8a4300; line-height: 1.5;">
-          <strong>⚠️ 实施范围说明：</strong>因云专线（DC）和 IPsec VPN 涉及较复杂的物理与逻辑连通配置，且通常伴随较高的资源成本，本 Skill 不会自动部署混合云连接部分；同时，本 Skill 也不会自动执行完整的南北向、东西向安全防护方案，以及公网入口、出口与流量治理能力建设，例如云防火墙、WAF、DDoS 防护、CLB/ALB、NAT 网关等能力的规划、选型与策略编排。主要原因在于此类方案通常需要结合企业现网拓扑、业务暴露面、访问路径、安全等级要求、带宽规模、高可用目标与预算约束进行定制化设计。如需与线下数据中心打通，或进一步建设完整的网络安全与流量治理体系，需在火山引擎支持团队或解决方案团队协助下另行制定并实施专项方案。
+          <strong>⚠️ 实施范围说明：</strong>因云专线（DC）和 IPsec VPN 涉及较复杂的物理与逻辑连通配置，且通常伴随较高的资源成本，本方案不会自动部署混合云连接部分；同时，本方案默认提供公网出向（NAT 网关）的基础覆盖，但不会自动执行完整的公网入向（Ingress）与高级安全治理建设，例如云防火墙、WAF、DDoS 防护、CLB/ALB 等能力的规划、选型与策略编排。主要原因在于此类方案通常需要结合企业现网拓扑、业务暴露面、访问路径、安全等级要求、带宽规模、高可用目标与预算约束进行定制化设计。如需与线下数据中心打通，或进一步建设完整的网络安全与流量治理体系，需在火山引擎支持团队或解决方案团队协助下另行制定并实施专项方案。
         </p>
       </div>
 
@@ -949,7 +1007,7 @@
       <ul style="color: #1f2328; line-height: 1.8; padding-left: 1.2rem;">
         <li><strong>主流程始终是创建账号：</strong>账号工厂首先负责新账号创建，并在创建过程中同步完成账号的目标 OU 落位、财务关系挂接和基础标签写入，确保新账号在进入组织后立即具备基本治理属性。</li>
         <li><strong>baseline 是可选增强项：</strong>baseline 不是账号创建前置条件，而是账号创建完成后的标准配置包。用户可以选择仅创建账号，也可以继续选择已有 baseline、现场创建 baseline，再按确认节奏应用到目标账号。</li>
-        <li><strong>当前能力边界清晰：</strong>当前提供内置的基础预置模块，用于将新业务账号接入企业共享网络或下发通用配置；如有企业自定义扩展需求，也可挂载客户自定义 Terraform 模块纳入同一条 baseline 应用流程。</li>
+        <li><strong>当前能力边界清晰：</strong>当前提供内置的基础预置模块，用于把新业务账号纳入既有共享网络范围、接入企业网络底座或下发通用配置；其中网络类 baseline 会复用 <code>05-network</code> 已交付的共享网络与中心路由能力。如有企业自定义扩展需求，也可挂载客户自定义 Terraform 模块纳入同一条 baseline 应用流程。</li>
         <li><strong>分步驻停而非整链路直推：</strong>账号创建、baseline 选择或创建、baseline 应用都会按“说明 -&gt; 准备 -&gt; 确认 -&gt; 执行 -&gt; 总结”的节奏推进，不会默认把所有动作一次性自动执行到底。</li>
       </ul>
 

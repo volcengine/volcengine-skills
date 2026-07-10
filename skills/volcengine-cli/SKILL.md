@@ -103,7 +103,7 @@ ve --version
 
 ### Default: Console Login (requires ve >= 1.0.42)
 
-Use `ve login --remote` via the helper script `scripts/ve_login_remote.sh`. It handles the OAuth device-flow subprocess lifecycle (FIFO-bound stdin, URL extraction, code feeding, cleanup) so the agent doesn't have to.
+**IMPORTANT: NEVER call `ve login` directly. ALWAYS use the helper script `scripts/ve_login_remote.sh`.** It handles the OAuth device-flow subprocess lifecycle (FIFO-bound stdin, URL extraction, code feeding, cleanup). Calling `ve login` directly will orphan the subprocess and make it impossible to feed the authorization code back.
 
 **Resolve the login region:**
 
@@ -131,6 +131,8 @@ Use `ve login --remote` via the helper script `scripts/ve_login_remote.sh`. It h
    ```
 
    The script writes the code into the FIFO bound to the still-running ve, waits for ve to exit, then runs `ve sts GetCallerIdentity` to verify.
+
+   > **Session replacement**: When the user is switching to a different account, `ve` will ask `Replace the existing login_session? [y/N]:`. The script handles this automatically — `complete` sends `y` along with the authorization code, so no manual intervention is needed.
 
 4. **If the user interrupts** (says "use AK/SK", "cancel", "this is taking too long", etc.):
 

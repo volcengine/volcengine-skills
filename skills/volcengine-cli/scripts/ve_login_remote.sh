@@ -102,7 +102,7 @@ cmd_start() {
       exit 5
     fi
     sleep 1
-    ((elapsed++))
+    elapsed=$((elapsed + 1))
   done
 
   echo "ERROR: timeout (${url_timeout}s) waiting for URL. Log:" >&2
@@ -127,8 +127,7 @@ cmd_complete() {
   local pid
   pid=$(cat "$pid_file")
 
-  # Write the code to the fifo. ve, still running with its stdin bound to
-  # this fifo, reads it as the answer to "Authorization code:".
+  # Write the authorization code to the fifo.
   if ! printf '%s\n' "$code" > "$fifo"; then
     echo "ERROR: failed to write code to fifo ($fifo)" >&2
     exit 7
@@ -136,6 +135,9 @@ cmd_complete() {
 
   # Wait for ve to exit. We cannot `wait` because ve is not a child of
   # this fresh shell — fall back to kill -0 polling.
+  # While waiting, watch for the "Replace the existing login_session?" prompt
+  # that appears when switching to a different account, and auto-confirm with "y".
+  local replied_replace=false
   local elapsed=0
   while kill -0 "$pid" 2>/dev/null; do
     if (( elapsed >= complete_timeout )); then
@@ -143,8 +145,13 @@ cmd_complete() {
       cat "$log_file" >&2 || true
       exit 8
     fi
+    # Auto-confirm session replacement if prompted.
+    if [[ "$replied_replace" == false ]] && grep -q 'Replace the existing login_session' "$log_file" 2>/dev/null; then
+      printf 'y\n' > "$fifo" 2>/dev/null || true
+      replied_replace=true
+    fi
     sleep 1
-    ((elapsed++))
+    elapsed=$((elapsed + 1))
   done
 
   # Heuristic error check on captured log.
@@ -176,7 +183,7 @@ cmd_abort() {
     local elapsed=0
     while kill -0 "$pid" 2>/dev/null && (( elapsed < 3 )); do
       sleep 1
-      ((elapsed++))
+      elapsed=$((elapsed + 1))
     done
     kill -9 "$pid" 2>/dev/null || true
   fi

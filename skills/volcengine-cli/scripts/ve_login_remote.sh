@@ -14,10 +14,17 @@
 #   writes the code into the fifo so the still-running ve picks it up.
 #
 # Subcommands:
-#   start <region>     Launch `ve login --remote --region <region>` and
-#                      print the login URL to stdout.
-#   complete <code>    Feed <code> to the waiting ve subprocess via fifo,
-#                      then verify with `ve sts GetCallerIdentity`.
+#   start <region> [profile]
+#                      Launch `ve login --remote --region <region>` and
+#                      print the login URL to stdout. Pass [profile] when
+#                      the conversation has fixed a non-default profile —
+#                      otherwise the login lands on `default` and the
+#                      fixed profile stays broken.
+#   complete <code> [profile]
+#                      Feed <code> to the waiting ve subprocess via fifo,
+#                      then verify with `ve sts GetCallerIdentity`. Pass
+#                      the same [profile] as start so the verification
+#                      hits the profile that was just logged in.
 #   abort              Kill the running ve subprocess and clean up state.
 #
 # State files (one set per UID for multi-user safety on shared hosts):
@@ -37,9 +44,12 @@ complete_timeout=120  # seconds to wait for ve to exit after code is fed
 usage() {
   cat <<EOF >&2
 Usage:
-  $0 start <region>     Launch ve login --remote and print the login URL.
-  $0 complete <code>    Feed authorization code to the running ve; verify.
-  $0 abort              Kill the running ve and clean up state files.
+  $0 start <region> [profile]     Launch ve login --remote; print the URL.
+  $0 complete <code> [profile]    Feed authorization code to the running
+                                  ve; verify. Same [profile] as start.
+  $0 abort                        Kill the running ve and clean up.
+
+Pass [profile] iff the conversation fixed a non-default profile.
 EOF
   exit 2
 }
@@ -54,6 +64,7 @@ cleanup_state() {
 
 cmd_start() {
   local region="${1:-}"
+  local profile="${2:-}"
   if [[ -z "$region" ]]; then
     echo "ERROR: region required (e.g., cn-beijing)" >&2
     exit 2
@@ -78,8 +89,9 @@ cmd_start() {
   # for a writer. Child ve inherits fd 0 from fd 3 via `<&3`.
   exec 3<>"$fifo"
 
-  # Launch ve in background; capture stdout+stderr.
-  ve login --remote --region "$region" <&3 >"$log_file" 2>&1 &
+  # Launch ve in background; capture stdout+stderr. `ve login` is a CLI
+  # management command, so --profile takes two hyphens.
+  ve login --remote --region "$region" ${profile:+--profile "$profile"} <&3 >"$log_file" 2>&1 &
   local pid=$!
   echo "$pid" > "$pid_file"
 
@@ -102,7 +114,7 @@ cmd_start() {
       exit 5
     fi
     sleep 1
-    ((elapsed++))
+    elapsed=$((elapsed + 1))
   done
 
   echo "ERROR: timeout (${url_timeout}s) waiting for URL. Log:" >&2
@@ -114,6 +126,7 @@ cmd_start() {
 
 cmd_complete() {
   local code="${1:-}"
+  local profile="${2:-}"
   if [[ -z "$code" ]]; then
     echo "ERROR: authorization code required" >&2
     exit 2
@@ -144,7 +157,7 @@ cmd_complete() {
       exit 8
     fi
     sleep 1
-    ((elapsed++))
+    elapsed=$((elapsed + 1))
   done
 
   # Heuristic error check on captured log.
@@ -157,12 +170,13 @@ cmd_complete() {
 
   cleanup_state
 
-  # Verify the profile is now usable.
-  if ve sts GetCallerIdentity >/dev/null 2>&1; then
-    echo "OK: ve login succeeded; GetCallerIdentity verified."
+  # Verify the profile that was just logged in is now usable. Ordinary
+  # service API calls address profiles with a three-hyphen flag.
+  if ve sts GetCallerIdentity ${profile:+---profile "$profile"} >/dev/null 2>&1; then
+    echo "OK: ve login succeeded; GetCallerIdentity verified${profile:+ for profile '$profile'}."
     return 0
   else
-    echo "ERROR: GetCallerIdentity failed after login. Try 've sts GetCallerIdentity' manually." >&2
+    echo "ERROR: GetCallerIdentity failed after login. Try 've sts GetCallerIdentity${profile:+ ---profile $profile}' manually." >&2
     exit 10
   fi
 }
@@ -176,7 +190,7 @@ cmd_abort() {
     local elapsed=0
     while kill -0 "$pid" 2>/dev/null && (( elapsed < 3 )); do
       sleep 1
-      ((elapsed++))
+      elapsed=$((elapsed + 1))
     done
     kill -9 "$pid" 2>/dev/null || true
   fi
@@ -185,8 +199,8 @@ cmd_abort() {
 }
 
 case "${1:-}" in
-  start)    shift; cmd_start "${1:-}" ;;
-  complete) shift; cmd_complete "${1:-}" ;;
+  start)    shift; cmd_start "${1:-}" "${2:-}" ;;
+  complete) shift; cmd_complete "${1:-}" "${2:-}" ;;
   abort)    shift; cmd_abort ;;
   *)        usage ;;
 esac

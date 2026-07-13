@@ -95,6 +95,8 @@ ve sts GetCallerIdentity
 
 **Failure** — no usable profile. Default plan: use `ve login` (Console Login, OAuth 2.0 + PKCE). Announce this to the user up front, and tell them they can say "use AK/SK", "use STS token", or "use SSO" to switch.
 
+The same plan applies when a previously working session expires **mid-task**: any `ve` command failing with `failed to refresh session token. Please run 've login' to re-authenticate` (or similar refresh-token/session-expired text) is this exact failure, no matter which skill issued the command. The error text tells the human to run `ve login` — do **not** relay that instruction to the user or ask them to run `ve login` in their own terminal; run the Console Login procedure below yourself and only hand the user the sign-in URL and the code round-trip. Re-login must target the profile that was in use: if a profile was fixed earlier in the conversation, pass it to `start` (step 2 below) so both the login and its verification hit that profile — omitting it refreshes `default`, leaves the fixed profile broken, and pollutes the default account context.
+
 First check the ve version:
 
 ```bash
@@ -119,18 +121,18 @@ ve --version
 2. **Start the login subprocess and get the URL:**
 
    ```text
-   scripts/ve_login_remote.sh start <region>
+   scripts/ve_login_remote.sh start <region> [profile]
    ```
 
-   Prints a `https://signin.volcengine.com/...` URL on stdout. Forward it verbatim to the user with: "Open this URL in any browser, complete login, then send me the 'Authorization code' shown on the page."
+   Pass `[profile]` **only** when the user explicitly fixed a profile earlier in the conversation (never pick one yourself); omit it to use the CLI default resolution. Prints a `https://signin.volcengine.com/...` URL on stdout. Forward it verbatim to the user with: "Open this URL in any browser, complete login, then send me the 'Authorization code' shown on the page."
 
 3. **When the user replies with the code, complete the flow:**
 
    ```text
-   scripts/ve_login_remote.sh complete <code>
+   scripts/ve_login_remote.sh complete <code> [profile]
    ```
 
-   The script writes the code into the FIFO bound to the still-running ve, waits for ve to exit, then runs `ve sts GetCallerIdentity` to verify.
+   The script writes the code into the FIFO bound to the still-running ve, waits for ve to exit, then runs `ve sts GetCallerIdentity` to verify. Pass the same `[profile]` you passed to `start` so the verification hits the profile that was just logged in.
 
    > **Session replacement**: When the user is switching to a different account, `ve` will ask `Replace the existing login_session? [y/N]:`. The script handles this automatically — `complete` sends `y` along with the authorization code, so no manual intervention is needed.
 

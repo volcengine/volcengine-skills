@@ -20,7 +20,7 @@
 | `volcengine-sdk-generator` | 生成可运行的火山引擎 SDK 示例，并按需回答 SDK 配置问题 |
 | `volcengine-tosutil` | 管理火山引擎 TOS 对象存储资源 |
 | `volcengine-vefaas` | 部署与管理火山引擎 veFaaS serverless 应用 |
-| `volcengine-db-supabase` | 管理火山引擎 AIDAP 数据库 workspace（Supabase / PostgreSQL），并作为部署数据库方案 |
+| `volcengine-db-supabase` | 管理火山引擎 AI 原生 BaaS 平台 Supabase 版（AIDAP）：workspace/分支/SQL/Auth/Realtime/Edge Functions/Storage/前端托管/类型生成，并作为部署数据库方案 |
 | `volcengine-troubleshooting` | 火山引擎故障排查与诊断 |
 | `volcengine-knowledge-search` | 检索火山引擎官方文档并获取全文（产品概念/用法/计费/部署/最佳实践/服务条款等） |
 | `volcengine-landing-zone` | 火山引擎 Landing Zone 咨询、初始化搭建、账号工厂与基线配置 |

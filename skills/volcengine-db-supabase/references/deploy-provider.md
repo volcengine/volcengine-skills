@@ -1,6 +1,6 @@
 # AIDAP as a Deploy Database Provider
 
-Use this reference from `volcengine-deploy` when the user selects `database_product=aidap`. AIDAP refers to Volcengine's `AI 原生 BaaS 平台 Supabase 版` product; in deploy flows, use its database workspace surface as the managed database provider. AIDAP deploy-facing database engines are `supabase` and `postgresql`; resolve current `CreateWorkspace` `EngineType` / `EngineVersion` enums from [`tool-reference.md`](./tool-reference.md) before creation.
+Use this reference from `volcengine-deploy` when the user selects `database_product=aidap`. AIDAP refers to Volcengine's `AI 原生 BaaS 平台 Supabase 版` product; in deploy flows, use its database workspace surface as the managed database provider. AIDAP deploy-facing database engines are `supabase` and `postgresql`; resolve current `CreateWorkspace` `EngineType` / `EngineVersion` enums from `ve aidap CreateWorkspace --help` before creation.
 
 ## Selection
 

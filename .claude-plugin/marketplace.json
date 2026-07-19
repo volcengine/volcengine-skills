@@ -11,7 +11,7 @@
       "name": "volcengine",
       "source": "./",
       "description": "Skills for Volcengine (火山引擎) scenarios: cloud resource operations (ECS/VPC/VKE/CLB/RDS/Redis/TOS), deployment, IaC, and SDK code generation.",
-      "version": "1.0.7",
+      "version": "1.0.8",
       "author": {
         "name": "Volcengine Team"
       },

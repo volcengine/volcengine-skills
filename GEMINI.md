@@ -19,6 +19,7 @@ Available skills:
 - `volcengine-troubleshooting` — locally troubleshoot Volcengine errors across OpenAPI/CLI/SDK/IAM/billing/compute/network/storage/database/CDN/media/AI/security/VKE.
 - `volcengine-knowledge-search` — search Volcengine official documentation and fetch full document content.
 - `volcengine-landing-zone` — consult, set up, and manage a Volcengine Landing Zone, including initial setup, account factory, and baselines.
+- `volcengine-compliance` — Volcengine compliance best-practice assistant: recommends which official built-in compliance baselines to enable for the user's needs (flagging already-enabled ones), and summarizes the account's current compliance posture into an overview report grouped by category and severity. When built-in baselines don't cover a case, guides authoring a Rego policy as a custom compliance rule and registering it for evaluation. Can deploy a recommended template as a conformance pack; write operations (deploy / enable recorder / register custom rule) require explicit confirmation.
 
 Trigger on Volcengine / 火山引擎 / 火山 keywords, `ve` commands, or
 `VOLCENGINE_ACCESS_KEY` / `VOLCENGINE_SECRET_KEY` / `VOLCENGINE_REGION` usage.

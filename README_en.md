@@ -20,7 +20,7 @@ A skills repository maintained by the Volcengine team, targeting Volcengine use 
 | `volcengine-sdk-generator` | Generate runnable Volcengine SDK examples and answer SDK config questions on demand |
 | `volcengine-tosutil` | Manage Volcengine TOS object storage resources |
 | `volcengine-vefaas` | Deploy and manage Volcengine veFaaS serverless applications |
-| `volcengine-db-supabase` | Manage Volcengine AIDAP database workspaces (Supabase / PostgreSQL) and use them as deployment database providers |
+| `volcengine-db-supabase` | Manage Volcengine AI-native BaaS (Supabase edition / AIDAP): workspaces, branches, SQL, Auth, Realtime, Edge Functions, Storage, frontend hosting, type generation; also the deployment database provider |
 | `volcengine-troubleshooting` | Troubleshoot and diagnose Volcengine issues |
 | `volcengine-knowledge-search` | Search Volcengine official docs and fetch full text (product concepts/usage/billing/deploy/best practices/terms) |
 | `volcengine-landing-zone` | Consult, set up, and manage a Volcengine Landing Zone, including initial setup, account factory, and baselines |

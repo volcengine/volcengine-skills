@@ -1,141 +1,238 @@
 # SQL Playbook
 
-Use this reference for common SQL inspection, CRUD, migration, pgvector, RLS, and RPC snippets. Execute through the preserved data-plane command when a direct SQL path is needed:
+> 本文所有 SQL 通过 `byted-supabase-cli db query` 执行：行内 `byted-supabase-cli db query "<sql>" --workspace-id ws-xxxx`，或写入文件后 `byted-supabase-cli db query -f file.sql --workspace-id ws-xxxx`（含 `$$` 函数体、多语句时优先用文件）。
 
-```bash
-python3 scripts/supabase_dataplane.py execute-sql --workspace-id ws-xxxx --query "select 1"
-```
+## 目录
 
-For larger SQL files:
+- 查看表结构
+- 常见 CRUD
+- Migration 示例
+- 关联查询与聚合
+- UPSERT 与批量操作
+- pgvector 示例
+- RLS 检查与配置
 
-```bash
-python3 scripts/supabase_dataplane.py execute-sql --workspace-id ws-xxxx --query-file ./query.sql
-```
-
-## Inspect Schema
-
-List tables:
-
-```bash
-python3 scripts/supabase_dataplane.py list-tables --workspace-id ws-xxxx --schemas public,auth
-```
-
-Column details:
+## 1. 查看表结构
 
 ```sql
-select column_name, data_type, is_nullable, column_default
-from information_schema.columns
-where table_schema = 'public' and table_name = 'posts'
-order by ordinal_position;
+SELECT table_schema, table_name
+FROM information_schema.tables
+WHERE table_schema NOT IN ('pg_catalog', 'information_schema')
+ORDER BY table_schema, table_name;
 ```
 
-Indexes:
+查看字段详情：
 
 ```sql
-select indexname, indexdef
-from pg_indexes
-where schemaname = 'public' and tablename = 'posts';
+SELECT column_name, data_type, is_nullable, column_default
+FROM information_schema.columns
+WHERE table_schema = 'public' AND table_name = 'your_table'
+ORDER BY ordinal_position;
 ```
 
-Foreign keys:
+查看索引：
 
 ```sql
-select conname, conrelid::regclass, confrelid::regclass, pg_get_constraintdef(oid)
-from pg_constraint
-where contype = 'f' and connamespace = 'public'::regnamespace;
+SELECT indexname, indexdef
+FROM pg_indexes
+WHERE schemaname = 'public' AND tablename = 'your_table';
 ```
 
-## CRUD
+## 2. 常见 CRUD
 
 ```sql
-select * from public.posts order by created_at desc limit 20;
-
-insert into public.posts (title, content, published)
-values ('hello', 'first post', false)
-returning *;
-
-update public.posts
-set published = true, updated_at = now()
-where id = 1
-returning *;
-
-delete from public.posts
-where id = 1;
+-- 查询
+SELECT * FROM public.profiles ORDER BY created_at DESC LIMIT 20;
 ```
-
-## Migrations
-
-Apply reviewed SQL as a tracked migration:
-
-```bash
-python3 scripts/supabase_dataplane.py apply-migration --workspace-id ws-xxxx --name create_posts --query-file ./migrations/001_create_posts.sql
-```
-
-List migration records:
-
-```bash
-python3 scripts/supabase_dataplane.py list-migrations --workspace-id ws-xxxx
-```
-
-The compatibility migration wrapper writes to `supabase_migrations.schema_migrations`, matching the old skill behavior.
-
-## RLS Checks
 
 ```sql
-select schemaname, tablename, rowsecurity
-from pg_tables
-where schemaname = 'public'
-order by tablename;
+-- 条件查询
+SELECT * FROM public.profiles
+WHERE status = 'active' AND created_at >= '2024-01-01'
+ORDER BY created_at DESC;
 ```
 
-Enable RLS and add a public-read policy:
-
 ```sql
-alter table public.posts enable row level security;
-
-create policy "posts_allow_public_read" on public.posts
-  for select using (true);
+-- 插入
+INSERT INTO public.profiles (id, nickname)
+VALUES ('user-001', 'alice');
 ```
 
-User-owned row pattern:
-
 ```sql
-alter table public.notes add column if not exists user_id uuid not null default auth.uid();
-
-create policy "notes_owner_select" on public.notes
-  for select using (auth.uid() = user_id);
-
-create policy "notes_owner_insert" on public.notes
-  for insert with check (auth.uid() = user_id);
+-- 更新
+UPDATE public.profiles
+SET nickname = 'alice-updated', updated_at = now()
+WHERE id = 'user-001';
 ```
 
-## pgvector
+```sql
+-- 删除
+DELETE FROM public.profiles WHERE id = 'user-001';
+```
+
+## 3. Migration 示例
 
 ```sql
-create extension if not exists vector;
-
-create table if not exists public.documents (
-  id bigserial primary key,
-  content text not null,
-  metadata jsonb,
-  embedding vector(1536),
-  created_at timestamptz not null default now()
+CREATE TABLE IF NOT EXISTS public.todos (
+  id bigserial PRIMARY KEY,
+  title text NOT NULL,
+  done boolean NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now()
 );
-
-create index if not exists ix_documents_embedding on public.documents
-  using hnsw (embedding vector_cosine_ops);
 ```
 
-Check installed extensions:
+添加字段（安全方式）：
 
-```bash
-python3 scripts/supabase_dataplane.py list-extensions --workspace-id ws-xxxx
+```sql
+ALTER TABLE public.todos ADD COLUMN description text;
+ALTER TABLE public.todos ADD COLUMN priority integer NOT NULL DEFAULT 0;
 ```
 
-## TypeScript Types
+> 更多 Schema 设计规范请参考 [schema-guide.md](schema-guide.md)
 
-Generate Supabase-style table types from `information_schema.columns`:
+## 4. 关联查询与聚合
 
-```bash
-python3 scripts/supabase_dataplane.py generate-typescript-types --workspace-id ws-xxxx --schemas public
+```sql
+-- JOIN 查询
+SELECT p.title, p.content, u.name AS author_name
+FROM public.posts p
+JOIN public.users u ON p.author_id = u.id
+ORDER BY p.created_at DESC
+LIMIT 20;
+```
+
+```sql
+-- LEFT JOIN（包含无关联的数据）
+SELECT p.title, c.name AS category_name
+FROM public.posts p
+LEFT JOIN public.categories c ON p.category_id = c.id;
+```
+
+```sql
+-- 聚合统计
+SELECT
+  category_id,
+  COUNT(*) AS post_count,
+  MAX(created_at) AS latest_post
+FROM public.posts
+GROUP BY category_id
+ORDER BY post_count DESC;
+```
+
+```sql
+-- 分页查询
+SELECT * FROM public.posts
+ORDER BY created_at DESC
+LIMIT 20 OFFSET 40;  -- 第 3 页，每页 20 条
+```
+
+## 5. UPSERT 与批量操作
+
+```sql
+-- UPSERT（插入或更新）
+INSERT INTO public.settings (key, value)
+VALUES ('theme', 'dark')
+ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
+```
+
+```sql
+-- 批量 UPSERT
+INSERT INTO public.settings (key, value)
+VALUES
+  ('theme', 'dark'),
+  ('language', 'zh-CN'),
+  ('timezone', 'Asia/Shanghai')
+ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
+```
+
+```sql
+-- 使用 CTE 进行复杂操作
+WITH updated AS (
+  UPDATE public.posts
+  SET published = true
+  WHERE status = 'draft' AND created_at < now() - interval '7 days'
+  RETURNING id
+)
+SELECT COUNT(*) AS published_count FROM updated;
+```
+
+## 6. pgvector 示例
+
+```sql
+CREATE EXTENSION IF NOT EXISTS vector;
+```
+
+```sql
+CREATE TABLE IF NOT EXISTS public.documents (
+  id bigserial PRIMARY KEY,
+  content text NOT NULL,
+  metadata jsonb,
+  embedding vector(1536)
+);
+```
+
+```sql
+-- 向量相似度搜索（余弦相似度）
+SELECT id, content, 1 - (embedding <=> '[0.1, 0.2, ...]'::vector) AS similarity
+FROM public.documents
+ORDER BY embedding <=> '[0.1, 0.2, ...]'::vector
+LIMIT 10;
+```
+
+## 7. RLS 检查与配置
+
+检查 RLS 状态：
+
+```sql
+SELECT schemaname, tablename, rowsecurity
+FROM pg_tables
+WHERE schemaname = 'public'
+ORDER BY tablename;
+```
+
+查看已有策略：
+
+```sql
+SELECT tablename, policyname, permissive, roles, cmd, qual
+FROM pg_policies
+WHERE schemaname = 'public'
+ORDER BY tablename, policyname;
+```
+
+快速启用 RLS + 公开读写策略（显式指定 `TO anon, authenticated`，对齐安全规范）：
+
+```sql
+ALTER TABLE public.your_table ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "your_table_public_select" ON public.your_table FOR SELECT TO anon, authenticated USING (true);
+CREATE POLICY "your_table_public_insert" ON public.your_table FOR INSERT TO anon, authenticated WITH CHECK (true);
+CREATE POLICY "your_table_public_update" ON public.your_table FOR UPDATE TO anon, authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "your_table_public_delete" ON public.your_table FOR DELETE TO anon, authenticated USING (true);
+```
+
+> ⚠️ 私有数据请勿用 `USING (true)`。用户私有/登录限定等场景的正确写法（`TO authenticated` + `(select auth.uid()) = user_id` + `WITH CHECK`）见 [rls-guide.md](rls-guide.md)；Supabase 特有安全陷阱见 [security-guide.md](security-guide.md)。
+
+## 8. 存储过程（RPC）
+
+```sql
+-- 创建存储过程
+CREATE OR REPLACE FUNCTION search_posts(keyword text)
+RETURNS SETOF public.posts AS $$
+  SELECT * FROM public.posts
+  WHERE title ILIKE '%' || keyword || '%'
+     OR content ILIKE '%' || keyword || '%'
+  ORDER BY created_at DESC;
+$$ LANGUAGE sql STABLE;
+```
+
+```sql
+-- 创建聚合统计函数
+CREATE OR REPLACE FUNCTION get_dashboard_stats()
+RETURNS json AS $$
+  SELECT json_build_object(
+    'total_users', (SELECT COUNT(*) FROM public.users),
+    'total_posts', (SELECT COUNT(*) FROM public.posts),
+    'active_users', (SELECT COUNT(*) FROM public.users WHERE last_login > now() - interval '30 days')
+  );
+$$ LANGUAGE sql STABLE;
 ```

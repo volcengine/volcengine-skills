@@ -24,6 +24,7 @@ A skills repository maintained by the Volcengine team, targeting Volcengine use 
 | `volcengine-troubleshooting` | Troubleshoot and diagnose Volcengine issues |
 | `volcengine-knowledge-search` | Search Volcengine official docs and fetch full text (product concepts/usage/billing/deploy/best practices/terms) |
 | `volcengine-landing-zone` | Consult, set up, and manage a Volcengine Landing Zone, including initial setup, account factory, and baselines |
+| `volcengine-compliance` | Volcengine compliance best-practice assistant: recommends which official built-in compliance baselines to enable based on the user's needs (flagging already-enabled ones), and summarizes the account's current compliance posture into an overview report grouped by category and severity; when built-in baselines don't cover a case, guides authoring a Rego policy as a custom compliance rule and registering it for evaluation; can deploy a recommended template as a conformance pack after confirmation (write ops require explicit confirmation) |
 
 ## Quick Install
 

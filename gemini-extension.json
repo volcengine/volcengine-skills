@@ -1,6 +1,6 @@
 {
   "name": "volcengine-skills",
   "description": "Skills and hooks for Volcengine (火山引擎) scenarios.",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "contextFileName": "GEMINI.md"
 }

@@ -1,6 +1,6 @@
 # 在 OpenCode 中安装 volcengine-skills
 
-本仓库自带 `.opencode/opencode.json`，已通过 `skills.paths` 声明 `skills/` 目录，OpenCode 在仓库内即可直接发现这些 skill。若要全局安装（在任意项目使用），按下面的 symlink 方式挂载。
+本仓库自带 `.opencode/opencode.json`，已通过 `skills.paths` 声明核心插件目录。OpenCode 默认只发现 `volcengine-core` 的四个核心 skill；其他产品域 skill 由 `volcengine-find-skills` 按需安装。若要全局使用，按下面方式挂载核心插件。
 
 ## 前置条件
 
@@ -17,7 +17,7 @@
    ```json
    {
      "skills": {
-       "paths": ["~/.config/opencode/volcengine-skills/skills"]
+      "paths": ["~/.config/opencode/volcengine-skills/plugins/volcengine-core/skills"]
      }
    }
    ```
@@ -30,7 +30,7 @@
 
 ```
 use skill tool to list skills
-use skill tool to load volcengine-skills/<skill-name>
+use skill tool to load volcengine-find-skills
 ```
 
 ## 更新

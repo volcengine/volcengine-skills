@@ -1,0 +1,25 @@
+{
+  "name": "volcengine-security",
+  "displayName": "Volcengine Security",
+  "description": "Assess and improve security and compliance posture for Volcengine accounts and resources.",
+  "version": "1.1.0",
+  "author": {
+    "name": "Volcengine Team",
+    "email": "volcengine@bytedance.com"
+  },
+  "homepage": "https://github.com/volcengine/volcengine-skills",
+  "repository": "https://github.com/volcengine/volcengine-skills",
+  "license": "MIT",
+  "keywords": [
+    "volcengine",
+    "cloud",
+    "安全",
+    "security",
+    "compliance",
+    "合规",
+    "配置审计",
+    "rego",
+    "volcengine-compliance"
+  ],
+  "skills": "./skills/"
+}

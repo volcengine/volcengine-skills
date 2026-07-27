@@ -1,0 +1,30 @@
+{
+  "name": "volcengine-core",
+  "displayName": "Volcengine Core",
+  "description": "Core Volcengine discovery, documentation search, CLI operations, and troubleshooting skills.",
+  "version": "1.1.0",
+  "author": {
+    "name": "Volcengine Team",
+    "email": "volcengine@bytedance.com"
+  },
+  "homepage": "https://github.com/volcengine/volcengine-skills",
+  "repository": "https://github.com/volcengine/volcengine-skills",
+  "license": "MIT",
+  "keywords": [
+    "volcengine",
+    "cloud",
+    "core",
+    "基础",
+    "discovery",
+    "cli",
+    "documentation",
+    "troubleshooting",
+    "volcengine-cli",
+    "volcengine-troubleshooting",
+    "volcengine-knowledge-search",
+    "volcengine-find-skills"
+  ],
+  "skills": "./skills/",
+  "logo": "assets/logo.svg",
+  "hooks": "./hooks/hooks-cursor.json"
+}

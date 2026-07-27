@@ -5,16 +5,100 @@
   },
   "plugins": [
     {
-      "name": "volcengine-skills",
+      "name": "volcengine-core",
       "source": {
         "source": "local",
-        "path": "./plugins/volcengine-skills"
+        "path": "./plugins/volcengine-core"
+      },
+      "policy": {
+        "installation": "INSTALLED_BY_DEFAULT",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Cloud"
+    },
+    {
+      "name": "volcengine-elastic-compute",
+      "source": {
+        "source": "local",
+        "path": "./plugins/volcengine-elastic-compute"
       },
       "policy": {
         "installation": "AVAILABLE",
         "authentication": "ON_INSTALL"
       },
-      "category": "Coding"
+      "category": "Cloud"
+    },
+    {
+      "name": "volcengine-storage",
+      "source": {
+        "source": "local",
+        "path": "./plugins/volcengine-storage"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Cloud"
+    },
+    {
+      "name": "volcengine-database",
+      "source": {
+        "source": "local",
+        "path": "./plugins/volcengine-database"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Cloud"
+    },
+    {
+      "name": "volcengine-containers-middleware",
+      "source": {
+        "source": "local",
+        "path": "./plugins/volcengine-containers-middleware"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Cloud"
+    },
+    {
+      "name": "volcengine-security",
+      "source": {
+        "source": "local",
+        "path": "./plugins/volcengine-security"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Cloud"
+    },
+    {
+      "name": "volcengine-identity-access-control",
+      "source": {
+        "source": "local",
+        "path": "./plugins/volcengine-identity-access-control"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Cloud"
+    },
+    {
+      "name": "volcengine-service-support",
+      "source": {
+        "source": "local",
+        "path": "./plugins/volcengine-service-support"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Cloud"
     }
   ]
 }

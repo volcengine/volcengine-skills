@@ -9,93 +9,100 @@
 
 [English](./README_en.md) | **简体中文**
 
-火山引擎团队维护的 skill 仓库，面向火山引擎（Volcengine）使用场景，为 Claude Code / Codex / OpenCode / Cursor / Gemini CLI 等 agent 提供开箱即用的 skills。
+火山引擎团队维护的 skill marketplace，面向 Claude Code / Codex / OpenCode / Cursor / Gemini CLI
+等 AI coding agent。仓库默认只安装核心插件；其他技能按火山引擎产品域拆分为可选插件，由
+`volcengine-find-skills` 统一发现和安装。
 
 **[快速安装 →](#快速安装)**
 
-## 仓库包含什么
+## Plugins
 
-### Skills
+| Plugin | 产品分类 | Skills | 默认安装 |
+| --- | --- | --- | --- |
+| `volcengine-core` | 核心 | `volcengine-cli`、`volcengine-troubleshooting`、`volcengine-knowledge-search`、`volcengine-find-skills` | 是 |
+| `volcengine-elastic-compute` | 弹性计算 | `volcengine-prepare`、`volcengine-deploy`、`volcengine-iac` | 否 |
+| `volcengine-storage` | 存储 | `volcengine-tosutil` | 否 |
+| `volcengine-database` | 数据库 | `volcengine-db-supabase` | 否 |
+| `volcengine-containers-middleware` | 容器与中间件 | `volcengine-vefaas` | 否 |
+| `volcengine-security` | 安全 | `volcengine-compliance` | 否 |
+| `volcengine-identity-access-control` | 身份与访问控制 | `volcengine-landing-zone` | 否 |
+| `volcengine-service-support` | 服务支持 | `volcengine-api`、`volcengine-sdk-generator` | 否 |
 
-| Skill | 场景 |
-| --- | --- |
-| `volcengine-cli` | 用 `ve` CLI 创建/查询/管理云资源（ECS/VPC/CLB/RDS/Redis/TOS 等） |
-| `volcengine-prepare` | 分析本地目录或 GitHub 仓库，推荐部署形态（ECS/VKE/veFaaS） |
-| `volcengine-deploy` | 把本地目录或 GitHub 仓库部署到火山引擎 |
-| `volcengine-iac` | 基于 Terraform 的火山引擎基础设施编排 |
-| `volcengine-api` | 查询火山引擎 API 规格（参数、错误码、返回结构等） |
-| `volcengine-sdk-generator` | 生成可运行的火山引擎 SDK 示例，并按需回答 SDK 配置问题 |
-| `volcengine-tosutil` | 管理火山引擎 TOS 对象存储资源 |
-| `volcengine-vefaas` | 部署与管理火山引擎 veFaaS serverless 应用 |
-| `volcengine-db-supabase` | 管理火山引擎 AI 原生 BaaS 平台 Supabase 版（AIDAP）：workspace/分支/SQL/Auth/Realtime/Edge Functions/Storage/前端托管/类型生成，并作为部署数据库方案 |
-| `volcengine-troubleshooting` | 火山引擎故障排查与诊断 |
-| `volcengine-knowledge-search` | 检索火山引擎官方文档并获取全文（产品概念/用法/计费/部署/最佳实践/服务条款等） |
-| `volcengine-landing-zone` | 火山引擎 Landing Zone 咨询、初始化搭建、账号工厂与基线配置 |
-| `volcengine-compliance` | 火山引擎合规最佳实践助手：按用户诉求从官方内置合规基线里推荐该开启哪些（并标注已开启），并汇总账号当前合规态势、按类别与严重度输出合规总览报告；官方基线没覆盖时还能指导写一条 Rego 策略作为自定义合规规则并注册评估；可在确认后把推荐模板部署为合规包（写操作需显式确认） |
+核心插件的 marketplace 策略为 `INSTALLED_BY_DEFAULT`，其他插件均为 `AVAILABLE`。
+`skills/` 下只保留 `core/` 分类，其中严格包含四个核心 skill。其他 skill 由各自的可选 plugin 直接拥有，不在 `skills/` 下保留副本。
 
-## 快速安装
+## Skills
 
-### 前置依赖
+| Skill | Plugin | 场景 |
+| --- | --- | --- |
+| [`volcengine-cli`](./skills/core/volcengine-cli/SKILL.md) | `volcengine-core` | 用 `ve` CLI 创建、查询和管理云资源 |
+| [`volcengine-troubleshooting`](./skills/core/volcengine-troubleshooting/SKILL.md) | `volcengine-core` | 火山引擎故障排查与诊断 |
+| [`volcengine-knowledge-search`](./skills/core/volcengine-knowledge-search/SKILL.md) | `volcengine-core` | 检索火山引擎官方文档并获取全文 |
+| [`volcengine-find-skills`](./skills/core/volcengine-find-skills/SKILL.md) | `volcengine-core` | 按任务或产品域查找、安装其他 skill |
+| [`volcengine-prepare`](./plugins/volcengine-elastic-compute/skills/volcengine-prepare/SKILL.md) | `volcengine-elastic-compute` | 分析仓库并推荐 ECS / VKE / veFaaS 部署形态 |
+| [`volcengine-deploy`](./plugins/volcengine-elastic-compute/skills/volcengine-deploy/SKILL.md) | `volcengine-elastic-compute` | 将本地目录或 Git 仓库部署到火山引擎 |
+| [`volcengine-iac`](./plugins/volcengine-elastic-compute/skills/volcengine-iac/SKILL.md) | `volcengine-elastic-compute` | 使用 Terraform 编排火山引擎基础设施 |
+| [`volcengine-tosutil`](./plugins/volcengine-storage/skills/volcengine-tosutil/SKILL.md) | `volcengine-storage` | 管理 TOS 对象存储资源 |
+| [`volcengine-db-supabase`](./plugins/volcengine-database/skills/volcengine-db-supabase/SKILL.md) | `volcengine-database` | 管理 AI 原生 BaaS 平台 Supabase 版（AIDAP） |
+| [`volcengine-vefaas`](./plugins/volcengine-containers-middleware/skills/volcengine-vefaas/SKILL.md) | `volcengine-containers-middleware` | 部署和管理 veFaaS Serverless 应用 |
+| [`volcengine-compliance`](./plugins/volcengine-security/skills/volcengine-compliance/SKILL.md) | `volcengine-security` | 推荐合规基线、汇总态势并编写自定义规则 |
+| [`volcengine-landing-zone`](./plugins/volcengine-identity-access-control/skills/volcengine-landing-zone/SKILL.md) | `volcengine-identity-access-control` | Landing Zone、账号工厂与治理基线 |
+| [`volcengine-api`](./plugins/volcengine-service-support/skills/volcengine-api/SKILL.md) | `volcengine-service-support` | 查询 API 参数、错误码和返回结构 |
+| [`volcengine-sdk-generator`](./plugins/volcengine-service-support/skills/volcengine-sdk-generator/SKILL.md) | `volcengine-service-support` | 生成可运行的多语言 SDK 示例 |
 
-#### 安装 ve 和 vefaas
+## 默认安装
+
+### Finder 设计
+
+`volcengine-find-skills` 内置唯一 catalog，覆盖四个 core skill 和所有可选 plugin skill：
+
+1. `search` 只做无副作用检索，按名称、产品域、摘要和中英文关键词加权排序。
+2. 安装前必须解析为精确的 skill 或 plugin 名称；模糊结果不会直接触发安装。
+3. Codex 安装目标 skill 所属的 plugin；通用 skills CLI 安装精确 skill 集合。
+4. 安装命令成功后再次读取宿主安装清单，只有目标全部可见才返回 `verified: true`。
+5. plugin 安装后需新开对话，避免把“已安装”误判为“当前对话已加载”。
+
+### Codex
+
+添加 marketplace 后只安装核心插件：
 
 ```bash
-npm i -g @volcengine/cli
-npm i -g https://vefaas-cli.tos-cn-beijing.volces.com/volcengine-vefaas-latest.tgz
+codex plugin marketplace add volcengine/volcengine-skills
+codex plugin add volcengine-core@volcengine-skills
 ```
 
-#### 安装 tosutil
+在新对话中直接描述需求，例如“查找对象存储相关 skill”或“安装 `volcengine-tosutil`”。finder 会先给出
+匹配结果，再安装所属插件。Codex 安装新插件后需要新开对话，当前对话不会动态加载新增 skill。
 
-见 [安装命令](./skills/volcengine-tosutil/SKILL.md#安装命令)
-
-### 通用安装
+在源码仓库内也可以直接验证发现结果：
 
 ```bash
-# 以下三条任选其一
+python3 plugins/volcengine-core/skills/volcengine-find-skills/scripts/find_skills.py search "对象存储"
+python3 plugins/volcengine-core/skills/volcengine-find-skills/scripts/find_skills.py status
+```
 
-# 1) 推荐：全局安装、跳过所有确认提示
-npx skills add volcengine/volcengine-skills --global --yes
+### 通用 skills CLI
 
-# 2) 交互式：手动选择安装范围（global/project）、目标 agent 和具体 skill
-npx skills add volcengine/volcengine-skills
+下面的命令只安装四个核心 skill，不会默认安装可选产品域 skill：
 
-# 3) 只装到指定 agent，并用复制代替软链（如安装到 Claude Code）
-npx skills add volcengine/volcengine-skills --global --yes --agent claude-code --copy
+```bash
+npx skills add volcengine/volcengine-skills \
+  --global --yes --copy --full-depth \
+  --skill volcengine-cli volcengine-troubleshooting volcengine-knowledge-search volcengine-find-skills
+```
 
-# 或手动复制
-# 将 skills/ 目录复制到 ~/.claude/skills/ (适用于 Claude Code)
-# 将 skills/ 目录复制到 ~/.agents/skills/ (适用于 codex 等)
+后续可由 finder 调用 `npx skills add` 安装单个 skill，也可以交互式选择：
+
+```bash
+npx skills add volcengine/volcengine-skills --full-depth
 ```
 
 ### Claude Code
 
-**添加 marketplace**（仅首次）：
-
-```bash
-/plugin marketplace add volcengine/volcengine-skills
-```
-
-**安装并重新加载 plugin**：
-
-```bash
-/plugin install volcengine@volcengine-skills
-/reload-plugins
-```
-
-**更新**：
-
-```bash
-/plugin marketplace update volcengine-skills
-```
-
-### Codex
-
-```bash
-codex plugin marketplace add volcengine/volcengine-skills
-```
-
 ```text
-然后进入 Codex，执行 /plugins，选择 volcengine-skills 安装即可
+/plugin marketplace add volcengine/volcengine-skills
+/plugin install volcengine-core@volcengine-skills
+/reload-plugins
 ```
 
 ### Gemini CLI
@@ -106,32 +113,34 @@ gemini extensions install https://github.com/volcengine/volcengine-skills
 
 ### OpenCode
 
-直接在 OpenCode 中输入：
-
-```text
-Fetch and follow instructions from https://github.com/volcengine/volcengine-skills/blob/main/.opencode/INSTALL.md
-```
+按 [OpenCode 安装说明](./.opencode/INSTALL.md) 挂载核心插件的 `skills/` 目录。
 
 ### Cursor
 
-在 Cursor Agent 聊天中输入：
-
 ```text
-/add-plugin volcengine-skills@https://github.com/volcengine/volcengine-skills
+/add-plugin volcengine-core@https://github.com/volcengine/volcengine-skills
 ```
 
 ## 目录结构
 
-```
+```text
 volcengine-skills/
-├── skills/                 # 所有的 skill
-├── .claude-plugin/         # Claude Code plugin / marketplace manifest
-├── .codex-plugin/          # Codex plugin / marketplace manifest
-├── .opencode/              # OpenCode 配置
-├── .cursor/                # Cursor 规则
-└── gemini-extension.json   # Gemini CLI 扩展清单
+├── skills/
+│   └── core/                         # 仅四个核心 skill
+├── plugins/
+│   ├── volcengine-core/              # 默认核心 plugin，复制 skills/core
+│   └── volcengine-<domain>/          # 可选 plugin，也是其 skill 的唯一源码
+└── .agents/plugins/marketplace.json
+```
+
+`skills/core/` 是四个核心 skill 的规范源码；可选 skill 直接在所属 plugin 中维护。同步脚本只复制 core、生成 manifest 和 marketplace。修改或新增 skill 后运行：
+
+```bash
+python3 scripts/sync_plugins.py
+python3 scripts/validate_codex_plugin_layout.py
+python3 -m unittest discover -s tests -v
 ```
 
 ## License
 
-MIT — 见 [LICENSE](./LICENSE)
+MIT，见 [LICENSE](./LICENSE)。

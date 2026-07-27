@@ -1,0 +1,45 @@
+{
+  "name": "volcengine-identity-access-control",
+  "version": "1.1.0",
+  "description": "Design and establish Volcengine landing zones, organizations, identity, account factories, and governance baselines.",
+  "author": {
+    "name": "Volcengine Team",
+    "email": "volcengine@bytedance.com",
+    "url": "https://www.volcengine.com"
+  },
+  "homepage": "https://github.com/volcengine/volcengine-skills",
+  "repository": "https://github.com/volcengine/volcengine-skills",
+  "license": "MIT",
+  "keywords": [
+    "volcengine",
+    "cloud",
+    "身份与访问控制",
+    "identity",
+    "access control",
+    "iam",
+    "landing zone",
+    "组织",
+    "账号工厂",
+    "volcengine-landing-zone"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Volcengine Identity and Access Control",
+    "shortDescription": "Set up landing zones, identity, and governance",
+    "longDescription": "Design and establish Volcengine landing zones, organizations, identity, account factories, and governance baselines.",
+    "developerName": "Volcengine Team",
+    "category": "Cloud",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Design a Volcengine landing zone for this organization."
+    ],
+    "websiteURL": "https://github.com/volcengine/volcengine-skills",
+    "privacyPolicyURL": "https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement",
+    "termsOfServiceURL": "https://docs.github.com/en/site-policy/github-terms/github-terms-of-service",
+    "brandColor": "#1664FF"
+  }
+}

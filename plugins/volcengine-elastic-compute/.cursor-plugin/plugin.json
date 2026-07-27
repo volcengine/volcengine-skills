@@ -1,0 +1,29 @@
+{
+  "name": "volcengine-elastic-compute",
+  "displayName": "Volcengine Elastic Compute",
+  "description": "Analyze, prepare, deploy, and manage Volcengine application infrastructure across ECS, VKE, and veFaaS.",
+  "version": "1.1.0",
+  "author": {
+    "name": "Volcengine Team",
+    "email": "volcengine@bytedance.com"
+  },
+  "homepage": "https://github.com/volcengine/volcengine-skills",
+  "repository": "https://github.com/volcengine/volcengine-skills",
+  "license": "MIT",
+  "keywords": [
+    "volcengine",
+    "cloud",
+    "弹性计算",
+    "compute",
+    "ecs",
+    "deployment",
+    "terraform",
+    "iac",
+    "vke",
+    "vefaas",
+    "volcengine-prepare",
+    "volcengine-deploy",
+    "volcengine-iac"
+  ],
+  "skills": "./skills/"
+}

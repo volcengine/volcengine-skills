@@ -1,0 +1,46 @@
+{
+  "name": "volcengine-service-support",
+  "version": "1.1.0",
+  "description": "Explore Volcengine OpenAPI specifications and generate runnable SDK examples for cloud control integrations.",
+  "author": {
+    "name": "Volcengine Team",
+    "email": "volcengine@bytedance.com",
+    "url": "https://www.volcengine.com"
+  },
+  "homepage": "https://github.com/volcengine/volcengine-skills",
+  "repository": "https://github.com/volcengine/volcengine-skills",
+  "license": "MIT",
+  "keywords": [
+    "volcengine",
+    "cloud",
+    "服务支持",
+    "service support",
+    "云控制api",
+    "openapi",
+    "sdk",
+    "api",
+    "volcengine-api",
+    "volcengine-sdk-generator"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Volcengine Service Support",
+    "shortDescription": "Explore OpenAPI specs and generate SDK examples",
+    "longDescription": "Explore Volcengine OpenAPI specifications and generate runnable SDK examples for cloud control integrations.",
+    "developerName": "Volcengine Team",
+    "category": "Cloud",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Find the request schema for this Volcengine API.",
+      "Generate a runnable SDK example for this API."
+    ],
+    "websiteURL": "https://github.com/volcengine/volcengine-skills",
+    "privacyPolicyURL": "https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement",
+    "termsOfServiceURL": "https://docs.github.com/en/site-policy/github-terms/github-terms-of-service",
+    "brandColor": "#1664FF"
+  }
+}

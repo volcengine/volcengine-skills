@@ -1,0 +1,43 @@
+{
+  "name": "volcengine-storage",
+  "version": "1.1.0",
+  "description": "Operate Volcengine storage products and data with product-specific tools.",
+  "author": {
+    "name": "Volcengine Team",
+    "email": "volcengine@bytedance.com",
+    "url": "https://www.volcengine.com"
+  },
+  "homepage": "https://github.com/volcengine/volcengine-skills",
+  "repository": "https://github.com/volcengine/volcengine-skills",
+  "license": "MIT",
+  "keywords": [
+    "volcengine",
+    "cloud",
+    "存储",
+    "storage",
+    "对象存储",
+    "object storage",
+    "tos",
+    "volcengine-tosutil"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Volcengine Storage",
+    "shortDescription": "Manage Volcengine object storage with tosutil",
+    "longDescription": "Operate Volcengine storage products and data with product-specific tools.",
+    "developerName": "Volcengine Team",
+    "category": "Cloud",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Manage these TOS buckets and objects with tosutil."
+    ],
+    "websiteURL": "https://github.com/volcengine/volcengine-skills",
+    "privacyPolicyURL": "https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement",
+    "termsOfServiceURL": "https://docs.github.com/en/site-policy/github-terms/github-terms-of-service",
+    "brandColor": "#1664FF"
+  }
+}

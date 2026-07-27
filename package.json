@@ -1,7 +1,12 @@
 {
   "name": "volcengine-skills",
-  "version": "1.0.10",
+  "version": "1.1.0",
   "type": "module",
+  "scripts": {
+    "sync-plugins": "python3 scripts/sync_plugins.py",
+    "validate": "python3 scripts/validate_codex_plugin_layout.py",
+    "test": "python3 -m unittest discover -s tests -v"
+  },
   "openclaw": {
     "extensions": ["./hooks/openclaw-telemetry.js"]
   }

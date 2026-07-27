@@ -1,0 +1,44 @@
+{
+  "name": "volcengine-security",
+  "version": "1.1.0",
+  "description": "Assess and improve security and compliance posture for Volcengine accounts and resources.",
+  "author": {
+    "name": "Volcengine Team",
+    "email": "volcengine@bytedance.com",
+    "url": "https://www.volcengine.com"
+  },
+  "homepage": "https://github.com/volcengine/volcengine-skills",
+  "repository": "https://github.com/volcengine/volcengine-skills",
+  "license": "MIT",
+  "keywords": [
+    "volcengine",
+    "cloud",
+    "安全",
+    "security",
+    "compliance",
+    "合规",
+    "配置审计",
+    "rego",
+    "volcengine-compliance"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Volcengine Security",
+    "shortDescription": "Assess Volcengine security and compliance posture",
+    "longDescription": "Assess and improve security and compliance posture for Volcengine accounts and resources.",
+    "developerName": "Volcengine Team",
+    "category": "Cloud",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Review this Volcengine account's compliance posture."
+    ],
+    "websiteURL": "https://github.com/volcengine/volcengine-skills",
+    "privacyPolicyURL": "https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement",
+    "termsOfServiceURL": "https://docs.github.com/en/site-policy/github-terms/github-terms-of-service",
+    "brandColor": "#1664FF"
+  }
+}

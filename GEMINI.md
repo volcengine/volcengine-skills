@@ -1,25 +1,31 @@
 # Volcengine Skills (for Gemini CLI)
 
-This extension ships skills for Volcengine (火山引擎) scenarios. When a task
-involves Volcengine — operating cloud resources, deploying an app, managing
-infrastructure, or generating SDK code — read the relevant
-`skills/<skill-name>/SKILL.md` and follow it.
+This extension installs the Volcengine core plugin. For Volcengine tasks, load the matching core
+skill from `plugins/volcengine-core/skills/<skill-name>/SKILL.md`.
 
-Available skills:
+Core skills:
 
-- `volcengine-cli` — operate cloud resources via the `ve` CLI (ECS/VPC/CLB/RDS/Redis/TOS).
-- `volcengine-prepare` — analyze a repo and recommend a deploy mode (ECS/VKE/veFaaS).
-- `volcengine-deploy` — deploy a local dir or GitHub repo to Volcengine (ECS/VKE).
-- `volcengine-iac` — Terraform-based infrastructure for Volcengine.
-- `volcengine-sdk-generator` — generate Volcengine SDK code examples and answer SDK configuration questions.
-- `volcengine-api` — query Volcengine API specifications.
-- `volcengine-tosutil` — access and manage TOS object storage resources on Volcengine.
-- `volcengine-vefaas` — deploy and manage serverless applications on Volcengine veFaaS.
-- `volcengine-db-supabase` — manage Volcengine AI-native BaaS (Supabase edition / AIDAP): workspaces, branches, SQL, Auth, Realtime, Edge Functions, Storage, frontend hosting, type generation; also the deployment database provider.
-- `volcengine-troubleshooting` — locally troubleshoot Volcengine errors across OpenAPI/CLI/SDK/IAM/billing/compute/network/storage/database/CDN/media/AI/security/VKE.
-- `volcengine-knowledge-search` — search Volcengine official documentation and fetch full document content.
-- `volcengine-landing-zone` — consult, set up, and manage a Volcengine Landing Zone, including initial setup, account factory, and baselines.
-- `volcengine-compliance` — Volcengine compliance best-practice assistant: recommends which official built-in compliance baselines to enable for the user's needs (flagging already-enabled ones), and summarizes the account's current compliance posture into an overview report grouped by category and severity. When built-in baselines don't cover a case, guides authoring a Rego policy as a custom compliance rule and registering it for evaluation. Can deploy a recommended template as a conformance pack; write operations (deploy / enable recorder / register custom rule) require explicit confirmation.
+- `volcengine-cli` — operate cloud resources with the `ve` CLI.
+- `volcengine-troubleshooting` — diagnose Volcengine errors and resource issues.
+- `volcengine-knowledge-search` — search and retrieve official Volcengine documentation.
+- `volcengine-find-skills` — find and install core or optional skills by task or product domain.
+
+Optional catalogued skills:
+
+- `volcengine-prepare` — elastic compute plugin; analyze a repository and recommend a deployment shape.
+- `volcengine-deploy` — elastic compute plugin; deploy an application to Volcengine.
+- `volcengine-iac` — elastic compute plugin; manage infrastructure with Terraform.
+- `volcengine-tosutil` — storage plugin; manage TOS buckets and objects.
+- `volcengine-db-supabase` — database plugin; manage Volcengine AI-native BaaS (AIDAP).
+- `volcengine-vefaas` — containers and middleware plugin; manage veFaaS applications.
+- `volcengine-compliance` — security plugin; assess and improve compliance posture.
+- `volcengine-landing-zone` — identity and access control plugin; establish landing zones and baselines.
+- `volcengine-api` — service support plugin; query Volcengine API specifications.
+- `volcengine-sdk-generator` — service support plugin; generate runnable SDK examples.
+
+When an optional skill is needed, load `volcengine-find-skills` first and follow its discovery and
+installation workflow. Do not treat a catalogued optional skill as installed merely because its
+source exists inside another plugin in this repository.
 
 Trigger on Volcengine / 火山引擎 / 火山 keywords, `ve` commands, or
 `VOLCENGINE_ACCESS_KEY` / `VOLCENGINE_SECRET_KEY` / `VOLCENGINE_REGION` usage.

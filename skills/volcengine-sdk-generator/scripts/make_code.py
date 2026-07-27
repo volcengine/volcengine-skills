@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Copyright (c) 2026 Beijing Volcano Engine Technology Co., Ltd.
 # SPDX-License-Identifier: MIT
-"""Find a Volcengine API locally, fetch swagger, and call explorer make-code."""
+"""Fetch Volcengine API swagger and call API Explorer make-code."""
 
 from __future__ import annotations
 
@@ -12,6 +12,7 @@ import platform
 import re
 import sys
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
@@ -35,14 +36,6 @@ LANG_ALIASES = {
 }
 
 
-def skill_root() -> Path:
-    return Path(__file__).resolve().parents[1]
-
-
-def references_dir() -> Path:
-    return skill_root() / "references"
-
-
 def cache_dir() -> Path:
     custom = os.environ.get("VOLCENGINE_MAKE_CODE_CACHE_DIR")
     if custom:
@@ -57,221 +50,23 @@ def cache_dir() -> Path:
     return Path.home() / ".cache" / "volcengine-make-code"
 
 
-def normalize(value: str | None) -> str:
-    return re.sub(r"\s+", " ", value or "").strip()
-
-
-def norm_key(value: str | None) -> str:
-    return normalize(value).lower()
-
-
-def split_words(value: str) -> list[str]:
-    value = re.sub(r"([a-z0-9])([A-Z])", r"\1 \2", value or "")
-    return [p.lower() for p in re.split(r"[^A-Za-z0-9_]+", value) if p]
-
-
-def chinese_intents(value: str) -> list[str]:
-    intents = []
-    for intent in ("创建", "查询", "删除", "更新", "修改", "绑定", "解绑", "列表", "获取"):
-        if intent in (value or ""):
-            intents.append(intent)
-    return intents
-
-
-def load_records() -> list[dict[str, Any]]:
-    wiki_path = references_dir() / "api_wiki.jsonl"
-    return [
-        json.loads(line)
-        for line in wiki_path.read_text(encoding="utf-8").splitlines()
-        if line.strip()
-    ]
-
-
-def service_codes(records: list[dict[str, Any]]) -> set[str]:
-    return {str(record.get("service_code", "")).lower() for record in records if record.get("service_code")}
-
-
-def infer_service_code_from_query(query: str | None, records: list[dict[str, Any]]) -> str | None:
-    if not query:
-        return None
-    codes = service_codes(records)
-    for token in re.findall(r"[A-Za-z][A-Za-z0-9_]*", query):
-        value = token.lower()
-        if value in codes:
-            return next(
-                str(record["service_code"])
-                for record in records
-                if str(record.get("service_code", "")).lower() == value
-            )
-    return None
-
-
-def default_version_for_service(service_code: str, *, x_language: str = "zh") -> str | None:
-    path = cache_dir() / "versions" / f"{service_code.lower()}.json"
-    data = None
-    if path.exists() and time.time() - path.stat().st_mtime < 7 * 86400:
-        try:
-            data = json.loads(path.read_text(encoding="utf-8"))
-        except json.JSONDecodeError:
-            data = None
-    if data is None:
-        params = urllib.parse.urlencode({"ServiceCode": service_code})
-        try:
-            data = http_json(f"{API_BASE}/explorer/versions?{params}", x_language=x_language)
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
-        except Exception:
-            return None
-    versions = data.get("Result", {}).get("Versions", [])
-    for item in versions:
-        if item.get("IsDefault") == 1:
-            return item.get("Version")
-    if versions:
-        return versions[0].get("Version")
-    return None
-
-
-def rank_candidates(
-    matches: list[dict[str, Any]],
+def build_direct_record(
     *,
-    query: str | None,
-    default_version: str | None = None,
-) -> list[dict[str, Any]]:
-    return sorted(
-        matches,
-        key=lambda r: (
-            default_version is not None and r.get("api_version") == default_version,
-            record_score(r, query or r.get("action", "")),
-            r.get("online_status") == 0,
-            r.get("api_version", ""),
-        ),
-        reverse=True,
-    )
+    service_code: str,
+    api_version: str,
+    action: str,
+) -> dict[str, str]:
+    return {
+        "service_code": service_code,
+        "api_version": api_version,
+        "action": action,
+        "name_cn": "",
+    }
 
 
-def record_score(record: dict[str, Any], query: str) -> int:
-    q_raw = query or ""
-    q = norm_key(query)
-    compact_q = re.sub(r"\s+", "", q)
-    score = 0
-
-    action = norm_key(record.get("action"))
-    service = norm_key(record.get("service_code"))
-    name_cn = norm_key(record.get("name_cn"))
-    group = norm_key(record.get("api_group"))
-    description = norm_key(record.get("description"))
-    usage = norm_key(record.get("usage_scenario"))
-    haystack = " ".join([action, service, name_cn, group, description, usage])
-    compact_name = re.sub(r"\s+", "", name_cn)
-
-    if action and action == q:
-        score += 160
-    if action and action in q:
-        score += 130
-    if name_cn and name_cn == q:
-        score += 160
-    if compact_name and compact_name in compact_q:
-        score += 135
-    if service and "创建" in q_raw and compact_name == f"创建{service}":
-        score += 160
-    if q and q in haystack:
-        score += 60
-    if service and re.search(rf"\b{re.escape(service)}\b", q):
-        score += 35
-
-    for intent in chinese_intents(q_raw):
-        if name_cn == f"{intent}实例":
-            score += 120
-        elif name_cn.startswith(intent):
-            score += 75
-        elif intent in name_cn:
-            score += 35
-        if intent in description:
-            score += 20
-
-    for word in split_words(q_raw):
-        if len(word) <= 1:
-            continue
-        if word == action:
-            score += 40
-        elif word in action:
-            score += 20
-        elif word in haystack:
-            score += 8
-
-    for keyword in record.get("keywords", []):
-        k = norm_key(keyword)
-        if k and k in q:
-            score += 15
-
-    return score
-
-
-def find_local_candidates(
-    records: list[dict[str, Any]],
-    *,
-    query: str | None,
-    service_code: str | None,
-    action: str | None,
-    api_version: str | None,
-    limit: int = 8,
-) -> list[dict[str, Any]]:
-    inferred_service_code = service_code or infer_service_code_from_query(query, records)
-    default_version = (
-        default_version_for_service(inferred_service_code)
-        if inferred_service_code and not api_version
-        else None
-    )
-
-    if inferred_service_code and action:
-        matches = [
-            r
-            for r in records
-            if r.get("service_code", "").lower() == inferred_service_code.lower()
-            and r.get("action", "").lower() == action.lower()
-            and (not api_version or r.get("api_version") == api_version)
-        ]
-        return rank_candidates(matches, query=query, default_version=default_version)[:limit]
-
-    if action:
-        matches = [
-            r
-            for r in records
-            if r.get("action", "").lower() == action.lower()
-        ]
-        if inferred_service_code:
-            matches = [
-                r
-                for r in matches
-                if r.get("service_code", "").lower() == inferred_service_code.lower()
-            ]
-        if api_version:
-            matches = [r for r in matches if r.get("api_version") == api_version]
-        if matches:
-            return rank_candidates(matches, query=query or action, default_version=default_version)[:limit]
-
-    if not query:
-        return []
-
-    candidate_records = records
-    if inferred_service_code:
-        candidate_records = [
-            record
-            for record in records
-            if str(record.get("service_code", "")).lower() == inferred_service_code.lower()
-        ]
-    scored = [(record_score(record, query), record) for record in candidate_records]
-    scored = [(score, record) for score, record in scored if score > 0]
-    scored.sort(
-        key=lambda item: (
-            default_version is not None and item[1].get("api_version") == default_version,
-            item[0],
-            item[1].get("online_status") == 0,
-            item[1].get("api_version", ""),
-        ),
-        reverse=True,
-    )
-    return [record for _, record in scored[:limit]]
+def swagger_info(swagger: dict[str, Any]) -> dict[str, Any]:
+    info = swagger.get("info")
+    return info if isinstance(info, dict) else {}
 
 
 def http_json(
@@ -660,7 +455,7 @@ def make_payload(
     params: dict[str, Any],
     region: str | None,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
-    info = swagger.get("info") if isinstance(swagger.get("info"), dict) else {}
+    info = swagger_info(swagger)
     param_info = extract_swagger_param_info(swagger)
     resolved_region = region or param_info.get("default_region") or "cn-beijing"
     payload = {
@@ -981,7 +776,6 @@ def annotate_mocked_code(language: str, code: Any, mocked_params: dict[str, Any]
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--query", help="Deprecated for discovery; use scripts/rg_rank.py instead.")
     parser.add_argument("--service-code")
     parser.add_argument("--api-version", "--version", dest="api_version")
     parser.add_argument("--action")
@@ -990,61 +784,39 @@ def main() -> int:
     parser.add_argument("--params-json")
     parser.add_argument("--params-file")
     parser.add_argument("--x-language", default="zh")
-    parser.add_argument("--list-candidates", action="store_true", help="List local candidates for explicit direct-mode filters.")
     parser.add_argument("--refresh-swagger", action="store_true")
     parser.add_argument("--output", choices=("json", "text"), default="json")
     args = parser.parse_args()
 
-    if args.query and not args.action:
+    identifiers = {
+        "service_code": args.service_code,
+        "api_version": args.api_version,
+        "action": args.action,
+    }
+    missing = [name for name, value in identifiers.items() if not value]
+    if missing:
         print_json(
             {
-                "error": "query_discovery_disabled",
-                "message": "Use scripts/rg_rank.py for local API discovery, then call make_code.py with --service-code, --api-version, and --action.",
-                "query": args.query,
+                "error": "missing_api_identifiers",
+                "message": "Direct mode requires --service-code, --api-version, and --action.",
+                "missing": missing,
             }
         )
         return 2
 
-    records = load_records()
     params = load_params(args)
-    candidates = find_local_candidates(
-        records,
-        query=args.query,
+    record = build_direct_record(
         service_code=args.service_code,
-        action=args.action,
         api_version=args.api_version,
+        action=args.action,
     )
-
-    if args.list_candidates:
-        print_json({"candidates": candidates})
-        return 0
-
-    if not candidates:
-        print_json({"error": "api_not_found", "query": args.query})
-        return 2
-
-    if len(candidates) > 1:
-        top_score = record_score(candidates[0], args.query or args.action or "")
-        second_score = record_score(candidates[1], args.query or args.action or "")
-        exact_action = args.action and norm_key(candidates[0].get("action")) == args.action.lower()
-        inferred_service = infer_service_code_from_query(args.query, records)
-        top_exact_service_create = (
-            inferred_service
-            and "创建" in (args.query or "")
-            and norm_key(candidates[0].get("service_code")) == inferred_service.lower()
-            and re.sub(r"\s+", "", norm_key(candidates[0].get("name_cn")))
-            == f"创建{inferred_service.lower()}"
-        )
-        if not exact_action and not top_exact_service_create and second_score >= max(40, top_score - 15):
-            print_json({"error": "ambiguous_api", "candidates": candidates[:5]})
-            return 3
-
-    record = candidates[0]
     swagger = fetch_swagger(
         record,
         x_language=args.x_language,
         refresh=args.refresh_swagger,
     )
+    info = swagger_info(swagger)
+    record["name_cn"] = str(info.get("title") or info.get("description") or "")
     payload, param_info = make_payload(record, swagger, params, args.region)
     final_params, mocked_params = apply_missing_required_mocks(params, param_info)
     payload["Params"] = final_params

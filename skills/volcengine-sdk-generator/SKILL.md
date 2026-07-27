@@ -1,8 +1,8 @@
 ---
 name: volcengine-sdk-generator
 description: >
-  Generate accurate Volcengine SDK examples by locating an API with the bundled local ranker,
-  fetching its API Explorer swagger, and calling api/common/explorer/make-code with user-provided
+  Generate accurate Volcengine SDK examples by locating an API through API Explorer search,
+  fetching its swagger, and calling api/common/explorer/make-code with user-provided
   Params. Use when the user asks how to write Volcengine SDK code, generate SDK samples, or call a
   Volcengine API in Python, Go, Java, PHP, cURL, Node.js. Supports Chinese and
   English API names such as "角色扮演", "AssumeRole", or "STS AssumeRole". Also use for explicit SDK
@@ -34,16 +34,16 @@ These reference files are self-contained; answer from them directly.
 
 ## Core Rules
 
-- API discovery uses `scripts/rg_rank.py`. After a concrete API is selected, call `scripts/make_code.py` in direct mode with `--service-code`, `--api-version`, and `--action`.
-- `rg_rank.py` searches the bundled local ranker by default. It uses one `rg` recall pass when `rg` is installed and automatically falls back to pure Python scanning when `rg` is unavailable.
-- If local ranking has zero results, `rg_rank.py` automatically falls back to the API Explorer search endpoint and marks those results as `remote_search`. Use `--remote-search` sparingly only when local results are clearly wrong or incomplete.
-- Use the user's original request as the default `--query`; do not rewrite it into a guessed API name or SDK method. The ranker tolerates surrounding noise through keyword inference, alias matching, OR recall, and field-weighted scoring.
+- API discovery uses `scripts/rg_rank.py`, which calls API Explorer search with both `Channel=service` and `Channel=api`. After a concrete API is selected, call `scripts/make_code.py` in direct mode with `--service-code`, `--api-version`, and `--action`.
+- API discovery is online-only. The search endpoint does not require cookies, login state, UID, DID, UUID, or browser-specific headers. The script sends only `Query`, `Channel`, `Limit`, and `Offset` as query parameters.
+- `rg_rank.py` preserves `Channel=api` order except for version selection: when the same `service_code + action` has multiple versions and the user did not specify one, it moves the result with `IsRecommended=1` ahead of the other versions in that group. It also includes `Channel=service` results as separate service metadata.
+- If online search fails, report the returned search errors. Do not guess an API or fall back to a bundled catalog.
+- Use the user's original request as `--query`; do not rewrite it into a guessed API name or SDK method.
 - Extract a shorter `--query` only when the user clearly self-corrects with words such as `等等`, `不对`, `重新来`, `我改主意`, `其实想要`, `其实是想要`, `应该是`, or `改成`; the extracted query must be a continuous substring from the user request, not a guessed API name.
-- When multiple resources or services appear without a clear self-correction, run `rg_rank.py` once with the original request. If top candidates are across different services and top1 does not lead top2 by at least 30%, list concise candidates and ask the user to choose.
-- Use `--resource`, `--intent`, `--service`, `--action`, and `--extra` only as high-confidence overrides or supplements when local ranking is noisy, the product alias is rare, or the user provides an explicit machine term. Values must come from the user wording or a trusted alias; do not invent terms. Manually provided `--resource`, `--intent`, and `--service` replace built-in inference for that group, so partial values can reduce recall. Include all known Chinese, English, and camelCase variants together when using them.
-- Pure-generic queries such as `api`, `sdk`, or `demo` skip local matching by themselves and either trigger remote search or return `empty_query` when remote fallback is disabled. Refine the query with a concrete resource or action word.
+- When multiple resources or services appear without a clear self-correction, run `rg_rank.py` once with the original request. If the returned candidates remain ambiguous, list them concisely and ask the user to choose.
+- Pure-generic queries such as `api`, `sdk`, or `demo` are sent online but are likely to be ambiguous. Refine the query with a concrete resource or action word.
 - ServiceCode is case-sensitive. Preserve the exact `service_code` value from the selected API record when calling `make_code.py`; for example, `Kafka` is not `kafka`.
-- When local ranking returns the same `service_code + action` across multiple API versions and the user did not specify a version, prefer the packaged API Explorer default version.
+- When the same `service_code + action` appears in multiple API versions and the user did not specify a version, select the result with `is_recommended=true` even if its `remote_rank` is lower. If the user specified a version, use that exact version.
 - Fetch `api-swagger` only after a concrete API is selected.
 - The `api-swagger` fetch may include both `Version` and `APIVersion` because that endpoint expects them; the `make-code` payload must not include `Version`.
 - Call `make-code` with `ApiAction`, `ServiceCode`, `APIVersion`, `Region`, and `Params`.
@@ -67,31 +67,19 @@ These reference files are self-contained; answer from them directly.
    - Params: JSON object supplied by the user.
    - Region: user value or default `cn-beijing`.
 
-2. Locate or validate the API once for every request. If the user already provides `service_code`, `api_version`, and `action`, use those values as strict filters and verify they exist locally before direct mode. For natural-language requests, call `scripts/rg_rank.py` with `--query` first. Use the full original request unless a clear self-correction keyword points to a later target; in that case use the final target substring. Avoid optional term flags on the first pass. Manually provided `--resource`, `--intent`, and `--service` replace built-in inference for that group rather than merging with it, so a partial flag value can reduce recall. If you must use them, include all known variants together. If `rg_rank.py` returns `remote_search` results because the local ranker had zero hits, treat them as candidates and still verify the selected `service_code`, `api_version`, and `action` before calling direct mode. Avoid `--remote-search` unless the local candidates are obviously wrong or incomplete.
+2. Locate or validate the API once for every request. If the user already provides `service_code`, `api_version`, and `action`, use those exact values in direct mode; `make_code.py` verifies them through the online `api-swagger` response. For natural-language requests, call `scripts/rg_rank.py` with `--query` first. Use the full original request unless a clear self-correction keyword points to a later target; in that case use the final target substring.
 
-3. After selecting `service_code`, `api_version`, and `action`, call `scripts/make_code.py` in direct API mode with `--service-code`, `--api-version`, and `--action`. If top-level required params are missing, the script fills only those required top-level params with swagger-derived mock values and annotates the returned code in Chinese. Ask for clarification only when API selection is genuinely ambiguous after local ranking; in that clarification, only list candidates and ask the user to choose.
+3. After selecting `service_code`, `api_version`, and `action`, call `scripts/make_code.py` in direct API mode with `--service-code`, `--api-version`, and `--action`. If top-level required params are missing, the script fills only those required top-level params with swagger-derived mock values and annotates the returned code in Chinese. Ask for clarification only when API selection is genuinely ambiguous in the online results; in that clarification, only list candidates and ask the user to choose.
 
 4. Once params are available, call `make-code` through the script and return the official code. Do not transform the generated sample into a hand-written utility; any custom formatting must be secondary and must preserve the active response print.
 
 ## Commands
 
-Rank local candidates:
+Search online candidates:
 
 ```bash
 python3 scripts/rg_rank.py \
   --query '角色扮演' \
-  --limit 10 \
-  --format text
-```
-
-Use optional term flags only for high-confidence overrides or supplements, and keep `--query` as the user's wording:
-
-```bash
-python3 scripts/rg_rank.py \
-  --query '标准型加速器替换公网带宽包' \
-  --service 'ga' \
-  --resource '公网带宽包|PublicBandwidthPackage' \
-  --intent '替换|Replace' \
   --limit 10 \
   --format text
 ```

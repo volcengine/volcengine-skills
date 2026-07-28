@@ -42,7 +42,7 @@ The following helper error means the `ve login --remote` process is no longer ru
 
 ```text
 ERROR: no running ve login subprocess.
-Use './scripts/ve_login_remote.sh start-wait <region>' in a runner that reaps background descendants, or './scripts/ve_login_remote.sh start <region>' in a runner that preserves them.
+Call './scripts/ve_login_remote.sh start-wait <region>' first (default) and keep that invocation running; use './scripts/ve_login_remote.sh start <region>' only if the runtime is known to preserve background descendants.
 ```
 
 Older helper versions may mention only `start` or `start-wait`. In every case, the error means that the PKCE-owning login process is no longer alive.

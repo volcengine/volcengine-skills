@@ -1,6 +1,6 @@
 # VKE Deployment Details
 
-Execution runbook for the VKE branch. The main `SKILL.md` keeps only the control-flow skeleton and hard boundaries; this file carries the command-level pipeline. Template details live in [`k8s-manifests.md`](./k8s-manifests.md) and [`dockerfile-templates.md`](./dockerfile-templates.md); deeper CLI detail lives in `volcengine-cli/references/vke.md` and `volcengine-cli/references/cr.md`; a real end-to-end run is in `volcengine-iac/references/volcengine-vke-cr-nginx.md`.
+Execution runbook for the VKE branch. The main `SKILL.md` keeps only the control-flow skeleton and hard boundaries; this file carries the command-level pipeline. Template details live in [`k8s-manifests.md`](./k8s-manifests.md) and [`dockerfile-templates.md`](./dockerfile-templates.md); for deeper CLI detail, activate the `volcengine-cli` skill and follow its VKE and CR guidance; a real end-to-end run is in `volcengine-iac/references/volcengine-vke-cr-nginx.md`.
 
 Do not skip steps or reorder them. The most common failures come from running a later step before an earlier one converges (e.g. `kubectl apply` before the kubeconfig exists, or generating a Deployment before the image is pushed).
 
@@ -67,7 +67,7 @@ docker push "$image_ref"
 docker manifest inspect "$image_ref" | jq -r '.. | .architecture? // empty' | sort -u
 ```
 
-If `docker login` returns 401, re-read `Result.Username`; never invent a fallback username. The token is temporary — re-run `GetAuthorizationToken` if push/pull starts failing after a long session. See `volcengine-cli/references/cr.md`.
+If `docker login` returns 401, re-read `Result.Username`; never invent a fallback username. The token is temporary — re-run `GetAuthorizationToken` if push/pull starts failing after a long session. See the activated `volcengine-cli` skill's CR guidance.
 
 ### 6. Resolve env / Secret and dependency outputs
 

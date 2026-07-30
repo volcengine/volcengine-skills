@@ -10,20 +10,28 @@
 #   agent contexts each tool call is a fresh shell, so the agent cannot
 #   keep `ve` alive across the URL-print -> user-replies-with-code gap.
 #   This script bridges that gap with a named pipe (fifo) bound to ve's
-#   stdin: `start` launches ve in background and prints the URL, `complete`
+#   stdin: `start` or `start-wait` launches ve and prints the URL; `complete`
 #   writes the code into the fifo so the still-running ve picks it up.
 #
 # Subcommands:
-#   start <region> [profile]
-#                      Launch `ve login --remote --region <region>` and
-#                      print the login URL to stdout. Pass [profile] when
+#   start-wait <region> [profile]   (default)
+#                      Launch the login flow, print the URL, and keep this
+#                      wrapper process alive until `ve login` exits. This is
+#                      the safe default: it works whether or not the runner
+#                      preserves background descendants. Pass [profile] when
 #                      the conversation has fixed a non-default profile —
 #                      otherwise the login lands on `default` and the
 #                      fixed profile stays broken.
+#   start <region> [profile]        (optimization)
+#                      Launch `ve login --remote --region <region>` and
+#                      print the login URL to stdout, returning immediately.
+#                      Use only when the runtime is known to preserve
+#                      background descendants after the command returns;
+#                      otherwise `ve login` is reaped and `complete` fails.
 #   complete <code> [profile]
 #                      Feed <code> to the waiting ve subprocess via fifo,
 #                      then verify with `ve sts GetCallerIdentity`. Pass
-#                      the same [profile] as start so the verification
+#                      the same [profile] as start/start-wait so verification
 #                      hits the profile that was just logged in.
 #   abort              Kill the running ve subprocess and clean up state.
 #
@@ -45,8 +53,11 @@ usage() {
   cat <<EOF >&2
 Usage:
   $0 start <region> [profile]     Launch ve login --remote; print the URL.
+  $0 start-wait <region> [profile]
+                                  Launch ve login --remote; print the URL
+                                  and wait for the login process to exit.
   $0 complete <code> [profile]    Feed authorization code to the running
-                                  ve; verify. Same [profile] as start.
+                                  ve; verify. Same [profile] as startup.
   $0 abort                        Kill the running ve and clean up.
 
 Pass [profile] iff the conversation fixed a non-default profile.
@@ -124,6 +135,24 @@ cmd_start() {
   exit 6
 }
 
+cmd_start_wait() {
+  local region="${1:-}"
+  local profile="${2:-}"
+  local pid
+
+  cmd_start "$region" "$profile"
+  pid=$(cat "$pid_file")
+
+  # Managed command runners may kill background descendants when the
+  # launching command returns. Keep this wrapper alive until completion.
+  trap 'kill "$pid" 2>/dev/null || true; cleanup_state; exit 130' HUP INT TERM
+
+  local child_status=0
+  wait "$pid" || child_status=$?
+  trap - HUP INT TERM
+  return "$child_status"
+}
+
 cmd_complete() {
   local code="${1:-}"
   local profile="${2:-}"
@@ -133,7 +162,8 @@ cmd_complete() {
   fi
 
   if ! is_alive; then
-    echo "ERROR: no running ve login subprocess. Call '$0 start <region>' first." >&2
+    echo "ERROR: no running ve login subprocess." >&2
+    echo "Call '$0 start-wait <region>' first (default) and keep that invocation running; use '$0 start <region>' only if the runtime is known to preserve background descendants." >&2
     exit 3
   fi
 
@@ -206,8 +236,9 @@ cmd_abort() {
 }
 
 case "${1:-}" in
-  start)    shift; cmd_start "${1:-}" "${2:-}" ;;
-  complete) shift; cmd_complete "${1:-}" "${2:-}" ;;
-  abort)    shift; cmd_abort ;;
-  *)        usage ;;
+  start)      shift; cmd_start "${1:-}" "${2:-}" ;;
+  start-wait) shift; cmd_start_wait "${1:-}" "${2:-}" ;;
+  complete)   shift; cmd_complete "${1:-}" "${2:-}" ;;
+  abort)      shift; cmd_abort ;;
+  *)          usage ;;
 esac

@@ -1,10 +1,13 @@
 # volcengine-skills
 
+---
+[![Volcengine SKILL & CLI Survey](img.png)](https://www.volcengine.com/survey/q/v2/7662656599489085475/q36U8r81/5ffc/channel=doc)
+为提高您对火山引擎 skill 的使用体验，2026/7/27-2026/8/21 邀您参加[有奖调研](https://www.volcengine.com/survey/q/v2/7662656599489085475/q36U8r81/5ffc/channel=doc)。
+---
+
 [English](./README_en.md) | **简体中文**
 
 火山引擎团队维护的 skill 仓库，面向火山引擎（Volcengine）使用场景，为 Claude Code / Codex / OpenCode / Cursor / Gemini CLI 等 agent 提供开箱即用的 skills。
-
-为提高您对火山引擎 skill 的使用体验，2026/7/27-2026/8/21 邀您参加[有奖调研](https://www.volcengine.com/survey/q/v2/7662656599489085475/q36U8r81/5ffc/channel=doc)。
 
 **[快速安装 →](#快速安装)**
 

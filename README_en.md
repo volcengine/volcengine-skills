@@ -1,10 +1,13 @@
 # volcengine-skills
 
+---
+[![Volcengine SKILL & CLI Survey](img.png)](https://www.volcengine.com/survey/q/v2/7662656599489085475/q36U8r81/5ffc/channel=doc)
+To improve your experience with Volcengine skill, we invite you to participate in our [Survey with Prizes](https://www.volcengine.com/survey/q/v2/7662656599489085475/q36U8r81/5ffc/channel=doc) from July 27 to August 21, 2026.
+---
+
 **English** | [简体中文](./README.md)
 
 A skills repository maintained by the Volcengine team, targeting Volcengine use cases and providing out-of-the-box skills for agents such as Claude Code / Codex / OpenCode / Cursor / Gemini CLI.
-
-To improve your experience with Volcengine skill, we invite you to participate in our [Survey with Prizes](https://www.volcengine.com/survey/q/v2/7662656599489085475/q36U8r81/5ffc/channel=doc) from July 27 to August 21, 2026.
 
 **[Quick Install →](#quick-install)**
 

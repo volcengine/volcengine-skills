@@ -1,6 +1,6 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "skills": {
-    "paths": ["plugins/volcengine-core/skills"]
+    "paths": ["plugins/volcengine-skills/skills"]
   }
 }

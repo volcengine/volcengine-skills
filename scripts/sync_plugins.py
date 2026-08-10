@@ -41,7 +41,7 @@ CORE_HOOK_FILES = (
     "volcengine-apmplus-hook-reporter.mjs",
 )
 NAME_RE = re.compile(r"^volcengine-[a-z0-9]+(?:-[a-z0-9]+)*$")
-CORE_PLUGIN = "volcengine-core"
+CORE_PLUGIN = "volcengine-skills"
 CORE_SKILLS = {
     "volcengine-cli",
     "volcengine-find-skills",
@@ -273,7 +273,7 @@ def codex_manifest(plugin: dict[str, Any], version: str) -> dict[str, Any]:
             "shortDescription": plugin["short_description"],
             "longDescription": plugin["description"],
             "developerName": AUTHOR["name"],
-            "category": "Cloud",
+            "category": plugin.get("category", "Cloud"),
             "capabilities": ["Interactive", "Read", "Write"],
             "defaultPrompt": plugin["default_prompts"],
             "websiteURL": HOMEPAGE,
@@ -341,7 +341,7 @@ def marketplace_manifests(
                     else "AVAILABLE",
                     "authentication": "ON_INSTALL",
                 },
-                "category": "Cloud",
+                "category": plugin.get("category", "Cloud"),
             }
         )
         shared = {

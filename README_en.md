@@ -20,7 +20,7 @@ skills are grouped into Volcengine product-domain plugins and discovered through
 
 | Plugin | Product domain | Skills | Default |
 | --- | --- | --- | --- |
-| `volcengine-core` | Core | `volcengine-cli`, `volcengine-troubleshooting`, `volcengine-knowledge-search`, `volcengine-find-skills` | Yes |
+| `volcengine-skills` | Core | `volcengine-cli`, `volcengine-troubleshooting`, `volcengine-knowledge-search`, `volcengine-find-skills` | Yes |
 | `volcengine-storage` | Storage | `volcengine-tosutil` | No |
 | `volcengine-database` | Database | `volcengine-db-supabase` | No |
 | `volcengine-containers-middleware` | Containers and Middleware | `volcengine-vefaas` | No |
@@ -36,10 +36,10 @@ is owned directly by its product-domain plugin and has no duplicate under `skill
 
 | Skill | Plugin | Use case |
 | --- | --- | --- |
-| [`volcengine-cli`](./skills/core/volcengine-cli/SKILL.md) | `volcengine-core` | Create, query, and manage cloud resources with the `ve` CLI |
-| [`volcengine-troubleshooting`](./skills/core/volcengine-troubleshooting/SKILL.md) | `volcengine-core` | Diagnose Volcengine errors and resource issues |
-| [`volcengine-knowledge-search`](./skills/core/volcengine-knowledge-search/SKILL.md) | `volcengine-core` | Search and retrieve full official Volcengine documentation |
-| [`volcengine-find-skills`](./skills/core/volcengine-find-skills/SKILL.md) | `volcengine-core` | List every skill for the agent to select and install |
+| [`volcengine-cli`](./skills/core/volcengine-cli/SKILL.md) | `volcengine-skills` | Create, query, and manage cloud resources with the `ve` CLI |
+| [`volcengine-troubleshooting`](./skills/core/volcengine-troubleshooting/SKILL.md) | `volcengine-skills` | Diagnose Volcengine errors and resource issues |
+| [`volcengine-knowledge-search`](./skills/core/volcengine-knowledge-search/SKILL.md) | `volcengine-skills` | Search and retrieve full official Volcengine documentation |
+| [`volcengine-find-skills`](./skills/core/volcengine-find-skills/SKILL.md) | `volcengine-skills` | List every skill for the agent to select and install |
 | [`volcengine-prepare`](./plugins/volcengine-service-support/skills/volcengine-prepare/SKILL.md) | `volcengine-service-support` | Analyze a repository and recommend ECS, VKE, or veFaaS |
 | [`volcengine-deploy`](./plugins/volcengine-service-support/skills/volcengine-deploy/SKILL.md) | `volcengine-service-support` | Deploy a local directory or Git repository to Volcengine |
 | [`volcengine-iac`](./plugins/volcengine-service-support/skills/volcengine-iac/SKILL.md) | `volcengine-service-support` | Manage Volcengine infrastructure with Terraform |
@@ -76,7 +76,7 @@ Add the marketplace and install only the core plugin:
 
 ```bash
 codex plugin marketplace add volcengine/volcengine-skills
-codex plugin add volcengine-core@volcengine-skills
+codex plugin add volcengine-skills@volcengine-skills
 ```
 
 These plugin commands only bootstrap the core finder. Subsequent finder installs target exact skills.
@@ -89,9 +89,9 @@ thread when the current host cannot dynamically load new skills.
 From a source checkout, discovery and status can be tested directly:
 
 ```bash
-python3 plugins/volcengine-core/skills/volcengine-find-skills/scripts/find_skills.py list
-python3 plugins/volcengine-core/skills/volcengine-find-skills/scripts/find_skills.py install volcengine-tosutil --agent codex
-python3 plugins/volcengine-core/skills/volcengine-find-skills/scripts/find_skills.py status --agent codex
+python3 plugins/volcengine-skills/skills/volcengine-find-skills/scripts/find_skills.py list
+python3 plugins/volcengine-skills/skills/volcengine-find-skills/scripts/find_skills.py install volcengine-tosutil --agent codex
+python3 plugins/volcengine-skills/skills/volcengine-find-skills/scripts/find_skills.py status --agent codex
 ```
 
 ### Generic skills CLI
@@ -114,7 +114,7 @@ npx skills add volcengine/volcengine-skills --full-depth
 
 ```text
 /plugin marketplace add volcengine/volcengine-skills
-/plugin install volcengine-core@volcengine-skills
+/plugin install volcengine-skills@volcengine-skills
 /reload-plugins
 ```
 
@@ -132,7 +132,7 @@ directory.
 ### Cursor
 
 ```text
-/add-plugin volcengine-core@https://github.com/volcengine/volcengine-skills
+/add-plugin volcengine-skills@https://github.com/volcengine/volcengine-skills
 ```
 
 ## Directory Structure
@@ -142,7 +142,7 @@ volcengine-skills/
 ├── skills/
 │   └── core/                         # exactly four core skills
 ├── plugins/
-│   ├── volcengine-core/              # default plugin, copied from skills/core
+│   ├── volcengine-skills/            # existing default plugin with core skills and hooks
 │   └── volcengine-<domain>/          # optional plugin and authoritative skill source
 └── .agents/plugins/marketplace.json
 ```

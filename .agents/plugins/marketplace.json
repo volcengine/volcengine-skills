@@ -5,16 +5,16 @@
   },
   "plugins": [
     {
-      "name": "volcengine-core",
+      "name": "volcengine-skills",
       "source": {
         "source": "local",
-        "path": "./plugins/volcengine-core"
+        "path": "./plugins/volcengine-skills"
       },
       "policy": {
         "installation": "INSTALLED_BY_DEFAULT",
         "authentication": "ON_INSTALL"
       },
-      "category": "Cloud"
+      "category": "Coding"
     },
     {
       "name": "volcengine-storage",

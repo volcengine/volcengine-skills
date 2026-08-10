@@ -1,7 +1,7 @@
 # Volcengine Skills (for Gemini CLI)
 
 This extension installs the Volcengine core plugin. For Volcengine tasks, load the matching core
-skill from `plugins/volcengine-core/skills/<skill-name>/SKILL.md`.
+skill from `plugins/volcengine-skills/skills/<skill-name>/SKILL.md`.
 
 Core skills:
 

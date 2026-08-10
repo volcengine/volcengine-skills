@@ -9,8 +9,8 @@
   },
   "plugins": [
     {
-      "name": "volcengine-core",
-      "source": "./plugins/volcengine-core",
+      "name": "volcengine-skills",
+      "source": "./plugins/volcengine-skills",
       "description": "Core Volcengine discovery, documentation search, CLI operations, and troubleshooting skills."
     },
     {

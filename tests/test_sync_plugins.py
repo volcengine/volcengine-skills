@@ -54,11 +54,11 @@ class SyncCatalogSafetyTest(unittest.TestCase):
     def test_core_skill_must_live_in_core(self) -> None:
         catalog = copy.deepcopy(self.catalog)
         catalog["plugins"][0]["skills"][0]["path"] = (
-            "plugins/volcengine-core/skills/volcengine-cli"
+            "plugins/volcengine-skills/skills/volcengine-cli"
         )
         self.assert_rejected(catalog)
 
-    def test_only_volcengine_core_may_be_default(self) -> None:
+    def test_only_volcengine_skills_may_be_default(self) -> None:
         catalog = copy.deepcopy(self.catalog)
         catalog["plugins"][0]["default"] = False
         catalog["plugins"][1]["default"] = True

@@ -19,7 +19,7 @@
 
 | Plugin | 产品分类 | Skills | 默认安装 |
 | --- | --- | --- | --- |
-| `volcengine-core` | 核心 | `volcengine-cli`、`volcengine-troubleshooting`、`volcengine-knowledge-search`、`volcengine-find-skills` | 是 |
+| `volcengine-skills` | 核心 | `volcengine-cli`、`volcengine-troubleshooting`、`volcengine-knowledge-search`、`volcengine-find-skills` | 是 |
 | `volcengine-storage` | 存储 | `volcengine-tosutil` | 否 |
 | `volcengine-database` | 数据库 | `volcengine-db-supabase` | 否 |
 | `volcengine-containers-middleware` | 容器与中间件 | `volcengine-vefaas` | 否 |
@@ -34,10 +34,10 @@
 
 | Skill | Plugin | 场景 |
 | --- | --- | --- |
-| [`volcengine-cli`](./skills/core/volcengine-cli/SKILL.md) | `volcengine-core` | 用 `ve` CLI 创建、查询和管理云资源 |
-| [`volcengine-troubleshooting`](./skills/core/volcengine-troubleshooting/SKILL.md) | `volcengine-core` | 火山引擎故障排查与诊断 |
-| [`volcengine-knowledge-search`](./skills/core/volcengine-knowledge-search/SKILL.md) | `volcengine-core` | 检索火山引擎官方文档并获取全文 |
-| [`volcengine-find-skills`](./skills/core/volcengine-find-skills/SKILL.md) | `volcengine-core` | 列出全部 skill，供 Agent 选择并安装 |
+| [`volcengine-cli`](./skills/core/volcengine-cli/SKILL.md) | `volcengine-skills` | 用 `ve` CLI 创建、查询和管理云资源 |
+| [`volcengine-troubleshooting`](./skills/core/volcengine-troubleshooting/SKILL.md) | `volcengine-skills` | 火山引擎故障排查与诊断 |
+| [`volcengine-knowledge-search`](./skills/core/volcengine-knowledge-search/SKILL.md) | `volcengine-skills` | 检索火山引擎官方文档并获取全文 |
+| [`volcengine-find-skills`](./skills/core/volcengine-find-skills/SKILL.md) | `volcengine-skills` | 列出全部 skill，供 Agent 选择并安装 |
 | [`volcengine-prepare`](./plugins/volcengine-service-support/skills/volcengine-prepare/SKILL.md) | `volcengine-service-support` | 分析仓库并推荐 ECS / VKE / veFaaS 部署形态 |
 | [`volcengine-deploy`](./plugins/volcengine-service-support/skills/volcengine-deploy/SKILL.md) | `volcengine-service-support` | 将本地目录或 Git 仓库部署到火山引擎 |
 | [`volcengine-iac`](./plugins/volcengine-service-support/skills/volcengine-iac/SKILL.md) | `volcengine-service-support` | 使用 Terraform 编排火山引擎基础设施 |
@@ -68,7 +68,7 @@
 
 ```bash
 codex plugin marketplace add volcengine/volcengine-skills
-codex plugin add volcengine-core@volcengine-skills
+codex plugin add volcengine-skills@volcengine-skills
 ```
 
 上述 plugin 命令只用于首次加载核心 finder。finder 后续发现缺失能力时，只直接安装选中的 skill。
@@ -79,9 +79,9 @@ codex plugin add volcengine-core@volcengine-skills
 在源码仓库内也可以直接验证发现结果：
 
 ```bash
-python3 plugins/volcengine-core/skills/volcengine-find-skills/scripts/find_skills.py list
-python3 plugins/volcengine-core/skills/volcengine-find-skills/scripts/find_skills.py install volcengine-tosutil --agent codex
-python3 plugins/volcengine-core/skills/volcengine-find-skills/scripts/find_skills.py status --agent codex
+python3 plugins/volcengine-skills/skills/volcengine-find-skills/scripts/find_skills.py list
+python3 plugins/volcengine-skills/skills/volcengine-find-skills/scripts/find_skills.py install volcengine-tosutil --agent codex
+python3 plugins/volcengine-skills/skills/volcengine-find-skills/scripts/find_skills.py status --agent codex
 ```
 
 ### 通用 skills CLI
@@ -104,7 +104,7 @@ npx skills add volcengine/volcengine-skills --full-depth
 
 ```text
 /plugin marketplace add volcengine/volcengine-skills
-/plugin install volcengine-core@volcengine-skills
+/plugin install volcengine-skills@volcengine-skills
 /reload-plugins
 ```
 
@@ -121,7 +121,7 @@ gemini extensions install https://github.com/volcengine/volcengine-skills
 ### Cursor
 
 ```text
-/add-plugin volcengine-core@https://github.com/volcengine/volcengine-skills
+/add-plugin volcengine-skills@https://github.com/volcengine/volcengine-skills
 ```
 
 ## 目录结构
@@ -131,7 +131,7 @@ volcengine-skills/
 ├── skills/
 │   └── core/                         # 仅四个核心 skill
 ├── plugins/
-│   ├── volcengine-core/              # 默认核心 plugin，复制 skills/core
+│   ├── volcengine-skills/            # 原有默认 plugin，复制 skills/core 并保留 hooks
 │   └── volcengine-<domain>/          # 可选 plugin，也是其 skill 的唯一源码
 └── .agents/plugins/marketplace.json
 ```

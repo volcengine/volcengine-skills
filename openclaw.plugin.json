@@ -14,7 +14,7 @@
     "cli",
     "troubleshooting"
   ],
-  "skills": ["./plugins/volcengine-core/skills"],
+  "skills": ["./plugins/volcengine-skills/skills"],
   "configSchema": {
     "type": "object",
     "additionalProperties": false

@@ -4,10 +4,11 @@
   "repository": "volcengine/volcengine-skills",
   "plugins": [
     {
-      "name": "volcengine-core",
-      "display_name": "Volcengine Core",
+      "name": "volcengine-skills",
+      "display_name": "Volcengine Skills",
       "domain": "核心",
       "domain_en": "Core",
+      "category": "Coding",
       "default": true,
       "description": "Core Volcengine discovery, documentation search, CLI operations, and troubleshooting skills.",
       "short_description": "Discover, operate, document, and troubleshoot Volcengine",

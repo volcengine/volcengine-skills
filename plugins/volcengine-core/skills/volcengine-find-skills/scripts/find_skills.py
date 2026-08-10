@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
-"""Search the Volcengine skills catalog and install owning plugins or exact skills."""
+"""List the Volcengine skills catalog and install owning plugins or exact skills."""
 
 from __future__ import annotations
 
 import argparse
 import json
-import re
 import shutil
 import subprocess
 import sys
@@ -15,63 +14,6 @@ from typing import Any
 
 SKILL_ROOT = Path(__file__).resolve().parents[1]
 CATALOG_PATH = SKILL_ROOT / "references" / "catalog.json"
-ENGLISH_STOP_WORDS = {
-    "a",
-    "an",
-    "and",
-    "by",
-    "discover",
-    "find",
-    "for",
-    "help",
-    "i",
-    "in",
-    "install",
-    "me",
-    "my",
-    "need",
-    "of",
-    "on",
-    "or",
-    "please",
-    "plugin",
-    "search",
-    "skill",
-    "that",
-    "the",
-    "this",
-    "to",
-    "use",
-    "using",
-    "want",
-    "we",
-    "with",
-    "you",
-    "your",
-}
-CJK_STOP_PHRASES = {
-    "一个",
-    "一下",
-    "使用",
-    "安装",
-    "应用",
-    "技能",
-    "发现",
-    "插件",
-    "搜索",
-    "查找",
-    "管理",
-    "资源",
-    "如何",
-    "帮我",
-    "怎么",
-    "我想",
-    "火山",
-    "引擎",
-    "这个",
-    "需要",
-    "请帮",
-}
 
 
 def fail(message: str, code: int = 2) -> None:
@@ -106,130 +48,6 @@ def iter_records(catalog: dict[str, Any]):
             }
 
 
-def searchable_text(record: dict[str, Any]) -> str:
-    fields = [
-        record["name"],
-        record["plugin"],
-        record["plugin_display_name"],
-        record["domain"],
-        record["domain_en"],
-        record["summary"],
-        record["summary_zh"],
-        *record.get("keywords", []),
-    ]
-    return " ".join(fields).casefold()
-
-
-def english_words(value: str, *, stem: bool) -> set[str]:
-    words = re.findall(r"[a-z0-9]+(?:[+.#][a-z0-9]+)*", value.casefold())
-    result = {word for word in words if word not in ENGLISH_STOP_WORDS}
-    return {stem_english(word) for word in result} if stem else result
-
-
-def stem_english(word: str) -> str:
-    aliases = {"apps": "app", "docs": "document", "documentation": "document"}
-    if word in aliases:
-        return aliases[word]
-    if len(word) > 7 and word.endswith("ments"):
-        return word[:-5]
-    if len(word) > 6 and word.endswith("ment"):
-        return word[:-4]
-    if len(word) > 5 and word.endswith("ing"):
-        return word[:-3]
-    if len(word) > 4 and word.endswith("ied"):
-        return f"{word[:-3]}y"
-    if len(word) > 4 and word.endswith("ed"):
-        return word[:-2]
-    if len(word) > 4 and word.endswith("ies"):
-        return f"{word[:-3]}y"
-    if len(word) > 3 and word.endswith("s") and not word.endswith("ss"):
-        return word[:-1]
-    return word
-
-
-def cjk_ngrams(value: str) -> set[str]:
-    def grams_for(text: str) -> set[str]:
-        grams: set[str] = set()
-        for size in (2, 3, 4):
-            grams.update(
-                text[index : index + size] for index in range(len(text) - size + 1)
-            )
-        return grams
-
-    grams: set[str] = set()
-    for chunk in re.findall(r"[\u3400-\u9fff]+", value):
-        for size in (2, 3, 4):
-            grams.update(
-                chunk[index : index + size] for index in range(len(chunk) - size + 1)
-            )
-    stop_grams = set().union(*(grams_for(phrase) for phrase in CJK_STOP_PHRASES))
-    return grams - stop_grams
-
-
-def search_records(catalog: dict[str, Any], query: str) -> list[dict[str, Any]]:
-    normalized = query.strip().casefold()
-    if not normalized:
-        return list(iter_records(catalog))
-    query_words = english_words(normalized, stem=False)
-    query_stems = english_words(normalized, stem=True)
-    query_cjk = cjk_ngrams(normalized)
-    matches: list[tuple[int, dict[str, Any]]] = []
-    for record in iter_records(catalog):
-        haystack = searchable_text(record)
-        score = 0
-        if normalized == record["name"].casefold():
-            score += 180
-        elif record["name"].casefold() in normalized:
-            score += 100
-        if normalized == record["plugin"].casefold():
-            score += 120
-        elif record["plugin"].casefold() in normalized:
-            score += 70
-
-        domains = (record["domain"].casefold(), record["domain_en"].casefold())
-        for domain in domains:
-            if normalized == domain:
-                score += 70
-            elif domain and domain in normalized:
-                score += 20
-        for keyword in record.get("keywords", []):
-            keyword_text = str(keyword).casefold()
-            keyword_is_ascii_word = bool(
-                re.fullmatch(r"[a-z0-9]+(?:[+.#][a-z0-9]+)*", keyword_text)
-            )
-            keyword_matches = (
-                keyword_text in query_words
-                if keyword_is_ascii_word
-                else keyword_text in normalized
-            )
-            if keyword_text and keyword_matches:
-                score += 25 + min(len(keyword_text), 20)
-
-        name_words = english_words(record["name"], stem=False)
-        name_stems = english_words(record["name"], stem=True)
-        keyword_text = " ".join(str(keyword) for keyword in record.get("keywords", []))
-        keyword_words = english_words(keyword_text, stem=False)
-        keyword_stems = english_words(keyword_text, stem=True)
-        haystack_words = english_words(haystack, stem=True)
-        score += 70 * len(query_words & name_words)
-        score += 18 * len(query_stems & name_stems)
-        score += 24 * len(query_words & keyword_words)
-        score += 12 * len(query_stems & keyword_stems)
-        score += 5 * len(query_stems & haystack_words)
-        score += 4 * len(query_cjk & cjk_ngrams(haystack))
-
-        if len(normalized) >= 2 and normalized in haystack:
-            score += 30
-        if score == 0:
-            continue
-        matches.append((score, record))
-    matches.sort(key=lambda item: (-item[0], item[1]["name"]))
-    if not matches:
-        return []
-    cutoff = max(12, matches[0][0] // 4)
-    return [record for score, record in matches if score >= cutoff]
-
-
 def plugin_by_name(catalog: dict[str, Any], name: str) -> dict[str, Any] | None:
     return next(
         (plugin for plugin in catalog["plugins"] if plugin["name"] == name), None
@@ -250,11 +68,13 @@ def resolve_target(
         owner = plugin_by_name(catalog, exact[0]["plugin"])
         assert owner is not None
         return owner, exact
-    matches = search_records(catalog, target)
-    if not matches:
-        fail(f"no skill or plugin matches {target!r}")
-    names = ", ".join(record["name"] for record in matches[:5])
-    fail(f"target must be an exact skill or plugin name; closest matches: {names}")
+    skill_names = ", ".join(record["name"] for record in iter_records(catalog))
+    plugin_names = ", ".join(plugin["name"] for plugin in catalog["plugins"])
+    fail(
+        f"target must be an exact skill or plugin name: {target!r}\n"
+        f"Valid skills: {skill_names}\n"
+        f"Valid plugins: {plugin_names}"
+    )
 
 
 def output_records(records: list[dict[str, Any]], as_json: bool) -> None:
@@ -262,7 +82,7 @@ def output_records(records: list[dict[str, Any]], as_json: bool) -> None:
         print(json.dumps(records, ensure_ascii=False, indent=2))
         return
     if not records:
-        print("No matching Volcengine skills found.")
+        print("No Volcengine skills are catalogued.")
         return
     for record in records:
         print(
@@ -505,17 +325,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    list_parser = subparsers.add_parser("list", help="List all catalogued skills")
-    list_parser.add_argument(
-        "--category", help="Filter by Chinese/English domain or plugin name"
+    list_parser = subparsers.add_parser(
+        "list", help="List all catalogued skills for agent selection"
     )
     list_parser.add_argument("--json", action="store_true")
-
-    search_parser = subparsers.add_parser(
-        "search", help="Search by task, product, or keyword"
-    )
-    search_parser.add_argument("query")
-    search_parser.add_argument("--json", action="store_true")
 
     info_parser = subparsers.add_parser("info", help="Show one exact skill or plugin")
     info_parser.add_argument("target")
@@ -552,25 +365,7 @@ def main() -> None:
     args = build_parser().parse_args()
     catalog = load_catalog()
     if args.command == "list":
-        records = list(iter_records(catalog))
-        if args.category:
-            normalized = args.category.casefold()
-            records = [
-                record
-                for record in records
-                if normalized
-                in " ".join(
-                    [
-                        record["plugin"],
-                        record["plugin_display_name"],
-                        record["domain"],
-                        record["domain_en"],
-                    ]
-                ).casefold()
-            ]
-        output_records(records, args.json)
-    elif args.command == "search":
-        output_records(search_records(catalog, args.query), args.json)
+        output_records(list(iter_records(catalog)), args.json)
     elif args.command == "info":
         _, records = resolve_target(catalog, args.target)
         output_records(records, args.json)

@@ -80,8 +80,8 @@
         {
           "name": "volcengine-find-skills",
           "path": "skills/core/volcengine-find-skills",
-          "summary": "Find and install core or optional Volcengine skills by task or product domain.",
-          "summary_zh": "按任务或产品域查找并安装核心或可选火山引擎技能。",
+          "summary": "List every core and optional Volcengine skill so an agent can select and install the best fit.",
+          "summary_zh": "列出全部核心与可选火山引擎技能，供 Agent 自主选择并安装。",
           "keywords": ["find", "discover", "install", "查找", "发现", "安装", "plugin", "skill"]
         }
       ]

@@ -1,11 +1,11 @@
 ---
 name: volcengine-find-skills
 description: >-
-  Find, compare, and install Volcengine skills from the volcengine-skills marketplace. Use when a
-  user asks which Volcengine skill or plugin handles a task, wants to browse skills by official
-  product domain, needs an optional skill that is not currently installed, or asks to install or
-  check the installation status of a Volcengine skill. Also use to discover any of the four core
-  skills, including this finder.
+  List, select, and install Volcengine skills from the volcengine-skills marketplace. Use when a
+  user asks which Volcengine skill or plugin handles a task, wants to browse every available skill,
+  needs an optional skill that is not currently installed, or asks to install or check the
+  installation status of a Volcengine skill. Also use to discover any of the four core skills,
+  including this finder.
 license: MIT
 metadata:
   openclaw:
@@ -19,38 +19,38 @@ metadata:
 
 # Volcengine Skills Finder
 
-Use the bundled catalog to resolve a request to an exact skill and owning plugin. Never guess a
-plugin name from memory when the catalog can answer it.
+Use the bundled catalog to inspect every available skill, select the minimum skill set that covers
+the request, and resolve each selected skill to its owning plugin.
 
 ## Decision flow
 
-1. Search the catalog without changing installation state.
-2. Rank matches from names, product domains, summaries, and Chinese/English keywords.
-3. Require an exact skill or plugin name before installation. If multiple matches remain plausible,
-   show them and ask the user to choose.
-4. Map a skill to its owning plugin. Core skills map to `volcengine-core`; optional skills map to
-   their product-domain plugin.
-5. Install through the host-specific method and verify the resulting installed state. Never report
+1. List the complete catalog without changing installation state.
+2. Inspect every name, product domain, summary, and keyword, then select the minimum exact skill set
+   that covers the user's request. Make the selection directly when the catalog provides enough
+   information.
+3. Map each selected skill to its owning plugin. Core skills map to `volcengine-core`; optional
+   skills map to their product-domain plugin.
+4. Install through the host-specific method and verify the resulting installed state. Never report
    success from process exit alone.
-6. For plugin-based hosts, tell the user to start a new thread before using a newly installed skill.
+5. For plugin-based hosts, tell the user to start a new thread before using a newly installed skill.
 
-## Find a skill
+## List and select skills
 
 Run the script relative to this skill directory:
 
 ```bash
-python3 scripts/find_skills.py search "<task or product>"
 python3 scripts/find_skills.py list
+python3 scripts/find_skills.py list --json
 python3 scripts/find_skills.py info <skill-or-plugin>
 ```
 
-Search accepts Chinese or English product names, task descriptions, skill names, and plugin names.
-Show the closest matches with their product domain and owning plugin. If more than one result is
-plausible, ask the user to choose before installing anything.
+Always read the complete `list` output before selecting a skill. Use `--json` when keywords or the
+English summaries help distinguish related skills. Choose by responsibility rather than name alone;
+install multiple skills only when the request crosses distinct responsibilities.
 
 The catalog includes all four skills in `skills/core/` and every optional skill owned directly by a
-product-domain plugin. A zero-result search means the repository does not currently provide a
-matching skill; do not invent one.
+product-domain plugin. If none of the listed responsibilities covers the request, report that the
+repository does not currently provide a matching skill.
 
 ## Install for Codex
 

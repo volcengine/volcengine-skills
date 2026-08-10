@@ -37,7 +37,7 @@
 | [`volcengine-cli`](./skills/core/volcengine-cli/SKILL.md) | `volcengine-core` | 用 `ve` CLI 创建、查询和管理云资源 |
 | [`volcengine-troubleshooting`](./skills/core/volcengine-troubleshooting/SKILL.md) | `volcengine-core` | 火山引擎故障排查与诊断 |
 | [`volcengine-knowledge-search`](./skills/core/volcengine-knowledge-search/SKILL.md) | `volcengine-core` | 检索火山引擎官方文档并获取全文 |
-| [`volcengine-find-skills`](./skills/core/volcengine-find-skills/SKILL.md) | `volcengine-core` | 按任务或产品域查找、安装其他 skill |
+| [`volcengine-find-skills`](./skills/core/volcengine-find-skills/SKILL.md) | `volcengine-core` | 列出全部 skill，供 Agent 选择并安装 |
 | [`volcengine-prepare`](./plugins/volcengine-service-support/skills/volcengine-prepare/SKILL.md) | `volcengine-service-support` | 分析仓库并推荐 ECS / VKE / veFaaS 部署形态 |
 | [`volcengine-deploy`](./plugins/volcengine-service-support/skills/volcengine-deploy/SKILL.md) | `volcengine-service-support` | 将本地目录或 Git 仓库部署到火山引擎 |
 | [`volcengine-iac`](./plugins/volcengine-service-support/skills/volcengine-iac/SKILL.md) | `volcengine-service-support` | 使用 Terraform 编排火山引擎基础设施 |
@@ -55,8 +55,8 @@
 
 `volcengine-find-skills` 内置唯一 catalog，覆盖四个 core skill 和所有可选 plugin skill：
 
-1. `search` 只做无副作用检索，按名称、产品域、摘要和中英文关键词加权排序。
-2. 安装前必须解析为精确的 skill 或 plugin 名称；模糊结果不会直接触发安装。
+1. `list` 一次列出完整 catalog，由 Agent 根据名称、产品域、摘要和关键词选择最小必要 skill 集合。
+2. 安装前必须解析为精确的 skill 或 plugin 名称。
 3. Codex 安装目标 skill 所属的 plugin；通用 skills CLI 安装精确 skill 集合。
 4. 安装命令成功后再次读取宿主安装清单，只有目标全部可见才返回 `verified: true`。
 5. plugin 安装后需新开对话，避免把“已安装”误判为“当前对话已加载”。
@@ -70,13 +70,13 @@ codex plugin marketplace add volcengine/volcengine-skills
 codex plugin add volcengine-core@volcengine-skills
 ```
 
-在新对话中直接描述需求，例如“查找对象存储相关 skill”或“安装 `volcengine-tosutil`”。finder 会先给出
-匹配结果，再安装所属插件。Codex 安装新插件后需要新开对话，当前对话不会动态加载新增 skill。
+在新对话中直接描述需求，例如“查找对象存储相关 skill”或“安装 `volcengine-tosutil`”。finder 会读取
+完整 catalog、自主选择合适的 skill，再安装所属插件。Codex 安装新插件后需要新开对话，当前对话不会动态加载新增 skill。
 
 在源码仓库内也可以直接验证发现结果：
 
 ```bash
-python3 plugins/volcengine-core/skills/volcengine-find-skills/scripts/find_skills.py search "对象存储"
+python3 plugins/volcengine-core/skills/volcengine-find-skills/scripts/find_skills.py list
 python3 plugins/volcengine-core/skills/volcengine-find-skills/scripts/find_skills.py status
 ```
 

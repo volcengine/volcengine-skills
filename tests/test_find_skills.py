@@ -37,17 +37,28 @@ class FinderInstallVerificationTest(unittest.TestCase):
     def completed(self, returncode: int, stdout: str = "", stderr: str = ""):
         return subprocess.CompletedProcess([], returncode, stdout=stdout, stderr=stderr)
 
-    def test_every_catalogued_skill_is_findable_and_maps_to_its_plugin(self) -> None:
-        for record in FINDER.iter_records(self.catalog):
+    def test_list_contains_every_catalogued_skill_and_maps_to_its_plugin(self) -> None:
+        records = list(FINDER.iter_records(self.catalog))
+        expected_names = [
+            skill["name"]
+            for plugin in self.catalog["plugins"]
+            for skill in plugin["skills"]
+        ]
+        self.assertEqual([record["name"] for record in records], expected_names)
+        for record in records:
             with self.subTest(skill=record["name"]):
-                matches = FINDER.search_records(self.catalog, record["name"])
-                self.assertTrue(matches)
-                self.assertEqual(matches[0]["name"], record["name"])
                 plugin, resolved = FINDER.resolve_target(
                     self.catalog, record["name"]
                 )
                 self.assertEqual(plugin["name"], record["plugin"])
                 self.assertEqual([item["name"] for item in resolved], [record["name"]])
+
+    def test_search_subcommand_is_not_available(self) -> None:
+        with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(
+            SystemExit
+        ) as raised:
+            FINDER.build_parser().parse_args(["search", "object storage"])
+        self.assertEqual(raised.exception.code, 2)
 
     @mock.patch.object(FINDER.shutil, "which", return_value="/usr/bin/npx")
     @mock.patch.object(FINDER.subprocess, "run")

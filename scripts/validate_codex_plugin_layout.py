@@ -416,45 +416,23 @@ def run_json(command: list[str]) -> Any | None:
 
 
 def validate_finder(skill_map: dict[str, dict[str, Any]]) -> None:
-    queries = {
-        "对象存储": "volcengine-tosutil",
-        "Terraform": "volcengine-iac",
-        "官方文档": "volcengine-knowledge-search",
-        "API 参数": "volcengine-api",
-        "请帮我部署这个应用": "volcengine-deploy",
-        "I need to deploy this app": "volcengine-deploy",
-        "用 Terraform 管理 VPC": "volcengine-iac",
-        "veFaaS deployment": "volcengine-vefaas",
-        "AIDAP database deployment": "volcengine-db-supabase",
-        "find object storage skill": "volcengine-tosutil",
-        "install terraform skill": "volcengine-iac",
-        "list security groups": "volcengine-cli",
-        "allocate an EIP": "volcengine-cli",
-        "创建 CDN 域名": "volcengine-cli",
-        "manage DNS records": "volcengine-cli",
-        "创建 Kafka 实例": "volcengine-cli",
-        "查找并安装技能": "volcengine-find-skills",
-    }
-    for query, expected in queries.items():
-        payload = run_json(
-            [sys.executable, str(FINDER_SCRIPT), "search", query, "--json"]
+    payload = run_json([sys.executable, str(FINDER_SCRIPT), "list", "--json"])
+    listed_skills = (
+        {
+            item.get("name"): item.get("plugin")
+            for item in payload
+            if isinstance(item, dict)
+        }
+        if isinstance(payload, list)
+        else {}
+    )
+    expected_skills = {name: skill["plugin"] for name, skill in skill_map.items()}
+    listed_count = len(payload) if isinstance(payload, list) else 0
+    if listed_skills != expected_skills or listed_count != len(expected_skills):
+        error(
+            "finder list must return every catalogued skill exactly once with its owning plugin"
         )
-        if (
-            not isinstance(payload, list)
-            or not payload
-            or payload[0].get("name") != expected
-        ):
-            error(f"finder query {query!r} did not rank {expected} first")
     for name, skill in skill_map.items():
-        payload = run_json(
-            [sys.executable, str(FINDER_SCRIPT), "search", name, "--json"]
-        )
-        if (
-            not isinstance(payload, list)
-            or not payload
-            or payload[0].get("name") != name
-        ):
-            error(f"finder exact-name query did not rank {name} first")
         payload = run_json(
             [
                 sys.executable,
@@ -471,27 +449,30 @@ def validate_finder(skill_map: dict[str, dict[str, Any]]) -> None:
         command = payload.get("command", []) if isinstance(payload, dict) else []
         if expected_selector not in command:
             error(f"finder maps {name} to the wrong Codex plugin: {command}")
-    payload = run_json(
-        [
-            sys.executable,
-            str(FINDER_SCRIPT),
-            "install",
-            "volcengine-tosutil",
-            "--method",
-            "skills",
-            "--dry-run",
-            "--json",
-        ]
-    )
-    command = payload.get("command", []) if isinstance(payload, dict) else []
-    if (
-        "--full-depth" not in command
-        or "volcengine-tosutil" not in command
-        or "--global" not in command
-    ):
-        error(
-            "finder generic install must default to global, full-depth installation of the exact skill"
+        payload = run_json(
+            [
+                sys.executable,
+                str(FINDER_SCRIPT),
+                "install",
+                name,
+                "--method",
+                "skills",
+                "--dry-run",
+                "--json",
+            ]
         )
+        command = payload.get("command", []) if isinstance(payload, dict) else []
+        selected_skills = (
+            payload.get("skills", []) if isinstance(payload, dict) else []
+        )
+        if (
+            "--full-depth" not in command
+            or "--global" not in command
+            or selected_skills != [name]
+        ):
+            error(
+                f"finder generic install must select the exact skill {name}: {command}"
+            )
     payload = run_json(
         [
             sys.executable,

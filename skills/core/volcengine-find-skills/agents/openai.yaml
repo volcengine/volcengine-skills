@@ -1,4 +1,4 @@
 interface:
   display_name: "Volcengine Skills Finder"
-  short_description: "Find and install Volcengine skills by product domain"
-  default_prompt: "Use $volcengine-find-skills to find and install the Volcengine skill for my task."
+  short_description: "List and install Volcengine skills from the catalog"
+  default_prompt: "Use $volcengine-find-skills to list every available Volcengine skill, select the best fit, and install it."

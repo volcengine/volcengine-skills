@@ -39,7 +39,7 @@ is owned directly by its product-domain plugin and has no duplicate under `skill
 | [`volcengine-cli`](./skills/core/volcengine-cli/SKILL.md) | `volcengine-core` | Create, query, and manage cloud resources with the `ve` CLI |
 | [`volcengine-troubleshooting`](./skills/core/volcengine-troubleshooting/SKILL.md) | `volcengine-core` | Diagnose Volcengine errors and resource issues |
 | [`volcengine-knowledge-search`](./skills/core/volcengine-knowledge-search/SKILL.md) | `volcengine-core` | Search and retrieve full official Volcengine documentation |
-| [`volcengine-find-skills`](./skills/core/volcengine-find-skills/SKILL.md) | `volcengine-core` | Find and install skills by task or product domain |
+| [`volcengine-find-skills`](./skills/core/volcengine-find-skills/SKILL.md) | `volcengine-core` | List every skill for the agent to select and install |
 | [`volcengine-prepare`](./plugins/volcengine-service-support/skills/volcengine-prepare/SKILL.md) | `volcengine-service-support` | Analyze a repository and recommend ECS, VKE, or veFaaS |
 | [`volcengine-deploy`](./plugins/volcengine-service-support/skills/volcengine-deploy/SKILL.md) | `volcengine-service-support` | Deploy a local directory or Git repository to Volcengine |
 | [`volcengine-iac`](./plugins/volcengine-service-support/skills/volcengine-iac/SKILL.md) | `volcengine-service-support` | Manage Volcengine infrastructure with Terraform |
@@ -58,8 +58,9 @@ is owned directly by its product-domain plugin and has no duplicate under `skill
 `volcengine-find-skills` embeds the single catalog for all four core skills and every optional
 plugin skill:
 
-1. `search` is read-only and ranks names, product domains, summaries, and Chinese/English keywords.
-2. Installation requires an exact skill or plugin name; ambiguous search results never install directly.
+1. `list` returns the complete catalog so the agent can select the minimum skill set from names,
+   product domains, summaries, and keywords.
+2. Installation requires an exact skill or plugin name.
 3. Codex installs the owning plugin, while the generic skills CLI installs the exact skill set.
 4. After the installer exits successfully, the finder reads the host's installed list and returns
    `verified: true` only when every requested skill is visible.
@@ -75,13 +76,14 @@ codex plugin add volcengine-core@volcengine-skills
 ```
 
 In a new thread, ask for a skill by task, such as "find the object storage skill" or "install
-`volcengine-tosutil`". The finder resolves the owning plugin and installs it. Start another new
-thread after installation because a running Codex thread does not dynamically load new skills.
+`volcengine-tosutil`". The finder reads the complete catalog, selects the appropriate skill, and
+installs its owning plugin. Start another new thread after installation because a running Codex
+thread does not dynamically load new skills.
 
 From a source checkout, discovery and status can be tested directly:
 
 ```bash
-python3 plugins/volcengine-core/skills/volcengine-find-skills/scripts/find_skills.py search "object storage"
+python3 plugins/volcengine-core/skills/volcengine-find-skills/scripts/find_skills.py list
 python3 plugins/volcengine-core/skills/volcengine-find-skills/scripts/find_skills.py status
 ```
 

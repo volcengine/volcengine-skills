@@ -58,13 +58,17 @@ is owned directly by its product-domain plugin and has no duplicate under `skill
 `volcengine-find-skills` embeds the single catalog for all four core skills and every optional
 plugin skill:
 
-1. `list` returns the complete catalog so the agent can select the minimum skill set from names,
+1. The finder triggers for explicit discovery and when the currently loaded or installed skills
+   cannot cover a product, tool, or workflow required by an active Volcengine task.
+2. `list` returns the complete catalog so the agent can select the minimum skill set from names,
    product domains, summaries, and keywords.
-2. Installation requires an exact skill or plugin name.
-3. Codex installs the owning plugin, while the generic skills CLI installs the exact skill set.
-4. After the installer exits successfully, the finder reads the host's installed list and returns
+3. Installation requires exact skill names; plugins are classification metadata, not install targets.
+4. For every host, the finder installs selected skills directly through the skills CLI, never the
+   whole plugin.
+5. After the installer exits successfully, the finder reads the host's installed list and returns
    `verified: true` only when every requested skill is visible.
-5. Plugin-based hosts require a new thread so installed state is not confused with current-thread loading.
+6. When a host cannot dynamically load a newly installed skill, start a new thread carrying the
+   original task and completed context.
 
 ### Codex
 
@@ -75,16 +79,19 @@ codex plugin marketplace add volcengine/volcengine-skills
 codex plugin add volcengine-core@volcengine-skills
 ```
 
+These plugin commands only bootstrap the core finder. Subsequent finder installs target exact skills.
+
 In a new thread, ask for a skill by task, such as "find the object storage skill" or "install
 `volcengine-tosutil`". The finder reads the complete catalog, selects the appropriate skill, and
-installs its owning plugin. Start another new thread after installation because a running Codex
-thread does not dynamically load new skills.
+installs that skill directly without installing its whole product-domain plugin. Start another
+thread when the current host cannot dynamically load new skills.
 
 From a source checkout, discovery and status can be tested directly:
 
 ```bash
 python3 plugins/volcengine-core/skills/volcengine-find-skills/scripts/find_skills.py list
-python3 plugins/volcengine-core/skills/volcengine-find-skills/scripts/find_skills.py status
+python3 plugins/volcengine-core/skills/volcengine-find-skills/scripts/find_skills.py install volcengine-tosutil --agent codex
+python3 plugins/volcengine-core/skills/volcengine-find-skills/scripts/find_skills.py status --agent codex
 ```
 
 ### Generic skills CLI
@@ -97,7 +104,7 @@ npx skills add volcengine/volcengine-skills \
   --skill volcengine-cli volcengine-troubleshooting volcengine-knowledge-search volcengine-find-skills
 ```
 
-The finder can later invoke `npx skills add` for one skill, or users can choose interactively:
+The finder can later invoke `npx skills add --skill` for exact skills, or users can choose interactively:
 
 ```bash
 npx skills add volcengine/volcengine-skills --full-depth

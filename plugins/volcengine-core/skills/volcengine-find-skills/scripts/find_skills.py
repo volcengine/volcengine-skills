@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""List the Volcengine skills catalog and install owning plugins or exact skills."""
+"""List the Volcengine skills catalog and install exact skills."""
 
 from __future__ import annotations
 
 import argparse
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -14,6 +15,7 @@ from typing import Any
 
 SKILL_ROOT = Path(__file__).resolve().parents[1]
 CATALOG_PATH = SKILL_ROOT / "references" / "catalog.json"
+ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 
 
 def fail(message: str, code: int = 2) -> None:
@@ -77,6 +79,20 @@ def resolve_target(
     )
 
 
+def resolve_skills(
+    catalog: dict[str, Any], targets: list[str]
+) -> list[dict[str, Any]]:
+    records_by_name = {record["name"]: record for record in iter_records(catalog)}
+    invalid = [target for target in targets if target not in records_by_name]
+    if invalid:
+        valid_names = ", ".join(records_by_name)
+        fail(
+            "install targets must be exact skill names; plugins are not install targets: "
+            f"{', '.join(invalid)}\nValid skills: {valid_names}"
+        )
+    return [records_by_name[name] for name in dict.fromkeys(targets)]
+
+
 def output_records(records: list[dict[str, Any]], as_json: bool) -> None:
     if as_json:
         print(json.dumps(records, ensure_ascii=False, indent=2))
@@ -93,110 +109,53 @@ def output_records(records: list[dict[str, Any]], as_json: bool) -> None:
         )
 
 
-def run_json(command: list[str]) -> tuple[subprocess.CompletedProcess[str], Any | None]:
-    completed = subprocess.run(command, capture_output=True, text=True, check=False)
-    if completed.returncode != 0:
-        return completed, None
-    try:
-        return completed, json.loads(completed.stdout)
-    except json.JSONDecodeError:
-        return completed, None
+def run_json(
+    command: list[str], attempts: int = 3
+) -> tuple[subprocess.CompletedProcess[str], Any | None]:
+    completed: subprocess.CompletedProcess[str] | None = None
+    for _ in range(attempts):
+        completed = subprocess.run(command, capture_output=True, text=True, check=False)
+        if completed.returncode != 0:
+            return completed, None
+        try:
+            return completed, json.loads(completed.stdout)
+        except json.JSONDecodeError:
+            continue
+    assert completed is not None
+    return completed, None
 
 
-def codex_state(marketplace: str) -> tuple[set[str], set[str]]:
-    completed, payload = run_json(
-        [
-            "codex",
-            "plugin",
-            "list",
-            "--marketplace",
-            marketplace,
-            "--available",
-            "--json",
-        ]
-    )
-    if completed.returncode != 0 or payload is None:
-        detail = (
-            completed.stderr.strip()
-            or completed.stdout.strip()
-            or "invalid JSON output"
-        )
-        fail(f"unable to list Codex plugins: {detail}", completed.returncode or 2)
-    installed = {item["name"] for item in payload.get("installed", [])}
-    available = {item["name"] for item in payload.get("available", [])}
-    return installed, available
+def installed_skill_names(
+    catalog: dict[str, Any], agent: str | None, scope: str
+) -> set[str]:
+    command = ["npx", "--yes", "skills", "list"]
+    if scope == "global":
+        command.append("--global")
+    if agent:
+        command.extend(["--agent", agent])
 
-
-def ensure_codex_marketplace(marketplace: str, repository: str) -> None:
-    completed, payload = run_json(["codex", "plugin", "marketplace", "list", "--json"])
-    if completed.returncode != 0 or payload is None:
-        detail = (
-            completed.stderr.strip()
-            or completed.stdout.strip()
-            or "invalid JSON output"
-        )
-        fail(f"unable to list Codex marketplaces: {detail}", completed.returncode or 2)
-    names = {item.get("name") for item in payload.get("marketplaces", [])}
-    if marketplace not in names:
-        fail(
-            f"Codex marketplace {marketplace!r} is not configured. Run: "
-            f"codex plugin marketplace add {repository}"
-        )
-
-
-def install_codex(
-    catalog: dict[str, Any], plugin: dict[str, Any], dry_run: bool, as_json: bool
-) -> None:
-    marketplace = catalog["marketplace"]
-    selector = f"{plugin['name']}@{marketplace}"
-    command = ["codex", "plugin", "add", selector, "--json"]
-    if dry_run:
-        payload = {"method": "codex", "plugin": plugin["name"], "command": command}
-        print(
-            json.dumps(payload, ensure_ascii=False, indent=2)
-            if as_json
-            else " ".join(command)
-        )
-        return
-    if shutil.which("codex") is None:
-        fail("codex executable not found; use --method skills for a non-Codex host")
-    ensure_codex_marketplace(marketplace, catalog["repository"])
-    installed, available = codex_state(marketplace)
-    if plugin["name"] in installed:
-        result = {
-            "status": "already_installed",
-            "plugin": plugin["name"],
-            "marketplace": marketplace,
-        }
-        print(
-            json.dumps(result, ensure_ascii=False, indent=2)
-            if as_json
-            else f"{plugin['name']} is already installed."
-        )
-        return
-    if plugin["name"] not in available:
-        fail(
-            f"plugin {plugin['name']!r} is not available from marketplace {marketplace!r}"
-        )
-    completed, payload = run_json(command)
+    completed, payload = run_json([*command, "--json"])
     if completed.returncode != 0:
         detail = completed.stderr.strip() or completed.stdout.strip()
-        fail(f"Codex plugin install failed: {detail}", completed.returncode)
-    installed, _ = codex_state(marketplace)
-    if plugin["name"] not in installed:
-        fail(f"Codex reported success but {plugin['name']!r} is not installed")
-    result = {
-        "status": "installed",
-        "plugin": plugin["name"],
-        "marketplace": marketplace,
-        "restart_required": True,
-        "install_result": payload,
-    }
-    print(
-        json.dumps(result, ensure_ascii=False, indent=2)
-        if as_json
-        else f"Installed {plugin['name']}. Start a new thread before using its skills."
-    )
+        fail(f"unable to list installed skills: {detail}", completed.returncode)
+    if isinstance(payload, list):
+        return {
+            item.get("name")
+            for item in payload
+            if isinstance(item, dict) and isinstance(item.get("name"), str)
+        }
+
+    completed = subprocess.run(command, capture_output=True, text=True, check=False)
+    if completed.returncode != 0:
+        detail = completed.stderr.strip() or completed.stdout.strip()
+        fail(f"unable to list installed skills: {detail}", completed.returncode)
+    catalog_names = {record["name"] for record in iter_records(catalog)}
+    installed: set[str] = set()
+    for raw_line in completed.stdout.splitlines():
+        fields = ANSI_ESCAPE_RE.sub("", raw_line).split()
+        if fields and fields[0] in catalog_names:
+            installed.add(fields[0])
+    return installed
 
 
 def install_skills_cli(
@@ -245,31 +204,13 @@ def install_skills_cli(
         )
         return
     if shutil.which("npx") is None:
-        fail(
-            "npx executable not found; install Node.js or use the host's plugin marketplace"
-        )
+        fail("npx executable not found; install Node.js to install skills")
     completed = subprocess.run(command, capture_output=True, text=True, check=False)
     if completed.returncode != 0:
         detail = completed.stderr.strip() or completed.stdout.strip()
         fail(f"skills CLI install failed: {detail}", completed.returncode)
 
-    verify_command = ["npx", "--yes", "skills", "list"]
-    if scope == "global":
-        verify_command.append("--global")
-    if agent:
-        verify_command.extend(["--agent", agent])
-    verify_command.append("--json")
-    verified, payload = run_json(verify_command)
-    if verified.returncode != 0 or not isinstance(payload, list):
-        detail = (
-            verified.stderr.strip() or verified.stdout.strip() or "invalid JSON output"
-        )
-        fail(f"unable to verify skills CLI install: {detail}", verified.returncode or 2)
-    installed_names = {
-        item.get("name")
-        for item in payload
-        if isinstance(item, dict) and isinstance(item.get("name"), str)
-    }
+    installed_names = installed_skill_names(catalog, agent, scope)
     missing = sorted(set(skill_names) - installed_names)
     if missing:
         fail(
@@ -291,34 +232,30 @@ def install_skills_cli(
     )
 
 
-def show_status(catalog: dict[str, Any], as_json: bool) -> None:
-    if shutil.which("codex") is None:
-        fail("codex executable not found")
-    marketplace = catalog["marketplace"]
-    ensure_codex_marketplace(marketplace, catalog["repository"])
-    installed, available = codex_state(marketplace)
-    rows = []
-    for plugin in catalog["plugins"]:
-        state = (
-            "installed"
-            if plugin["name"] in installed
-            else "available"
-            if plugin["name"] in available
-            else "missing"
-        )
-        rows.append(
-            {
-                "plugin": plugin["name"],
-                "domain": plugin["domain"],
-                "state": state,
-                "skills": [skill["name"] for skill in plugin["skills"]],
-            }
-        )
+def show_status(
+    catalog: dict[str, Any], agent: str | None, scope: str, as_json: bool
+) -> None:
+    if shutil.which("npx") is None:
+        fail("npx executable not found; install Node.js to inspect installed skills")
+    installed_names = installed_skill_names(catalog, agent, scope)
+    rows = [
+        {
+            "skill": record["name"],
+            "plugin": record["plugin"],
+            "domain": record["domain"],
+            "state": (
+                "installed"
+                if record["name"] in installed_names
+                else "not_installed"
+            ),
+        }
+        for record in iter_records(catalog)
+    ]
     if as_json:
         print(json.dumps(rows, ensure_ascii=False, indent=2))
     else:
         for row in rows:
-            print(f"{row['plugin']}: {row['state']} ({', '.join(row['skills'])})")
+            print(f"{row['skill']}: {row['state']} ({row['plugin']})")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -335,27 +272,28 @@ def build_parser() -> argparse.ArgumentParser:
     info_parser.add_argument("--json", action="store_true")
 
     install_parser = subparsers.add_parser(
-        "install", help="Install an owning plugin or direct skill"
+        "install", help="Install one or more exact skills"
     )
-    install_parser.add_argument("target")
-    install_parser.add_argument(
-        "--method", choices=("codex", "skills"), default="codex"
-    )
-    install_parser.add_argument("--agent", help="Target agent name for --method skills")
+    install_parser.add_argument("targets", nargs="+")
+    install_parser.add_argument("--agent", help="Target agent name for skills CLI")
     install_parser.add_argument(
         "--scope",
         choices=("global", "project"),
         default="global",
-        help="Scope for --method skills",
+        help="Installation scope for skills CLI",
     )
     install_parser.add_argument(
-        "--source", help="Repository or reviewed local checkout for --method skills"
+        "--source", help="Repository or reviewed local checkout for skills CLI"
     )
     install_parser.add_argument("--dry-run", action="store_true")
     install_parser.add_argument("--json", action="store_true")
 
     status_parser = subparsers.add_parser(
-        "status", help="Show Codex plugin installation status"
+        "status", help="Show catalogued skill installation status"
+    )
+    status_parser.add_argument("--agent", help="Target agent name for skills CLI")
+    status_parser.add_argument(
+        "--scope", choices=("global", "project"), default="global"
     )
     status_parser.add_argument("--json", action="store_true")
     return parser
@@ -370,21 +308,18 @@ def main() -> None:
         _, records = resolve_target(catalog, args.target)
         output_records(records, args.json)
     elif args.command == "install":
-        plugin, records = resolve_target(catalog, args.target)
-        if args.method == "codex":
-            install_codex(catalog, plugin, args.dry_run, args.json)
-        else:
-            install_skills_cli(
-                catalog,
-                records,
-                args.agent,
-                args.scope,
-                args.source,
-                args.dry_run,
-                args.json,
-            )
+        records = resolve_skills(catalog, args.targets)
+        install_skills_cli(
+            catalog,
+            records,
+            args.agent,
+            args.scope,
+            args.source,
+            args.dry_run,
+            args.json,
+        )
     elif args.command == "status":
-        show_status(catalog, args.json)
+        show_status(catalog, args.agent, args.scope, args.json)
 
 
 if __name__ == "__main__":

@@ -55,11 +55,12 @@
 
 `volcengine-find-skills` 内置唯一 catalog，覆盖四个 core skill 和所有可选 plugin skill：
 
-1. `list` 一次列出完整 catalog，由 Agent 根据名称、产品域、摘要和关键词选择最小必要 skill 集合。
-2. 安装前必须解析为精确的 skill 或 plugin 名称。
-3. Codex 安装目标 skill 所属的 plugin；通用 skills CLI 安装精确 skill 集合。
-4. 安装命令成功后再次读取宿主安装清单，只有目标全部可见才返回 `verified: true`。
-5. plugin 安装后需新开对话，避免把“已安装”误判为“当前对话已加载”。
+1. 用户主动查找 skill，或者执行火山引擎任务时当前已加载/已安装 skill 无法覆盖所需产品、工具或流程，都会触发 finder。
+2. `list` 一次列出完整 catalog，由 Agent 根据名称、产品域、摘要和关键词选择最小必要 skill 集合。
+3. 安装前必须解析为精确的 skill 名称；plugin 只用于分类，不能作为安装目标。
+4. finder 对所有宿主都通过 skills CLI 直接安装选中的 skill，不安装整个 plugin。
+5. 安装命令成功后再次读取宿主安装清单，只有目标全部可见才返回 `verified: true`。
+6. 新增 skill 安装后，若宿主不能动态加载，则新开对话并携带原任务和已完成上下文继续执行。
 
 ### Codex
 
@@ -70,14 +71,17 @@ codex plugin marketplace add volcengine/volcengine-skills
 codex plugin add volcengine-core@volcengine-skills
 ```
 
+上述 plugin 命令只用于首次加载核心 finder。finder 后续发现缺失能力时，只直接安装选中的 skill。
+
 在新对话中直接描述需求，例如“查找对象存储相关 skill”或“安装 `volcengine-tosutil`”。finder 会读取
-完整 catalog、自主选择合适的 skill，再安装所属插件。Codex 安装新插件后需要新开对话，当前对话不会动态加载新增 skill。
+完整 catalog、自主选择并直接安装合适的 skill，不会安装整个产品域 plugin。若当前对话不能动态加载新增 skill，需新开对话继续。
 
 在源码仓库内也可以直接验证发现结果：
 
 ```bash
 python3 plugins/volcengine-core/skills/volcengine-find-skills/scripts/find_skills.py list
-python3 plugins/volcengine-core/skills/volcengine-find-skills/scripts/find_skills.py status
+python3 plugins/volcengine-core/skills/volcengine-find-skills/scripts/find_skills.py install volcengine-tosutil --agent codex
+python3 plugins/volcengine-core/skills/volcengine-find-skills/scripts/find_skills.py status --agent codex
 ```
 
 ### 通用 skills CLI
@@ -90,7 +94,7 @@ npx skills add volcengine/volcengine-skills \
   --skill volcengine-cli volcengine-troubleshooting volcengine-knowledge-search volcengine-find-skills
 ```
 
-后续可由 finder 调用 `npx skills add` 安装单个 skill，也可以交互式选择：
+后续可由 finder 调用 `npx skills add --skill` 精确安装单个或多个 skill，也可以交互式选择：
 
 ```bash
 npx skills add volcengine/volcengine-skills --full-depth

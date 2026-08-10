@@ -432,31 +432,15 @@ def validate_finder(skill_map: dict[str, dict[str, Any]]) -> None:
         error(
             "finder list must return every catalogued skill exactly once with its owning plugin"
         )
-    for name, skill in skill_map.items():
+    for name in skill_map:
         payload = run_json(
             [
                 sys.executable,
                 str(FINDER_SCRIPT),
                 "install",
                 name,
-                "--method",
+                "--agent",
                 "codex",
-                "--dry-run",
-                "--json",
-            ]
-        )
-        expected_selector = f"{skill['plugin']}@volcengine-skills"
-        command = payload.get("command", []) if isinstance(payload, dict) else []
-        if expected_selector not in command:
-            error(f"finder maps {name} to the wrong Codex plugin: {command}")
-        payload = run_json(
-            [
-                sys.executable,
-                str(FINDER_SCRIPT),
-                "install",
-                name,
-                "--method",
-                "skills",
                 "--dry-run",
                 "--json",
             ]
@@ -466,21 +450,35 @@ def validate_finder(skill_map: dict[str, dict[str, Any]]) -> None:
             payload.get("skills", []) if isinstance(payload, dict) else []
         )
         if (
-            "--full-depth" not in command
+            command[:4] != ["npx", "--yes", "skills", "add"]
+            or "--full-depth" not in command
             or "--global" not in command
             or selected_skills != [name]
         ):
             error(
-                f"finder generic install must select the exact skill {name}: {command}"
+                f"finder must install the exact skill {name} through the skills CLI: {command}"
             )
+    plugin_attempt = subprocess.run(
+        [
+            sys.executable,
+            str(FINDER_SCRIPT),
+            "install",
+            "volcengine-service-support",
+            "--dry-run",
+        ],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if plugin_attempt.returncode == 0:
+        error("finder install must reject plugin targets")
     payload = run_json(
         [
             sys.executable,
             str(FINDER_SCRIPT),
             "install",
             "volcengine-tosutil",
-            "--method",
-            "skills",
             "--scope",
             "project",
             "--source",
@@ -496,6 +494,24 @@ def validate_finder(skill_map: dict[str, dict[str, Any]]) -> None:
         )
 
     finder_text = (CATALOG_PATH.parents[1] / "SKILL.md").read_text(encoding="utf-8")
+    frontmatter_parts = finder_text.split("---", 2)
+    normalized_frontmatter = (
+        " ".join(frontmatter_parts[1].split())
+        if len(frontmatter_parts) == 3
+        else ""
+    )
+    fallback_trigger = (
+        "fallback during a Volcengine operation when the currently loaded or installed skills "
+        "cannot cover"
+    )
+    if fallback_trigger not in normalized_frontmatter:
+        error(
+            "finder description must trigger when active Volcengine work reaches a skill capability gap"
+        )
+    finder_script = FINDER_SCRIPT.read_text(encoding="utf-8")
+    forbidden_plugin_install_terms = ("install_codex", "codex_state", "codex plugin add")
+    if any(term in finder_script for term in forbidden_plugin_install_terms):
+        error("finder must install exact skills and contain no plugin installation path")
 
     def requires_list(key: str) -> set[str]:
         match = re.search(
@@ -511,14 +527,9 @@ def validate_finder(skill_map: dict[str, dict[str, Any]]) -> None:
 
     bins = requires_list("bins")
     any_bins = requires_list("anyBins")
-    if bins != {"python3"} or any_bins != {"codex", "npx"}:
+    if bins != {"python3", "npx"} or any_bins:
         error(
             f"finder runtime requirements are invalid: bins={sorted(bins)}, anyBins={sorted(any_bins)}"
-        )
-    eligible = lambda present: bins <= present and bool(any_bins & present)
-    if not eligible({"python3", "npx"}) or not eligible({"python3", "codex"}):
-        error(
-            "finder OpenClaw eligibility must allow either Codex or skills CLI installation"
         )
 
     cross_plugin_path = re.compile(r"\.\./(?:\.\./)+(?:volcengine-[a-z0-9-]+)")

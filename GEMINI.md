@@ -23,9 +23,11 @@ Optional catalogued skills:
 - `volcengine-api` — service support plugin; query Volcengine API specifications.
 - `volcengine-sdk-generator` — service support plugin; generate runnable SDK examples.
 
-When an optional skill is needed, load `volcengine-find-skills` first and follow its discovery and
+When an optional skill is needed, or an active Volcengine task exceeds the capabilities of the
+currently loaded or installed skills, load `volcengine-find-skills` and follow its discovery and
 installation workflow. Do not treat a catalogued optional skill as installed merely because its
-source exists inside another plugin in this repository.
+source exists inside another plugin in this repository. Install the exact selected skills, not
+their owning plugins.
 
 Trigger on Volcengine / 火山引擎 / 火山 keywords, `ve` commands, or
 `VOLCENGINE_ACCESS_KEY` / `VOLCENGINE_SECRET_KEY` / `VOLCENGINE_REGION` usage.

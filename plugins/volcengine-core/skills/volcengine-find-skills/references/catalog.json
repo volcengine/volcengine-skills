@@ -4,8 +4,8 @@
   "repository": "volcengine/volcengine-skills",
   "plugins": [
     {
-      "name": "volcengine-skills",
-      "display_name": "Volcengine Skills",
+      "name": "volcengine-core",
+      "display_name": "Volcengine Core",
       "domain": "核心",
       "domain_en": "Core",
       "category": "Coding",

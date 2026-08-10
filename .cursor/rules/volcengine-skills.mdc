@@ -6,7 +6,7 @@ alwaysApply: true
 # Volcengine Skills
 
 This repository installs only the core plugin by default. Load core skills from
-`plugins/volcengine-skills/skills/<skill-name>/SKILL.md`.
+`plugins/volcengine-core/skills/<skill-name>/SKILL.md`.
 
 Core skills:
 

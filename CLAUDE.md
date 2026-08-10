@@ -6,13 +6,13 @@
 
 - `skills/`：只保留 `core/` 分类。
 - `skills/core/`：只允许 `volcengine-cli`、`volcengine-troubleshooting`、`volcengine-knowledge-search`、`volcengine-find-skills`。
-- `plugins/volcengine-skills/`：原有默认 plugin，包含 hooks 和上述四个 core skill 的生成副本。
+- `plugins/volcengine-core/`：默认核心 plugin，包含 hooks 和上述四个 core skill 的生成副本。
 - `plugins/volcengine-<domain>/`：按产品域拆分的可选 plugin，也是其 skill 的唯一源码位置。
 - `scripts/sync_plugins.py`：从 finder catalog 复制 core skill，并生成 plugin manifest 与 marketplace。
 - `scripts/validate_codex_plugin_layout.py`：校验目录、清单、同步状态和默认安装约束。
 - `hooks/`：跨 skill 复用的 telemetry hook。
 
-核心 skill 只修改 `skills/core/`，不要直接修改 `plugins/volcengine-skills/skills/`。可选 skill 则直接修改所属 `plugins/volcengine-<domain>/skills/`。
+核心 skill 只修改 `skills/core/`，不要直接修改 `plugins/volcengine-core/skills/`。可选 skill 则直接修改所属 `plugins/volcengine-<domain>/skills/`。
 
 ## 什么时候使用
 
@@ -41,7 +41,7 @@
 5. 运行 `python3 scripts/validate_codex_plugin_layout.py`，确保 core 目录、marketplace 策略和 core 副本一致。
 6. 运行 `python3 -m unittest discover -s tests -v`，验证同步器的路径与写入边界。
 
-不要手工维护 `plugins/volcengine-skills/skills/`、plugin manifest 或 marketplace 条目；它们由 catalog 和同步脚本生成。可选 plugin 的 `skills/` 是源码，必须直接维护。
+不要手工维护 `plugins/volcengine-core/skills/`、plugin manifest 或 marketplace 条目；它们由 catalog 和同步脚本生成。可选 plugin 的 `skills/` 是源码，必须直接维护。
 
 ## 当前技能
 

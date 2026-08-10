@@ -5,10 +5,10 @@
   },
   "plugins": [
     {
-      "name": "volcengine-skills",
+      "name": "volcengine-core",
       "source": {
         "source": "local",
-        "path": "./plugins/volcengine-skills"
+        "path": "./plugins/volcengine-core"
       },
       "policy": {
         "installation": "INSTALLED_BY_DEFAULT",

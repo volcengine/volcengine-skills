@@ -8,8 +8,8 @@
   },
   "plugins": [
     {
-      "name": "volcengine-skills",
-      "source": "./plugins/volcengine-skills",
+      "name": "volcengine-core",
+      "source": "./plugins/volcengine-core",
       "description": "Core Volcengine discovery, documentation search, CLI operations, and troubleshooting skills.",
       "version": "1.1.0",
       "author": {

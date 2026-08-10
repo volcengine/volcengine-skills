@@ -1,11 +1,9 @@
 {
-  "name": "volcengine-skills",
-  "displayName": "Volcengine Skills",
+  "name": "volcengine-core",
   "description": "Core Volcengine discovery, documentation search, CLI operations, and troubleshooting skills.",
   "version": "1.1.0",
   "author": {
-    "name": "Volcengine Team",
-    "email": "volcengine@bytedance.com"
+    "name": "Volcengine Team"
   },
   "homepage": "https://github.com/volcengine/volcengine-skills",
   "repository": "https://github.com/volcengine/volcengine-skills",
@@ -24,7 +22,7 @@
     "volcengine-knowledge-search",
     "volcengine-find-skills"
   ],
-  "skills": "./skills/",
-  "logo": "assets/logo.svg",
-  "hooks": "./hooks/hooks-cursor.json"
+  "skills": [
+    "./skills/"
+  ]
 }

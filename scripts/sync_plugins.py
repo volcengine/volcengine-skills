@@ -41,7 +41,7 @@ CORE_HOOK_FILES = (
     "volcengine-apmplus-hook-reporter.mjs",
 )
 NAME_RE = re.compile(r"^volcengine-[a-z0-9]+(?:-[a-z0-9]+)*$")
-CORE_PLUGIN = "volcengine-skills"
+CORE_PLUGIN = "volcengine-core"
 CORE_SKILLS = {
     "volcengine-cli",
     "volcengine-find-skills",

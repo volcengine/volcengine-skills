@@ -21,7 +21,7 @@ CATALOG_PATH = (
     / "catalog.json"
 )
 FINDER_SCRIPT = CATALOG_PATH.parents[1] / "scripts" / "find_skills.py"
-CORE_PLUGIN = "volcengine-skills"
+CORE_PLUGIN = "volcengine-core"
 CORE_SKILLS = {
     "volcengine-cli",
     "volcengine-find-skills",
@@ -324,11 +324,11 @@ def validate_root_hosts(version: str) -> None:
             )
     opencode = load_json(REPO_ROOT / ".opencode" / "opencode.json")
     if opencode and opencode.get("skills", {}).get("paths") != [
-        "plugins/volcengine-skills/skills"
+        "plugins/volcengine-core/skills"
     ]:
         error("OpenCode must expose only the core plugin skills path")
     openclaw = load_json(REPO_ROOT / "openclaw.plugin.json")
-    if openclaw and openclaw.get("skills") != ["./plugins/volcengine-skills/skills"]:
+    if openclaw and openclaw.get("skills") != ["./plugins/volcengine-core/skills"]:
         error("OpenClaw must expose only the core plugin skills path")
     if openclaw and openclaw.get("version") != version:
         error("OpenClaw plugin version must match package.json")

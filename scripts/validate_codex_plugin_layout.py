@@ -447,6 +447,15 @@ def validate_finder(skill_map: dict[str, dict[str, Any]]) -> None:
             error(f"finder query {query!r} did not rank {expected} first")
     for name, skill in skill_map.items():
         payload = run_json(
+            [sys.executable, str(FINDER_SCRIPT), "search", name, "--json"]
+        )
+        if (
+            not isinstance(payload, list)
+            or not payload
+            or payload[0].get("name") != name
+        ):
+            error(f"finder exact-name query did not rank {name} first")
+        payload = run_json(
             [
                 sys.executable,
                 str(FINDER_SCRIPT),

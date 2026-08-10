@@ -21,13 +21,12 @@ skills are grouped into Volcengine product-domain plugins and discovered through
 | Plugin | Product domain | Skills | Default |
 | --- | --- | --- | --- |
 | `volcengine-core` | Core | `volcengine-cli`, `volcengine-troubleshooting`, `volcengine-knowledge-search`, `volcengine-find-skills` | Yes |
-| `volcengine-elastic-compute` | Elastic Compute | `volcengine-prepare`, `volcengine-deploy`, `volcengine-iac` | No |
 | `volcengine-storage` | Storage | `volcengine-tosutil` | No |
 | `volcengine-database` | Database | `volcengine-db-supabase` | No |
 | `volcengine-containers-middleware` | Containers and Middleware | `volcengine-vefaas` | No |
 | `volcengine-security` | Security | `volcengine-compliance` | No |
 | `volcengine-identity-access-control` | Identity and Access Control | `volcengine-landing-zone` | No |
-| `volcengine-service-support` | Service Support | `volcengine-api`, `volcengine-sdk-generator` | No |
+| `volcengine-service-support` | Service Support | `volcengine-prepare`, `volcengine-deploy`, `volcengine-iac`, `volcengine-api`, `volcengine-sdk-generator` | No |
 
 The core marketplace entry uses `INSTALLED_BY_DEFAULT`; all optional plugins use `AVAILABLE`.
 `skills/` contains only the `core/` category, with exactly four core skills. Every optional skill
@@ -41,9 +40,9 @@ is owned directly by its product-domain plugin and has no duplicate under `skill
 | [`volcengine-troubleshooting`](./skills/core/volcengine-troubleshooting/SKILL.md) | `volcengine-core` | Diagnose Volcengine errors and resource issues |
 | [`volcengine-knowledge-search`](./skills/core/volcengine-knowledge-search/SKILL.md) | `volcengine-core` | Search and retrieve full official Volcengine documentation |
 | [`volcengine-find-skills`](./skills/core/volcengine-find-skills/SKILL.md) | `volcengine-core` | Find and install skills by task or product domain |
-| [`volcengine-prepare`](./plugins/volcengine-elastic-compute/skills/volcengine-prepare/SKILL.md) | `volcengine-elastic-compute` | Analyze a repository and recommend ECS, VKE, or veFaaS |
-| [`volcengine-deploy`](./plugins/volcengine-elastic-compute/skills/volcengine-deploy/SKILL.md) | `volcengine-elastic-compute` | Deploy a local directory or Git repository to Volcengine |
-| [`volcengine-iac`](./plugins/volcengine-elastic-compute/skills/volcengine-iac/SKILL.md) | `volcengine-elastic-compute` | Manage Volcengine infrastructure with Terraform |
+| [`volcengine-prepare`](./plugins/volcengine-service-support/skills/volcengine-prepare/SKILL.md) | `volcengine-service-support` | Analyze a repository and recommend ECS, VKE, or veFaaS |
+| [`volcengine-deploy`](./plugins/volcengine-service-support/skills/volcengine-deploy/SKILL.md) | `volcengine-service-support` | Deploy a local directory or Git repository to Volcengine |
+| [`volcengine-iac`](./plugins/volcengine-service-support/skills/volcengine-iac/SKILL.md) | `volcengine-service-support` | Manage Volcengine infrastructure with Terraform |
 | [`volcengine-tosutil`](./plugins/volcengine-storage/skills/volcengine-tosutil/SKILL.md) | `volcengine-storage` | Manage TOS object storage resources |
 | [`volcengine-db-supabase`](./plugins/volcengine-database/skills/volcengine-db-supabase/SKILL.md) | `volcengine-database` | Manage Volcengine AI-native BaaS, Supabase edition (AIDAP) |
 | [`volcengine-vefaas`](./plugins/volcengine-containers-middleware/skills/volcengine-vefaas/SKILL.md) | `volcengine-containers-middleware` | Deploy and manage veFaaS serverless applications |

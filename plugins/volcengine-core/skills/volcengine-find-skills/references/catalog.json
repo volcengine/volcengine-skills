@@ -87,44 +87,6 @@
       ]
     },
     {
-      "name": "volcengine-elastic-compute",
-      "display_name": "Volcengine Elastic Compute",
-      "domain": "弹性计算",
-      "domain_en": "Elastic Compute",
-      "default": false,
-      "description": "Analyze, prepare, deploy, and manage Volcengine application infrastructure across ECS, VKE, and veFaaS.",
-      "short_description": "Prepare and deploy apps with CLI or Terraform",
-      "keywords": ["弹性计算", "compute", "ecs", "deployment", "terraform", "iac", "vke", "vefaas"],
-      "default_prompts": [
-        "Assess this repository for Volcengine deployment.",
-        "Deploy this application to Volcengine.",
-        "Create Terraform for this Volcengine architecture."
-      ],
-      "skills": [
-        {
-          "name": "volcengine-prepare",
-          "path": "plugins/volcengine-elastic-compute/skills/volcengine-prepare",
-          "summary": "Analyze a repository and recommend ECS, VKE, or veFaaS deployment shapes.",
-          "summary_zh": "分析代码仓库并推荐 ECS、VKE 或 veFaaS 部署形态。",
-          "keywords": ["prepare", "readiness", "部署评估", "架构选择", "ecs", "vke", "vefaas"]
-        },
-        {
-          "name": "volcengine-deploy",
-          "path": "plugins/volcengine-elastic-compute/skills/volcengine-deploy",
-          "summary": "Deploy a local directory or Git repository to Volcengine.",
-          "summary_zh": "将本地目录或 Git 仓库部署到火山引擎。",
-          "keywords": ["deploy", "deployment", "部署", "应用", "发布", "上线", "ecs", "vke", "vefaas"]
-        },
-        {
-          "name": "volcengine-iac",
-          "path": "plugins/volcengine-elastic-compute/skills/volcengine-iac",
-          "summary": "Manage Volcengine infrastructure with Terraform and infrastructure as code.",
-          "summary_zh": "使用 Terraform 和基础设施即代码管理火山引擎资源。",
-          "keywords": ["terraform", "iac", "基础设施即代码", "plan", "drift", "volcenginecc"]
-        }
-      ]
-    },
-    {
       "name": "volcengine-storage",
       "display_name": "Volcengine Storage",
       "domain": "存储",
@@ -230,14 +192,38 @@
       "domain": "服务支持",
       "domain_en": "Service Support",
       "default": false,
-      "description": "Explore Volcengine OpenAPI specifications and generate runnable SDK examples for cloud control integrations.",
-      "short_description": "Explore OpenAPI specs and generate SDK examples",
-      "keywords": ["服务支持", "service support", "云控制api", "openapi", "sdk", "api"],
+      "description": "Prepare and deploy applications, manage infrastructure as code, explore OpenAPI specifications, and generate runnable SDK examples.",
+      "short_description": "Prepare deployments, manage IaC, and support API integrations",
+      "keywords": ["服务支持", "service support", "deployment", "terraform", "iac", "ecs", "vke", "vefaas", "云控制api", "openapi", "sdk", "api"],
       "default_prompts": [
+        "Assess this repository for Volcengine deployment.",
+        "Deploy this application to Volcengine.",
+        "Create Terraform for this Volcengine architecture.",
         "Find the request schema for this Volcengine API.",
         "Generate a runnable SDK example for this API."
       ],
       "skills": [
+        {
+          "name": "volcengine-prepare",
+          "path": "plugins/volcengine-service-support/skills/volcengine-prepare",
+          "summary": "Analyze a repository and recommend ECS, VKE, or veFaaS deployment shapes.",
+          "summary_zh": "分析代码仓库并推荐 ECS、VKE 或 veFaaS 部署形态。",
+          "keywords": ["prepare", "readiness", "部署评估", "架构选择", "ecs", "vke", "vefaas"]
+        },
+        {
+          "name": "volcengine-deploy",
+          "path": "plugins/volcengine-service-support/skills/volcengine-deploy",
+          "summary": "Deploy a local directory or Git repository to Volcengine.",
+          "summary_zh": "将本地目录或 Git 仓库部署到火山引擎。",
+          "keywords": ["deploy", "deployment", "部署", "应用", "发布", "上线", "ecs", "vke", "vefaas"]
+        },
+        {
+          "name": "volcengine-iac",
+          "path": "plugins/volcengine-service-support/skills/volcengine-iac",
+          "summary": "Manage Volcengine infrastructure with Terraform and infrastructure as code.",
+          "summary_zh": "使用 Terraform 和基础设施即代码管理火山引擎资源。",
+          "keywords": ["terraform", "iac", "基础设施即代码", "plan", "drift", "volcenginecc"]
+        },
         {
           "name": "volcengine-api",
           "path": "plugins/volcengine-service-support/skills/volcengine-api",

@@ -20,13 +20,12 @@
 | Plugin | 产品分类 | Skills | 默认安装 |
 | --- | --- | --- | --- |
 | `volcengine-core` | 核心 | `volcengine-cli`、`volcengine-troubleshooting`、`volcengine-knowledge-search`、`volcengine-find-skills` | 是 |
-| `volcengine-elastic-compute` | 弹性计算 | `volcengine-prepare`、`volcengine-deploy`、`volcengine-iac` | 否 |
 | `volcengine-storage` | 存储 | `volcengine-tosutil` | 否 |
 | `volcengine-database` | 数据库 | `volcengine-db-supabase` | 否 |
 | `volcengine-containers-middleware` | 容器与中间件 | `volcengine-vefaas` | 否 |
 | `volcengine-security` | 安全 | `volcengine-compliance` | 否 |
 | `volcengine-identity-access-control` | 身份与访问控制 | `volcengine-landing-zone` | 否 |
-| `volcengine-service-support` | 服务支持 | `volcengine-api`、`volcengine-sdk-generator` | 否 |
+| `volcengine-service-support` | 服务支持 | `volcengine-prepare`、`volcengine-deploy`、`volcengine-iac`、`volcengine-api`、`volcengine-sdk-generator` | 否 |
 
 核心插件的 marketplace 策略为 `INSTALLED_BY_DEFAULT`，其他插件均为 `AVAILABLE`。
 `skills/` 下只保留 `core/` 分类，其中严格包含四个核心 skill。其他 skill 由各自的可选 plugin 直接拥有，不在 `skills/` 下保留副本。
@@ -39,9 +38,9 @@
 | [`volcengine-troubleshooting`](./skills/core/volcengine-troubleshooting/SKILL.md) | `volcengine-core` | 火山引擎故障排查与诊断 |
 | [`volcengine-knowledge-search`](./skills/core/volcengine-knowledge-search/SKILL.md) | `volcengine-core` | 检索火山引擎官方文档并获取全文 |
 | [`volcengine-find-skills`](./skills/core/volcengine-find-skills/SKILL.md) | `volcengine-core` | 按任务或产品域查找、安装其他 skill |
-| [`volcengine-prepare`](./plugins/volcengine-elastic-compute/skills/volcengine-prepare/SKILL.md) | `volcengine-elastic-compute` | 分析仓库并推荐 ECS / VKE / veFaaS 部署形态 |
-| [`volcengine-deploy`](./plugins/volcengine-elastic-compute/skills/volcengine-deploy/SKILL.md) | `volcengine-elastic-compute` | 将本地目录或 Git 仓库部署到火山引擎 |
-| [`volcengine-iac`](./plugins/volcengine-elastic-compute/skills/volcengine-iac/SKILL.md) | `volcengine-elastic-compute` | 使用 Terraform 编排火山引擎基础设施 |
+| [`volcengine-prepare`](./plugins/volcengine-service-support/skills/volcengine-prepare/SKILL.md) | `volcengine-service-support` | 分析仓库并推荐 ECS / VKE / veFaaS 部署形态 |
+| [`volcengine-deploy`](./plugins/volcengine-service-support/skills/volcengine-deploy/SKILL.md) | `volcengine-service-support` | 将本地目录或 Git 仓库部署到火山引擎 |
+| [`volcengine-iac`](./plugins/volcengine-service-support/skills/volcengine-iac/SKILL.md) | `volcengine-service-support` | 使用 Terraform 编排火山引擎基础设施 |
 | [`volcengine-tosutil`](./plugins/volcengine-storage/skills/volcengine-tosutil/SKILL.md) | `volcengine-storage` | 管理 TOS 对象存储资源 |
 | [`volcengine-db-supabase`](./plugins/volcengine-database/skills/volcengine-db-supabase/SKILL.md) | `volcengine-database` | 管理 AI 原生 BaaS 平台 Supabase 版（AIDAP） |
 | [`volcengine-vefaas`](./plugins/volcengine-containers-middleware/skills/volcengine-vefaas/SKILL.md) | `volcengine-containers-middleware` | 部署和管理 veFaaS Serverless 应用 |

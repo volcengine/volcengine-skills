@@ -35,34 +35,6 @@
       "category": "core"
     },
     {
-      "name": "volcengine-elastic-compute",
-      "source": "./plugins/volcengine-elastic-compute",
-      "description": "Analyze, prepare, deploy, and manage Volcengine application infrastructure across ECS, VKE, and veFaaS.",
-      "version": "1.1.0",
-      "author": {
-        "name": "Volcengine Team"
-      },
-      "homepage": "https://github.com/volcengine/volcengine-skills",
-      "repository": "https://github.com/volcengine/volcengine-skills",
-      "license": "MIT",
-      "keywords": [
-        "volcengine",
-        "cloud",
-        "弹性计算",
-        "compute",
-        "ecs",
-        "deployment",
-        "terraform",
-        "iac",
-        "vke",
-        "vefaas",
-        "volcengine-prepare",
-        "volcengine-deploy",
-        "volcengine-iac"
-      ],
-      "category": "elastic-compute"
-    },
-    {
       "name": "volcengine-storage",
       "source": "./plugins/volcengine-storage",
       "description": "Operate Volcengine storage products and data with product-specific tools.",
@@ -185,7 +157,7 @@
     {
       "name": "volcengine-service-support",
       "source": "./plugins/volcengine-service-support",
-      "description": "Explore Volcengine OpenAPI specifications and generate runnable SDK examples for cloud control integrations.",
+      "description": "Prepare and deploy applications, manage infrastructure as code, explore OpenAPI specifications, and generate runnable SDK examples.",
       "version": "1.1.0",
       "author": {
         "name": "Volcengine Team"
@@ -198,10 +170,19 @@
         "cloud",
         "服务支持",
         "service support",
+        "deployment",
+        "terraform",
+        "iac",
+        "ecs",
+        "vke",
+        "vefaas",
         "云控制api",
         "openapi",
         "sdk",
         "api",
+        "volcengine-prepare",
+        "volcengine-deploy",
+        "volcengine-iac",
         "volcengine-api",
         "volcengine-sdk-generator"
       ],

@@ -33,7 +33,7 @@ class SyncCatalogSafetyTest(unittest.TestCase):
 
     def test_plugin_without_required_prefix_is_rejected(self) -> None:
         catalog = copy.deepcopy(self.catalog)
-        catalog["plugins"][1]["name"] = "elastic-compute"
+        catalog["plugins"][1]["name"] = "storage"
         self.assert_rejected(catalog)
 
     def test_skill_path_traversal_is_rejected(self) -> None:
@@ -48,7 +48,7 @@ class SyncCatalogSafetyTest(unittest.TestCase):
 
     def test_optional_skill_must_be_owned_by_its_plugin(self) -> None:
         catalog = copy.deepcopy(self.catalog)
-        catalog["plugins"][1]["skills"][0]["path"] = "skills/core/volcengine-prepare"
+        catalog["plugins"][1]["skills"][0]["path"] = "skills/core/volcengine-tosutil"
         self.assert_rejected(catalog)
 
     def test_core_skill_must_live_in_core(self) -> None:

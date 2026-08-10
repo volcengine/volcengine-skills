@@ -17,9 +17,9 @@ Core skills:
 
 Optional catalogued skills:
 
-- `volcengine-prepare` — elastic compute plugin; analyze a repository and recommend a deployment shape.
-- `volcengine-deploy` — elastic compute plugin; deploy an application to Volcengine.
-- `volcengine-iac` — elastic compute plugin; manage infrastructure with Terraform.
+- `volcengine-prepare` — service support plugin; analyze a repository and recommend a deployment shape.
+- `volcengine-deploy` — service support plugin; deploy an application to Volcengine.
+- `volcengine-iac` — service support plugin; manage infrastructure with Terraform.
 - `volcengine-tosutil` — storage plugin; manage TOS buckets and objects.
 - `volcengine-db-supabase` — database plugin; manage Volcengine AI-native BaaS (AIDAP).
 - `volcengine-vefaas` — containers and middleware plugin; manage veFaaS applications.

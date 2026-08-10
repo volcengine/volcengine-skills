@@ -37,6 +37,18 @@ class FinderInstallVerificationTest(unittest.TestCase):
     def completed(self, returncode: int, stdout: str = "", stderr: str = ""):
         return subprocess.CompletedProcess([], returncode, stdout=stdout, stderr=stderr)
 
+    def test_every_catalogued_skill_is_findable_and_maps_to_its_plugin(self) -> None:
+        for record in FINDER.iter_records(self.catalog):
+            with self.subTest(skill=record["name"]):
+                matches = FINDER.search_records(self.catalog, record["name"])
+                self.assertTrue(matches)
+                self.assertEqual(matches[0]["name"], record["name"])
+                plugin, resolved = FINDER.resolve_target(
+                    self.catalog, record["name"]
+                )
+                self.assertEqual(plugin["name"], record["plugin"])
+                self.assertEqual([item["name"] for item in resolved], [record["name"]])
+
     @mock.patch.object(FINDER.shutil, "which", return_value="/usr/bin/npx")
     @mock.patch.object(FINDER.subprocess, "run")
     def test_skills_install_is_verified_from_project_list(self, run, _which) -> None:

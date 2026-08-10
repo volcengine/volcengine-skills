@@ -14,11 +14,6 @@
       "description": "Core Volcengine discovery, documentation search, CLI operations, and troubleshooting skills."
     },
     {
-      "name": "volcengine-elastic-compute",
-      "source": "./plugins/volcengine-elastic-compute",
-      "description": "Analyze, prepare, deploy, and manage Volcengine application infrastructure across ECS, VKE, and veFaaS."
-    },
-    {
       "name": "volcengine-storage",
       "source": "./plugins/volcengine-storage",
       "description": "Operate Volcengine storage products and data with product-specific tools."
@@ -46,7 +41,7 @@
     {
       "name": "volcengine-service-support",
       "source": "./plugins/volcengine-service-support",
-      "description": "Explore Volcengine OpenAPI specifications and generate runnable SDK examples for cloud control integrations."
+      "description": "Prepare and deploy applications, manage infrastructure as code, explore OpenAPI specifications, and generate runnable SDK examples."
     }
   ]
 }

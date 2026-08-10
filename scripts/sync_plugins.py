@@ -228,6 +228,15 @@ def validate_catalog(catalog: dict[str, Any]) -> None:
         errors.append(
             f"skills/core must contain exactly {sorted(CORE_SKILLS)}, got {sorted(actual_core)}"
         )
+    actual_plugins = {
+        path.name for path in PLUGINS_ROOT.iterdir() if path.is_dir()
+    }
+    if actual_plugins != plugin_names:
+        errors.append(
+            "plugins directory must match catalog: "
+            f"missing={sorted(plugin_names - actual_plugins)}, "
+            f"extra={sorted(actual_plugins - plugin_names)}"
+        )
     if errors:
         raise ValueError("invalid catalog:\n- " + "\n- ".join(errors))
 

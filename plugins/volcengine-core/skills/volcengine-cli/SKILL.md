@@ -95,7 +95,7 @@ ve sts GetCallerIdentity
 
 **Failure** — no usable profile. Default plan: use `ve login` (Console Login, OAuth 2.0 + PKCE). Announce this to the user up front, and tell them they can say "use AK/SK", "use STS token", or "use SSO" to switch.
 
-The same plan applies when a previously working session expires **mid-task**: any `ve` command failing with `failed to refresh session token. Please run 've login' to re-authenticate` (or similar refresh-token/session-expired text) is this exact failure, no matter which skill issued the command. The error text tells the human to run `ve login` — do **not** relay that instruction to the user or ask them to run `ve login` in their own terminal; run the Console Login procedure below yourself and only hand the user the sign-in URL and the code round-trip. Re-login must target the profile that was in use: if a profile was fixed earlier in the conversation, pass it to `start` (step 2 below) so both the login and its verification hit that profile — omitting it refreshes `default`, leaves the fixed profile broken, and pollutes the default account context.
+The same plan applies when a previously working session expires **mid-task**: any `ve` command failing with `failed to refresh session token. Please run 've login' to re-authenticate` (or similar refresh-token/session-expired text) is this exact failure, no matter which skill issued the command. The error text tells the human to run `ve login` — do **not** relay that instruction to the user or ask them to run `ve login` in their own terminal; run the Console Login procedure below yourself and only hand the user the sign-in URL and the code round-trip. Re-login must target the profile that was in use: if a profile was fixed earlier in the conversation, pass it to the startup subcommand selected in step 2 so both the login and its verification hit that profile — omitting it refreshes `default`, leaves the fixed profile broken, and pollutes the default account context.
 
 First check the ve version:
 
@@ -120,11 +120,21 @@ ve --version
 
 2. **Start the login subprocess and get the URL:**
 
+   **Default — use `start-wait`.** Run it as a long-running tool call (for example, a background/async invocation such as `run_in_background`) that returns an active session while `ve login` keeps running. It prints the URL and deliberately stays blocked so the wrapper keeps `ve login` alive. Keep that session active; do **not** append shell `&`, and do **not** wait for it to exit before requesting the code. Run `complete` through a separate tool call. If unsure which subcommand to use, use `start-wait`.
+
+   ```text
+   scripts/ve_login_remote.sh start-wait <region> [profile]
+   ```
+
+   **Optimization — use `start` only when the runtime is explicitly known to preserve background descendants after the launching tool call returns** (for example, a verified Claude Code environment). It prints the URL and returns immediately via a normal (foreground) tool call while `ve login` continues in the background.
+
    ```text
    scripts/ve_login_remote.sh start <region> [profile]
    ```
 
-   Pass `[profile]` **only** when the user explicitly fixed a profile earlier in the conversation (never pick one yourself); omit it to use the CLI default resolution. Prints a `https://signin.volcengine.com/...` URL on stdout. Forward it verbatim to the user with: "Open this URL in any browser, complete login, then send me the 'Authorization code' shown on the page."
+   **Fallback — if the runtime cannot keep a long-running tool session active and is not explicitly known to preserve background descendants, do not guess.** Skip `ve login` and fall back to another authentication method (AK/SK, STS token, or SSO) below.
+
+   Both subcommands print a `https://signin.volcengine.com/...` URL on stdout. Pass `[profile]` **only** when the user explicitly fixed a profile earlier in the conversation (never pick one yourself); omit it to use the CLI default resolution. Forward the URL verbatim to the user with: "Open this URL in any browser, complete login, then send me the 'Authorization code' shown on the page."
 
 3. **When the user replies with the code, complete the flow:**
 
@@ -132,7 +142,9 @@ ve --version
    scripts/ve_login_remote.sh complete <code> [profile]
    ```
 
-   The script writes the code into the FIFO bound to the still-running ve, waits for ve to exit, then runs `ve sts GetCallerIdentity` to verify. Pass the same `[profile]` you passed to `start` so the verification hits the profile that was just logged in.
+   The script writes the code into the FIFO bound to the still-running ve, waits for ve to exit, then runs `ve sts GetCallerIdentity` to verify. Pass the same `[profile]` you passed to `start` or `start-wait` so the verification hits the profile that was just logged in.
+
+   If you used `start-wait`, its invocation returns after `complete` finishes the login. Drain that tool session so nothing is left open. If you used `start`, there is no held tool session to drain.
 
    > **Session replacement**: When the user is switching to a different account, `ve` will ask `Replace the existing login_session? [y/N]:`. The script handles this automatically — `complete` sends `y` along with the authorization code, so no manual intervention is needed.
 
@@ -147,15 +159,18 @@ ve --version
 **Critical rules — do NOT improvise OAuth:**
 
 - ❌ Do NOT present a menu like "A. URL  B. local browser  C. AK/SK". Commit to `--remote`; let the user interrupt to switch.
+- ❌ Do NOT let the login subprocess die while waiting for the authorization code. The PKCE challenge dies with it; the URL and any code produced from it become unusable.
+- ❌ Do NOT use `start` unless the runtime is explicitly known to preserve background descendants after the launching tool call returns. Default to `start-wait`; if unsure, use `start-wait`.
+- ❌ Do NOT detach `start-wait` with shell `&`, or wait for it to exit before asking for the code. Keep it in an active long-running tool session and call `complete` separately.
 - ❌ Do NOT pre-fetch the URL by running `ve login --remote` and exiting. The PKCE challenge dies with the subprocess; the URL becomes useless and the next attempt fails with PKCE mismatch.
 - ❌ Do NOT construct `signin.volcengine.com/authorize/...` URLs yourself.
 - ❌ Do NOT decode, parse, or transform the user's reply. Whatever they paste IS the authorization code — pass it verbatim to `complete <code>`. No base64 decode (even if the string looks base64-shaped), no URL query-string parsing, no extracting `code=` from callback URLs.
 - ❌ Do NOT pipe codes in (`echo "<code>" | ve login --remote`). The code arrives before the user completes browser login and fails verification.
 - ❌ Do NOT spawn parallel `ve login` subprocesses. One at a time, tracked by the helper.
 - ❌ Do NOT call `ve login --remote` directly. **Always** go through `scripts/ve_login_remote.sh`. The script binds ve's stdin to a FIFO so the still-running ve can receive the user's code via a separate `complete` call. Calling ve directly orphans the subprocess and breaks the code-feeding step.
-- ✅ Use `scripts/ve_login_remote.sh start` / `complete` / `abort`.
+- ✅ Default to `start-wait`; use `start` only in a runtime known to preserve background descendants. Then `complete` or `abort`.
 
-> **Switching region mid-flow**: `scripts/ve_login_remote.sh abort`, then `start <new-region>`.
+> **Switching region mid-flow**: run `scripts/ve_login_remote.sh abort`, then restart with `start-wait` (or `start` if the runtime is known to preserve background descendants).
 > **No browser on any device** (true offline / CI): skip `ve login`, fall back to AK/SK below.
 
 If `ve login` fails (network error, non-interactive terminal, version too old), or the user explicitly asks for a different method, fall back to one of the alternatives below. If installed via npm, upgrade with `npm i -g @volcengine/cli@latest`.
@@ -337,7 +352,11 @@ ve redis CreateDBInstance --body '{"InstanceName":"demo","RegionId":"cn-beijing"
 { "ResponseMetadata": { "Error": { "Code": "...", "Message": "..." } } }
 ```
 
-When a response includes `ResponseMetadata.Error`, first classify whether it is request-format, missing dependency, account state, service activation, real-name verification, purchase qualification, or permission related. For account/service-state patterns, consult [references/common-errors.md](references/common-errors.md). For product-specific errors, also consult the matching service note below. For permission errors (`AccessDenied`, `NoPermission`, `RoleNotExist`, `Forbidden`, or STS-related failures), activate the `volcengine-troubleshooting` skill and use its account-permission diagnosis capability to locate the root cause and guide the user through remediation.
+### Error Handling
+
+Whenever a `ve` command or extension helper fails, or a response contains `ResponseMetadata.Error`, read [references/common-errors.md](references/common-errors.md) completely before diagnosing the error or responding to the user. Partial searches, matched lines, or excerpts do not satisfy this requirement.
+
+First classify the error as request-format, missing dependency, account state, service activation, real-name verification, purchase qualification, or permission related. For product-specific errors, also read the matching service note below. For permission errors (`AccessDenied`, `NoPermission`, `RoleNotExist`, `Forbidden`, or STS-related failures), activate the `volcengine-troubleshooting` skill and use its account-permission diagnosis capability to locate the root cause and guide the user through remediation.
 
 ### Async Resource Creation Requires Polling
 

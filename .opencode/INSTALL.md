@@ -6,7 +6,7 @@
 
 - [OpenCode.ai](https://opencode.ai) 已安装
 
-## 当前推荐：Symlink 方式
+## 当前推荐：skills.paths 方式
 
 1. **Clone 仓库：**
    ```bash
@@ -15,21 +15,26 @@
 
 2. **在 `opencode.json` 中添加 skills 路径：**
    ```json
-   {
-     "skills": {
-      "paths": ["~/.config/opencode/volcengine-skills/plugins/volcengine-core/skills"]
-     }
-   }
+    {
+      "skills": {
+        "paths": ["~/.config/opencode/volcengine-skills/plugins/volcengine-core/skills"]
+      }
+    }
    ```
 
 3. **重启 OpenCode** 让 skills 被发现。
 
 ## 使用
 
-用 OpenCode 原生 `skill` 工具：
+先确认四个核心 skill 均可发现：
+
+```bash
+opencode debug skill
+```
+
+然后启动 OpenCode，直接描述火山引擎任务，或明确要求加载 finder：
 
 ```
-use skill tool to list skills
 use skill tool to load volcengine-find-skills
 ```
 

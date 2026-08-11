@@ -351,6 +351,58 @@ def validate_root_hosts(version: str) -> None:
         error("Gemini extension version must match package.json")
 
 
+def validate_installation_docs() -> None:
+    readmes = (
+        (REPO_ROOT / "README.md", "#默认安装"),
+        (REPO_ROOT / "README_en.md", "#default-installation"),
+    )
+    required = (
+        "codex plugin marketplace add volcengine/volcengine-skills",
+        "codex plugin add volcengine-core@volcengine-skills",
+        "/plugin marketplace add volcengine/volcengine-skills",
+        "/plugin install volcengine-core@volcengine-skills",
+        "/volcengine-core:volcengine-find-skills",
+        "/add-plugin volcengine-core@https://github.com/volcengine/volcengine-skills",
+        "gemini skills list",
+    )
+    for path, quick_anchor in readmes:
+        try:
+            text = path.read_text(encoding="utf-8")
+        except FileNotFoundError:
+            error(f"missing installation document: {relative(path)}")
+            continue
+        if f"]({quick_anchor})" not in text:
+            error(f"{relative(path)} quick-install link must target {quick_anchor}")
+        for command in required:
+            if command not in text:
+                error(f"{relative(path)} is missing install/use command: {command}")
+        if "gemini extensions install" in text:
+            error(
+                f"{relative(path)} must install native Gemini skills, not the root extension"
+            )
+        for skill in sorted(CORE_SKILLS):
+            command = (
+                "gemini skills install https://github.com/volcengine/volcengine-skills "
+                f"--path skills/core/{skill}"
+            )
+            if command not in text:
+                error(f"{relative(path)} is missing Gemini core install: {skill}")
+
+    opencode_doc = REPO_ROOT / ".opencode" / "INSTALL.md"
+    try:
+        opencode_text = opencode_doc.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        error(f"missing installation document: {relative(opencode_doc)}")
+    else:
+        for expected in (
+            "plugins/volcengine-core/skills",
+            "opencode debug skill",
+            "volcengine-find-skills",
+        ):
+            if expected not in opencode_text:
+                error(f"{relative(opencode_doc)} is missing: {expected}")
+
+
 def validate_core_hooks() -> None:
     payload = load_json(REPO_ROOT / "hooks" / "hooks.json")
     if not payload:
@@ -571,6 +623,7 @@ def main() -> None:
     validate_marketplaces(plugin_map)
     validate_plugin_manifests(plugin_map, version)
     validate_root_hosts(version)
+    validate_installation_docs()
     validate_core_hooks()
     validate_hardcoded_lists(set(skill_map), set(plugin_map))
     validate_finder(skill_map)

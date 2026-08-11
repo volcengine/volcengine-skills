@@ -13,7 +13,7 @@
 等 AI coding agent。仓库默认只安装核心插件；其他技能按火山引擎产品域拆分为可选插件，由
 `volcengine-find-skills` 统一发现和安装。
 
-**[快速安装 →](#快速安装)**
+**[快速安装 →](#默认安装)**
 
 ## Plugins
 
@@ -69,6 +69,7 @@
 ```bash
 codex plugin marketplace add volcengine/volcengine-skills
 codex plugin add volcengine-core@volcengine-skills
+codex plugin list
 ```
 
 上述 plugin 命令只用于首次加载核心 finder。finder 后续发现缺失能力时，只直接安装选中的 skill。
@@ -94,7 +95,7 @@ npx skills add volcengine/volcengine-skills \
   --skill volcengine-cli volcengine-troubleshooting volcengine-knowledge-search volcengine-find-skills
 ```
 
-后续可由 finder 调用 `npx skills add --skill` 精确安装单个或多个 skill，也可以交互式选择：
+后续可由 finder 调用 `npx skills add --skill` 精确安装单个或多个 skill。如需一次安装 catalog 中的全部 skill：
 
 ```bash
 npx skills add volcengine/volcengine-skills --full-depth
@@ -106,13 +107,20 @@ npx skills add volcengine/volcengine-skills --full-depth
 /plugin marketplace add volcengine/volcengine-skills
 /plugin install volcengine-core@volcengine-skills
 /reload-plugins
+/volcengine-core:volcengine-find-skills
 ```
 
 ### Gemini CLI
 
 ```bash
-gemini extensions install https://github.com/volcengine/volcengine-skills
+gemini skills install https://github.com/volcengine/volcengine-skills --path skills/core/volcengine-cli
+gemini skills install https://github.com/volcengine/volcengine-skills --path skills/core/volcengine-troubleshooting
+gemini skills install https://github.com/volcengine/volcengine-skills --path skills/core/volcengine-knowledge-search
+gemini skills install https://github.com/volcengine/volcengine-skills --path skills/core/volcengine-find-skills
+gemini skills list
 ```
+
+首次安装时逐项确认安全提示。安装后重新启动 Gemini CLI；可直接描述火山引擎任务，也可要求它使用 `volcengine-find-skills`。
 
 ### OpenCode
 
@@ -122,7 +130,10 @@ gemini extensions install https://github.com/volcengine/volcengine-skills
 
 ```text
 /add-plugin volcengine-core@https://github.com/volcengine/volcengine-skills
+/volcengine-find-skills
 ```
+
+在 Cursor 2.5 或更高版本的 Agent 对话中输入完整命令；`/add-plugin` 可能不会出现在自动补全中。
 
 ## 目录结构
 

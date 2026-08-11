@@ -14,7 +14,7 @@ Codex, OpenCode, Cursor, and Gemini CLI. Only the core plugin is installed by de
 skills are grouped into Volcengine product-domain plugins and discovered through
 `volcengine-find-skills`.
 
-**[Quick Install →](#quick-install)**
+**[Quick Install →](#default-installation)**
 
 ## Plugins
 
@@ -77,6 +77,7 @@ Add the marketplace and install only the core plugin:
 ```bash
 codex plugin marketplace add volcengine/volcengine-skills
 codex plugin add volcengine-core@volcengine-skills
+codex plugin list
 ```
 
 These plugin commands only bootstrap the core finder. Subsequent finder installs target exact skills.
@@ -104,7 +105,7 @@ npx skills add volcengine/volcengine-skills \
   --skill volcengine-cli volcengine-troubleshooting volcengine-knowledge-search volcengine-find-skills
 ```
 
-The finder can later invoke `npx skills add --skill` for exact skills, or users can choose interactively:
+The finder can later invoke `npx skills add --skill` for exact skills. To install every catalogued skill at once:
 
 ```bash
 npx skills add volcengine/volcengine-skills --full-depth
@@ -116,13 +117,20 @@ npx skills add volcengine/volcengine-skills --full-depth
 /plugin marketplace add volcengine/volcengine-skills
 /plugin install volcengine-core@volcengine-skills
 /reload-plugins
+/volcengine-core:volcengine-find-skills
 ```
 
 ### Gemini CLI
 
 ```bash
-gemini extensions install https://github.com/volcengine/volcengine-skills
+gemini skills install https://github.com/volcengine/volcengine-skills --path skills/core/volcengine-cli
+gemini skills install https://github.com/volcengine/volcengine-skills --path skills/core/volcengine-troubleshooting
+gemini skills install https://github.com/volcengine/volcengine-skills --path skills/core/volcengine-knowledge-search
+gemini skills install https://github.com/volcengine/volcengine-skills --path skills/core/volcengine-find-skills
+gemini skills list
 ```
+
+Approve each security prompt on first install, then restart Gemini CLI. Describe a Volcengine task directly or ask it to use `volcengine-find-skills`.
 
 ### OpenCode
 
@@ -133,7 +141,10 @@ directory.
 
 ```text
 /add-plugin volcengine-core@https://github.com/volcengine/volcengine-skills
+/volcengine-find-skills
 ```
+
+Enter the complete command in a Cursor 2.5 or newer Agent chat. `/add-plugin` may not appear in autocomplete.
 
 ## Directory Structure
 

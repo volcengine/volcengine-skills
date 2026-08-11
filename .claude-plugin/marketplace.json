@@ -4,14 +4,14 @@
     "name": "Volcengine Team"
   },
   "metadata": {
-    "description": "Volcengine (火山引擎) skills marketplace: cloud operations, deployment, IaC, and SDK code generation for AI coding agents."
+    "description": "Volcengine skills marketplace organized by official product domain."
   },
   "plugins": [
     {
-      "name": "volcengine",
-      "source": "./",
-      "description": "Skills for Volcengine (火山引擎) scenarios: cloud resource operations (ECS/VPC/VKE/CLB/RDS/Redis/TOS), deployment, IaC, and SDK code generation.",
-      "version": "1.0.10",
+      "name": "volcengine-core",
+      "source": "./plugins/volcengine-core",
+      "description": "Core Volcengine discovery, documentation search, CLI operations, and troubleshooting skills.",
+      "version": "1.1.0",
       "author": {
         "name": "Volcengine Team"
       },
@@ -21,13 +21,172 @@
       "keywords": [
         "volcengine",
         "cloud",
+        "core",
+        "基础",
+        "discovery",
         "cli",
+        "documentation",
+        "troubleshooting",
+        "volcengine-cli",
+        "volcengine-troubleshooting",
+        "volcengine-knowledge-search",
+        "volcengine-find-skills"
+      ],
+      "category": "core"
+    },
+    {
+      "name": "volcengine-storage",
+      "source": "./plugins/volcengine-storage",
+      "description": "Operate Volcengine storage products and data with product-specific tools.",
+      "version": "1.1.0",
+      "author": {
+        "name": "Volcengine Team"
+      },
+      "homepage": "https://github.com/volcengine/volcengine-skills",
+      "repository": "https://github.com/volcengine/volcengine-skills",
+      "license": "MIT",
+      "keywords": [
+        "volcengine",
+        "cloud",
+        "存储",
+        "storage",
+        "对象存储",
+        "object storage",
+        "tos",
+        "volcengine-tosutil"
+      ],
+      "category": "storage"
+    },
+    {
+      "name": "volcengine-database",
+      "source": "./plugins/volcengine-database",
+      "description": "Build and operate database-backed applications on Volcengine managed database platforms.",
+      "version": "1.1.0",
+      "author": {
+        "name": "Volcengine Team"
+      },
+      "homepage": "https://github.com/volcengine/volcengine-skills",
+      "repository": "https://github.com/volcengine/volcengine-skills",
+      "license": "MIT",
+      "keywords": [
+        "volcengine",
+        "cloud",
+        "数据库",
+        "database",
+        "postgresql",
+        "supabase",
+        "aidap",
+        "baas",
+        "volcengine-db-supabase"
+      ],
+      "category": "database"
+    },
+    {
+      "name": "volcengine-containers-middleware",
+      "source": "./plugins/volcengine-containers-middleware",
+      "description": "Deploy and manage Volcengine serverless, container, and middleware application runtimes.",
+      "version": "1.1.0",
+      "author": {
+        "name": "Volcengine Team"
+      },
+      "homepage": "https://github.com/volcengine/volcengine-skills",
+      "repository": "https://github.com/volcengine/volcengine-skills",
+      "license": "MIT",
+      "keywords": [
+        "volcengine",
+        "cloud",
+        "容器与中间件",
+        "containers",
+        "middleware",
+        "serverless",
+        "函数服务",
+        "vefaas",
+        "volcengine-vefaas"
+      ],
+      "category": "containers-and-middleware"
+    },
+    {
+      "name": "volcengine-security",
+      "source": "./plugins/volcengine-security",
+      "description": "Assess and improve security and compliance posture for Volcengine accounts and resources.",
+      "version": "1.1.0",
+      "author": {
+        "name": "Volcengine Team"
+      },
+      "homepage": "https://github.com/volcengine/volcengine-skills",
+      "repository": "https://github.com/volcengine/volcengine-skills",
+      "license": "MIT",
+      "keywords": [
+        "volcengine",
+        "cloud",
+        "安全",
+        "security",
+        "compliance",
+        "合规",
+        "配置审计",
+        "rego",
+        "volcengine-compliance"
+      ],
+      "category": "security"
+    },
+    {
+      "name": "volcengine-identity-access-control",
+      "source": "./plugins/volcengine-identity-access-control",
+      "description": "Design and establish Volcengine landing zones, organizations, identity, account factories, and governance baselines.",
+      "version": "1.1.0",
+      "author": {
+        "name": "Volcengine Team"
+      },
+      "homepage": "https://github.com/volcengine/volcengine-skills",
+      "repository": "https://github.com/volcengine/volcengine-skills",
+      "license": "MIT",
+      "keywords": [
+        "volcengine",
+        "cloud",
+        "身份与访问控制",
+        "identity",
+        "access control",
+        "iam",
+        "landing zone",
+        "组织",
+        "账号工厂",
+        "volcengine-landing-zone"
+      ],
+      "category": "identity-and-access-control"
+    },
+    {
+      "name": "volcengine-service-support",
+      "source": "./plugins/volcengine-service-support",
+      "description": "Prepare and deploy applications, manage infrastructure as code, explore OpenAPI specifications, and generate runnable SDK examples.",
+      "version": "1.1.0",
+      "author": {
+        "name": "Volcengine Team"
+      },
+      "homepage": "https://github.com/volcengine/volcengine-skills",
+      "repository": "https://github.com/volcengine/volcengine-skills",
+      "license": "MIT",
+      "keywords": [
+        "volcengine",
+        "cloud",
+        "服务支持",
+        "service support",
+        "deployment",
+        "terraform",
+        "iac",
         "ecs",
         "vke",
-        "tos",
-        "skills"
+        "vefaas",
+        "云控制api",
+        "openapi",
+        "sdk",
+        "api",
+        "volcengine-prepare",
+        "volcengine-deploy",
+        "volcengine-iac",
+        "volcengine-api",
+        "volcengine-sdk-generator"
       ],
-      "category": "workflow"
+      "category": "service-support"
     }
   ]
 }

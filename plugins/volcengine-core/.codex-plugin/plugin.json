@@ -1,0 +1,51 @@
+{
+  "name": "volcengine-core",
+  "version": "1.1.0",
+  "description": "Core Volcengine discovery, documentation search, CLI operations, and troubleshooting skills.",
+  "author": {
+    "name": "Volcengine Team",
+    "email": "volcengine@bytedance.com",
+    "url": "https://www.volcengine.com"
+  },
+  "homepage": "https://github.com/volcengine/volcengine-skills",
+  "repository": "https://github.com/volcengine/volcengine-skills",
+  "license": "MIT",
+  "keywords": [
+    "volcengine",
+    "cloud",
+    "core",
+    "基础",
+    "discovery",
+    "cli",
+    "documentation",
+    "troubleshooting",
+    "volcengine-cli",
+    "volcengine-troubleshooting",
+    "volcengine-knowledge-search",
+    "volcengine-find-skills"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Volcengine Core",
+    "shortDescription": "Discover, operate, document, and troubleshoot Volcengine",
+    "longDescription": "Core Volcengine discovery, documentation search, CLI operations, and troubleshooting skills.",
+    "developerName": "Volcengine Team",
+    "category": "Coding",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Find the Volcengine skill for my task.",
+      "Look up how to use this Volcengine product.",
+      "Diagnose this Volcengine error."
+    ],
+    "websiteURL": "https://github.com/volcengine/volcengine-skills",
+    "privacyPolicyURL": "https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement",
+    "termsOfServiceURL": "https://docs.github.com/en/site-policy/github-terms/github-terms-of-service",
+    "brandColor": "#1664FF",
+    "composerIcon": "./assets/logo.svg",
+    "logo": "./assets/logo.svg"
+  }
+}

@@ -5,13 +5,43 @@
     "email": "volcengine@bytedance.com"
   },
   "metadata": {
-    "description": "Volcengine (火山引擎) skills marketplace: cloud operations, deployment, IaC, and SDK code generation for AI coding agents."
+    "description": "Volcengine skills marketplace organized by official product domain."
   },
   "plugins": [
     {
-      "name": "volcengine-skills",
-      "source": "./",
-      "description": "Skills for Volcengine (火山引擎) scenarios: cloud resource operations (ECS/VPC/VKE/CLB/RDS/Redis/TOS), deployment, IaC, and SDK code generation."
+      "name": "volcengine-core",
+      "source": "./plugins/volcengine-core",
+      "description": "Core Volcengine discovery, documentation search, CLI operations, and troubleshooting skills."
+    },
+    {
+      "name": "volcengine-storage",
+      "source": "./plugins/volcengine-storage",
+      "description": "Operate Volcengine storage products and data with product-specific tools."
+    },
+    {
+      "name": "volcengine-database",
+      "source": "./plugins/volcengine-database",
+      "description": "Build and operate database-backed applications on Volcengine managed database platforms."
+    },
+    {
+      "name": "volcengine-containers-middleware",
+      "source": "./plugins/volcengine-containers-middleware",
+      "description": "Deploy and manage Volcengine serverless, container, and middleware application runtimes."
+    },
+    {
+      "name": "volcengine-security",
+      "source": "./plugins/volcengine-security",
+      "description": "Assess and improve security and compliance posture for Volcengine accounts and resources."
+    },
+    {
+      "name": "volcengine-identity-access-control",
+      "source": "./plugins/volcengine-identity-access-control",
+      "description": "Design and establish Volcengine landing zones, organizations, identity, account factories, and governance baselines."
+    },
+    {
+      "name": "volcengine-service-support",
+      "source": "./plugins/volcengine-service-support",
+      "description": "Prepare and deploy applications, manage infrastructure as code, explore OpenAPI specifications, and generate runnable SDK examples."
     }
   ]
 }

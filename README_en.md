@@ -9,129 +9,165 @@ To improve your experience with Volcengine skill, we invite you to participate i
 
 **English** | [简体中文](./README.md)
 
-A skills repository maintained by the Volcengine team, targeting Volcengine use cases and providing out-of-the-box skills for agents such as Claude Code / Codex / OpenCode / Cursor / Gemini CLI.
+A skill marketplace maintained by the Volcengine team for AI coding agents including Claude Code,
+Codex, OpenCode, Cursor, and Gemini CLI. Only the core plugin is installed by default. Optional
+skills are grouped into Volcengine product-domain plugins and discovered through
+`volcengine-find-skills`.
 
-**[Quick Install →](#quick-install)**
+**[Quick Install →](#default-installation)**
 
-## What's Included
+## Plugins
 
-### Skills
+| Plugin | Product domain | Skills | Default |
+| --- | --- | --- | --- |
+| `volcengine-core` | Core | `volcengine-cli`, `volcengine-troubleshooting`, `volcengine-knowledge-search`, `volcengine-find-skills` | Yes |
+| `volcengine-storage` | Storage | `volcengine-tosutil` | No |
+| `volcengine-database` | Database | `volcengine-db-supabase` | No |
+| `volcengine-containers-middleware` | Containers and Middleware | `volcengine-vefaas` | No |
+| `volcengine-security` | Security | `volcengine-compliance` | No |
+| `volcengine-identity-access-control` | Identity and Access Control | `volcengine-landing-zone` | No |
+| `volcengine-service-support` | Service Support | `volcengine-prepare`, `volcengine-deploy`, `volcengine-iac`, `volcengine-api`, `volcengine-sdk-generator` | No |
 
-| Skill | Use case |
-| --- | --- |
-| `volcengine-cli` | Create/query/manage cloud resources via the `ve` CLI (ECS/VPC/CLB/RDS/Redis/TOS, etc.) |
-| `volcengine-prepare` | Analyze a local directory or GitHub repo and recommend a deployment shape (ECS/VKE/veFaaS) |
-| `volcengine-deploy` | Deploy a local directory or GitHub repo to Volcengine |
-| `volcengine-iac` | Terraform-based infrastructure orchestration for Volcengine |
-| `volcengine-api` | Query Volcengine API specs (parameters, error codes, response structures, etc.) |
-| `volcengine-sdk-generator` | Generate runnable Volcengine SDK examples and answer SDK config questions on demand |
-| `volcengine-tosutil` | Manage Volcengine TOS object storage resources |
-| `volcengine-vefaas` | Deploy and manage Volcengine veFaaS serverless applications |
-| `volcengine-db-supabase` | Manage Volcengine AI-native BaaS (Supabase edition / AIDAP): workspaces, branches, SQL, Auth, Realtime, Edge Functions, Storage, frontend hosting, type generation; also the deployment database provider |
-| `volcengine-troubleshooting` | Troubleshoot and diagnose Volcengine issues |
-| `volcengine-knowledge-search` | Search Volcengine official docs and fetch full text (product concepts/usage/billing/deploy/best practices/terms) |
-| `volcengine-landing-zone` | Consult, set up, and manage a Volcengine Landing Zone, including initial setup, account factory, and baselines |
-| `volcengine-compliance` | Volcengine compliance best-practice assistant: recommends which official built-in compliance baselines to enable based on the user's needs (flagging already-enabled ones), and summarizes the account's current compliance posture into an overview report grouped by category and severity; when built-in baselines don't cover a case, guides authoring a Rego policy as a custom compliance rule and registering it for evaluation; can deploy a recommended template as a conformance pack after confirmation (write ops require explicit confirmation) |
+The core marketplace entry uses `INSTALLED_BY_DEFAULT`; all optional plugins use `AVAILABLE`.
+`skills/` contains only the `core/` category, with exactly four core skills. Every optional skill
+is owned directly by its product-domain plugin and has no duplicate under `skills/`.
 
-## Quick Install
+## Skills
 
-### Prerequisites
+| Skill | Plugin | Use case |
+| --- | --- | --- |
+| [`volcengine-cli`](./skills/core/volcengine-cli/SKILL.md) | `volcengine-core` | Create, query, and manage cloud resources with the `ve` CLI |
+| [`volcengine-troubleshooting`](./skills/core/volcengine-troubleshooting/SKILL.md) | `volcengine-core` | Diagnose Volcengine errors and resource issues |
+| [`volcengine-knowledge-search`](./skills/core/volcengine-knowledge-search/SKILL.md) | `volcengine-core` | Search and retrieve full official Volcengine documentation |
+| [`volcengine-find-skills`](./skills/core/volcengine-find-skills/SKILL.md) | `volcengine-core` | List every skill for the agent to select and install |
+| [`volcengine-prepare`](./plugins/volcengine-service-support/skills/volcengine-prepare/SKILL.md) | `volcengine-service-support` | Analyze a repository and recommend ECS, VKE, or veFaaS |
+| [`volcengine-deploy`](./plugins/volcengine-service-support/skills/volcengine-deploy/SKILL.md) | `volcengine-service-support` | Deploy a local directory or Git repository to Volcengine |
+| [`volcengine-iac`](./plugins/volcengine-service-support/skills/volcengine-iac/SKILL.md) | `volcengine-service-support` | Manage Volcengine infrastructure with Terraform |
+| [`volcengine-tosutil`](./plugins/volcengine-storage/skills/volcengine-tosutil/SKILL.md) | `volcengine-storage` | Manage TOS object storage resources |
+| [`volcengine-db-supabase`](./plugins/volcengine-database/skills/volcengine-db-supabase/SKILL.md) | `volcengine-database` | Manage Volcengine AI-native BaaS, Supabase edition (AIDAP) |
+| [`volcengine-vefaas`](./plugins/volcengine-containers-middleware/skills/volcengine-vefaas/SKILL.md) | `volcengine-containers-middleware` | Deploy and manage veFaaS serverless applications |
+| [`volcengine-compliance`](./plugins/volcengine-security/skills/volcengine-compliance/SKILL.md) | `volcengine-security` | Recommend baselines, report posture, and author custom rules |
+| [`volcengine-landing-zone`](./plugins/volcengine-identity-access-control/skills/volcengine-landing-zone/SKILL.md) | `volcengine-identity-access-control` | Set up landing zones, account factories, and governance baselines |
+| [`volcengine-api`](./plugins/volcengine-service-support/skills/volcengine-api/SKILL.md) | `volcengine-service-support` | Query API parameters, errors, and response schemas |
+| [`volcengine-sdk-generator`](./plugins/volcengine-service-support/skills/volcengine-sdk-generator/SKILL.md) | `volcengine-service-support` | Generate runnable SDK examples in supported languages |
 
-#### Install ve and vefaas
+## Default Installation
+
+### Finder Design
+
+`volcengine-find-skills` embeds the single catalog for all four core skills and every optional
+plugin skill:
+
+1. The finder triggers for explicit discovery and when the currently loaded or installed skills
+   cannot cover a product, tool, or workflow required by an active Volcengine task.
+2. `list` returns the complete catalog so the agent can select the minimum skill set from names,
+   product domains, summaries, and keywords.
+3. Installation requires exact skill names; plugins are classification metadata, not install targets.
+4. For every host, the finder installs selected skills directly through the skills CLI, never the
+   whole plugin.
+5. After the installer exits successfully, the finder reads the host's installed list and returns
+   `verified: true` only when every requested skill is visible.
+6. When a host cannot dynamically load a newly installed skill, start a new thread carrying the
+   original task and completed context.
+
+### Codex
+
+Add the marketplace and install only the core plugin:
 
 ```bash
-npm i -g @volcengine/cli
-npm i -g https://vefaas-cli.tos-cn-beijing.volces.com/volcengine-vefaas-latest.tgz
+codex plugin marketplace add volcengine/volcengine-skills
+codex plugin add volcengine-core@volcengine-skills
+codex plugin list
 ```
 
-#### Install tosutil
+These plugin commands only bootstrap the core finder. Subsequent finder installs target exact skills.
 
-See [installation commands](./skills/volcengine-tosutil/SKILL.md#安装命令).
+In a new thread, ask for a skill by task, such as "find the object storage skill" or "install
+`volcengine-tosutil`". The finder reads the complete catalog, selects the appropriate skill, and
+installs that skill directly without installing its whole product-domain plugin. Start another
+thread when the current host cannot dynamically load new skills.
 
-### Generic Install
+From a source checkout, discovery and status can be tested directly:
 
 ```bash
-# Choose one of the following three
+python3 plugins/volcengine-core/skills/volcengine-find-skills/scripts/find_skills.py list
+python3 plugins/volcengine-core/skills/volcengine-find-skills/scripts/find_skills.py install volcengine-tosutil --agent codex
+python3 plugins/volcengine-core/skills/volcengine-find-skills/scripts/find_skills.py status --agent codex
+```
 
-# 1) Recommended: install globally, skip all confirmation prompts
-npx skills add volcengine/volcengine-skills --global --yes
+### Generic skills CLI
 
-# 2) Interactive: manually choose scope (global/project), target agents, and specific skills
-npx skills add volcengine/volcengine-skills
+This command installs only the four core skills:
 
-# 3) Install to specific agents only, copying files instead of symlinking (eg. Claude Code)
-npx skills add volcengine/volcengine-skills --global --yes --agent claude-code --copy
+```bash
+npx skills add volcengine/volcengine-skills \
+  --global --yes --copy --full-depth \
+  --skill volcengine-cli volcengine-troubleshooting volcengine-knowledge-search volcengine-find-skills
+```
 
-# Or copy manually
-# Copy the skills/ directory to ~/.claude/skills/ (for Claude Code)
-# Copy the skills/ directory to ~/.agents/skills/ (for Codex, etc.)
+The finder can later invoke `npx skills add --skill` for exact skills. To install every catalogued skill at once:
+
+```bash
+npx skills add volcengine/volcengine-skills --full-depth
 ```
 
 ### Claude Code
 
-**Add the marketplace** (first time only):
-
-```bash
-/plugin marketplace add volcengine/volcengine-skills
-```
-
-**Install and reload the plugin**:
-
-```bash
-/plugin install volcengine@volcengine-skills
-/reload-plugins
-```
-
-**Update**:
-
-```bash
-/plugin marketplace update volcengine-skills
-```
-
-### Codex
-
-```bash
-codex plugin marketplace add volcengine/volcengine-skills
-```
-
 ```text
-Then open Codex, run /plugins, and select volcengine-skills to install.
+/plugin marketplace add volcengine/volcengine-skills
+/plugin install volcengine-core@volcengine-skills
+/reload-plugins
+/volcengine-core:volcengine-find-skills
 ```
 
 ### Gemini CLI
 
 ```bash
-gemini extensions install https://github.com/volcengine/volcengine-skills
+gemini skills install https://github.com/volcengine/volcengine-skills --path skills/core/volcengine-cli
+gemini skills install https://github.com/volcengine/volcengine-skills --path skills/core/volcengine-troubleshooting
+gemini skills install https://github.com/volcengine/volcengine-skills --path skills/core/volcengine-knowledge-search
+gemini skills install https://github.com/volcengine/volcengine-skills --path skills/core/volcengine-find-skills
+gemini skills list
 ```
+
+Approve each security prompt on first install, then restart Gemini CLI. Describe a Volcengine task directly or ask it to use `volcengine-find-skills`.
 
 ### OpenCode
 
-Type the following directly in OpenCode:
-
-```text
-Fetch and follow instructions from https://github.com/volcengine/volcengine-skills/blob/main/.opencode/INSTALL.md
-```
+Follow the [OpenCode instructions](./.opencode/INSTALL.md) to mount the core plugin's `skills/`
+directory.
 
 ### Cursor
 
-Type the following in the Cursor Agent chat:
-
 ```text
-/add-plugin volcengine-skills@https://github.com/volcengine/volcengine-skills
+/add-plugin volcengine-core@https://github.com/volcengine/volcengine-skills
+/volcengine-find-skills
 ```
+
+Enter the complete command in a Cursor 2.5 or newer Agent chat. `/add-plugin` may not appear in autocomplete.
 
 ## Directory Structure
 
-```
+```text
 volcengine-skills/
-├── skills/                 # All skills
-├── .claude-plugin/         # Claude Code plugin / marketplace manifest
-├── .codex-plugin/          # Codex plugin / marketplace manifest
-├── .opencode/              # OpenCode configuration
-├── .cursor/                # Cursor rules
-└── gemini-extension.json   # Gemini CLI extension manifest
+├── skills/
+│   └── core/                         # exactly four core skills
+├── plugins/
+│   ├── volcengine-core/              # default core plugin with core skills and hooks
+│   └── volcengine-<domain>/          # optional plugin and authoritative skill source
+└── .agents/plugins/marketplace.json
+```
+
+`skills/core/` is authoritative for the four core skills. Optional skills are maintained directly
+inside their owning plugins. The sync script copies core and generates manifests and marketplaces.
+After changing or adding a skill, run:
+
+```bash
+python3 scripts/sync_plugins.py
+python3 scripts/validate_codex_plugin_layout.py
+python3 -m unittest discover -s tests -v
 ```
 
 ## License
 
-MIT — see [LICENSE](./LICENSE)
+MIT. See [LICENSE](./LICENSE).

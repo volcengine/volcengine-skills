@@ -1,0 +1,4 @@
+interface:
+  display_name: "Volcengine Skills Finder"
+  short_description: "List skills and fill Volcengine capability gaps"
+  default_prompt: "Use $volcengine-find-skills to list and install the best-fit skill when my current Volcengine capabilities are insufficient."

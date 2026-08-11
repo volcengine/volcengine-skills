@@ -1,0 +1,26 @@
+{
+  "name": "volcengine-identity-access-control",
+  "description": "Design and establish Volcengine landing zones, organizations, identity, account factories, and governance baselines.",
+  "version": "1.1.0",
+  "author": {
+    "name": "Volcengine Team"
+  },
+  "homepage": "https://github.com/volcengine/volcengine-skills",
+  "repository": "https://github.com/volcengine/volcengine-skills",
+  "license": "MIT",
+  "keywords": [
+    "volcengine",
+    "cloud",
+    "身份与访问控制",
+    "identity",
+    "access control",
+    "iam",
+    "landing zone",
+    "组织",
+    "账号工厂",
+    "volcengine-landing-zone"
+  ],
+  "skills": [
+    "./skills/"
+  ]
+}

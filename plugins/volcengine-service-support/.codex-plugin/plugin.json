@@ -1,0 +1,58 @@
+{
+  "name": "volcengine-service-support",
+  "version": "1.1.0",
+  "description": "Prepare and deploy applications, manage infrastructure as code, explore OpenAPI specifications, and generate runnable SDK examples.",
+  "author": {
+    "name": "Volcengine Team",
+    "email": "volcengine@bytedance.com",
+    "url": "https://www.volcengine.com"
+  },
+  "homepage": "https://github.com/volcengine/volcengine-skills",
+  "repository": "https://github.com/volcengine/volcengine-skills",
+  "license": "MIT",
+  "keywords": [
+    "volcengine",
+    "cloud",
+    "服务支持",
+    "service support",
+    "deployment",
+    "terraform",
+    "iac",
+    "ecs",
+    "vke",
+    "vefaas",
+    "云控制api",
+    "openapi",
+    "sdk",
+    "api",
+    "volcengine-prepare",
+    "volcengine-deploy",
+    "volcengine-iac",
+    "volcengine-api",
+    "volcengine-sdk-generator"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Volcengine Service Support",
+    "shortDescription": "Prepare deployments, manage IaC, and support API integrations",
+    "longDescription": "Prepare and deploy applications, manage infrastructure as code, explore OpenAPI specifications, and generate runnable SDK examples.",
+    "developerName": "Volcengine Team",
+    "category": "Cloud",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Assess this repository for Volcengine deployment.",
+      "Deploy this application to Volcengine.",
+      "Create Terraform for this Volcengine architecture.",
+      "Find the request schema for this Volcengine API.",
+      "Generate a runnable SDK example for this API."
+    ],
+    "websiteURL": "https://github.com/volcengine/volcengine-skills",
+    "privacyPolicyURL": "https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement",
+    "termsOfServiceURL": "https://docs.github.com/en/site-policy/github-terms/github-terms-of-service",
+    "brandColor": "#1664FF"
+  }
+}

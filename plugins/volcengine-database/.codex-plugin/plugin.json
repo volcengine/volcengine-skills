@@ -1,0 +1,44 @@
+{
+  "name": "volcengine-database",
+  "version": "1.1.0",
+  "description": "Build and operate database-backed applications on Volcengine managed database platforms.",
+  "author": {
+    "name": "Volcengine Team",
+    "email": "volcengine@bytedance.com",
+    "url": "https://www.volcengine.com"
+  },
+  "homepage": "https://github.com/volcengine/volcengine-skills",
+  "repository": "https://github.com/volcengine/volcengine-skills",
+  "license": "MIT",
+  "keywords": [
+    "volcengine",
+    "cloud",
+    "数据库",
+    "database",
+    "postgresql",
+    "supabase",
+    "aidap",
+    "baas",
+    "volcengine-db-supabase"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Volcengine Database",
+    "shortDescription": "Operate Volcengine AI-native BaaS and PostgreSQL",
+    "longDescription": "Build and operate database-backed applications on Volcengine managed database platforms.",
+    "developerName": "Volcengine Team",
+    "category": "Cloud",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Create and configure a Volcengine Supabase workspace."
+    ],
+    "websiteURL": "https://github.com/volcengine/volcengine-skills",
+    "privacyPolicyURL": "https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement",
+    "termsOfServiceURL": "https://docs.github.com/en/site-policy/github-terms/github-terms-of-service",
+    "brandColor": "#1664FF"
+  }
+}

@@ -4,11 +4,12 @@
 
 本目录文件：
 
-- `hooks.json` — Claude Code 生命周期配置（极简，只委托给下面的脚本）
-- `hooks-codex.json` — Codex 生命周期配置，由 `.codex-plugin/plugin.json` 通过 `"hooks": "./hooks/hooks-codex.json"` 引用；与 `hooks.json` 同构，但用 Codex 的 `${PLUGIN_ROOT}`、显式 `async: false`（Codex 会跳过 `async: true` 的 handler）、并以 `VOLCENGINE_HOOK_AGENT=codex` 标记宿主 agent
-- `hooks-cursor.json` — Cursor 生命周期配置，由 `.cursor-plugin/plugin.json` 通过 `"hooks": "./hooks/hooks-cursor.json"` 引用；用 Cursor 的 `${CURSOR_PLUGIN_ROOT}`（插件安装态）、事件 `beforeReadFile`、并以 `VOLCENGINE_HOOK_AGENT=cursor` 标记宿主。与 Claude/Codex 一致，Cursor 也只保留**插件态**这一条 hook —— 真正的使用信号来自“安装插件后在用户自己项目里加载了 `volcengine-*` skill”，故不再单独维护仅在“打开本仓库”时触发的项目级 `.cursor/hooks.json`
+- `hooks.json` — Claude Code / Codex 共用的生命周期配置；使用 `${PLUGIN_ROOT}` / `${CLAUDE_PLUGIN_ROOT}` 解析安装后的核心插件目录，并显式设置 `async: false`
+- `hooks-cursor.json` — Cursor 生命周期配置，由核心插件的 `.cursor-plugin/plugin.json` 引用；用 `${CURSOR_PLUGIN_ROOT}`（插件安装态）、事件 `beforeReadFile`、并以 `VOLCENGINE_HOOK_AGENT=cursor` 标记宿主。真正的使用信号来自“安装插件后在用户项目里加载了 `volcengine-*` skill”，因此不维护仅在打开本仓库时触发的项目级 hook
 - `run-apmplus-reporter.sh` — dispatcher：开关判断、transport 选择、超时、异步派发等全部逻辑
 - `volcengine-apmplus-hook-reporter.mjs` — reporter：解析 payload、归一化事件、OTLP gRPC 直连 APMPlus
+
+同步脚本只把上述配置和执行文件复制到默认核心插件；可选产品域插件不重复注册 telemetry hook。
 
 OpenCode 与 OpenClaw 不走生命周期 hook，而是用插件接入（复用上面的 dispatcher + reporter）：
 

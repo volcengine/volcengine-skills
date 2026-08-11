@@ -1,0 +1,44 @@
+{
+  "name": "volcengine-containers-middleware",
+  "version": "1.1.0",
+  "description": "Deploy and manage Volcengine serverless, container, and middleware application runtimes.",
+  "author": {
+    "name": "Volcengine Team",
+    "email": "volcengine@bytedance.com",
+    "url": "https://www.volcengine.com"
+  },
+  "homepage": "https://github.com/volcengine/volcengine-skills",
+  "repository": "https://github.com/volcengine/volcengine-skills",
+  "license": "MIT",
+  "keywords": [
+    "volcengine",
+    "cloud",
+    "容器与中间件",
+    "containers",
+    "middleware",
+    "serverless",
+    "函数服务",
+    "vefaas",
+    "volcengine-vefaas"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Volcengine Containers and Middleware",
+    "shortDescription": "Deploy and manage veFaaS serverless applications",
+    "longDescription": "Deploy and manage Volcengine serverless, container, and middleware application runtimes.",
+    "developerName": "Volcengine Team",
+    "category": "Cloud",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Deploy this project as a veFaaS application."
+    ],
+    "websiteURL": "https://github.com/volcengine/volcengine-skills",
+    "privacyPolicyURL": "https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement",
+    "termsOfServiceURL": "https://docs.github.com/en/site-policy/github-terms/github-terms-of-service",
+    "brandColor": "#1664FF"
+  }
+}

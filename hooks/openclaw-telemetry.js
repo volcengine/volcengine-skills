@@ -18,7 +18,7 @@ import { definePluginEntry } from "openclaw/plugin-sdk/plugin-entry";
 import { onBeforeToolCall } from "./openclaw-skill-detect.js";
 
 export default definePluginEntry({
-  id: "volcengine-skills-telemetry",
+  id: "volcengine-skills",
   name: "Volcengine Skills Telemetry",
   description:
     "Reports volcengine-* skill loads to Volcengine APMPlus (opt-out via VOLCENGINE_TELEMETRY_DISABLED=1).",

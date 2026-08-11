@@ -1,0 +1,245 @@
+{
+  "schema_version": 1,
+  "marketplace": "volcengine-skills",
+  "repository": "volcengine/volcengine-skills",
+  "plugins": [
+    {
+      "name": "volcengine-core",
+      "display_name": "Volcengine Core",
+      "domain": "核心",
+      "domain_en": "Core",
+      "category": "Coding",
+      "default": true,
+      "description": "Core Volcengine discovery, documentation search, CLI operations, and troubleshooting skills.",
+      "short_description": "Discover, operate, document, and troubleshoot Volcengine",
+      "keywords": ["core", "基础", "discovery", "cli", "documentation", "troubleshooting"],
+      "default_prompts": [
+        "Find the Volcengine skill for my task.",
+        "Look up how to use this Volcengine product.",
+        "Diagnose this Volcengine error."
+      ],
+      "skills": [
+        {
+          "name": "volcengine-cli",
+          "path": "skills/core/volcengine-cli",
+          "summary": "Use the ve CLI to create, query, and manage Volcengine cloud resources.",
+          "summary_zh": "使用 ve CLI 创建、查询和管理火山引擎云资源。",
+          "keywords": [
+            "ve",
+            "cli",
+            "命令行",
+            "云资源",
+            "ecs",
+            "vpc",
+            "vke",
+            "alb",
+            "clb",
+            "load balancer",
+            "负载均衡",
+            "rds",
+            "redis",
+            "tos",
+            "cr",
+            "container registry",
+            "镜像仓库",
+            "dns",
+            "cdn",
+            "域名",
+            "ebs",
+            "eip",
+            "security group",
+            "安全组",
+            "弹性公网IP",
+            "iam",
+            "kms",
+            "kafka",
+            "rocketmq",
+            "rabbitmq",
+            "消息队列",
+            "nat gateway",
+            "mongodb",
+            "mysql",
+            "postgresql",
+            "cloud monitor",
+            "prometheus"
+          ]
+        },
+        {
+          "name": "volcengine-troubleshooting",
+          "path": "skills/core/volcengine-troubleshooting",
+          "summary": "Diagnose Volcengine errors, resource health, quotas, metrics, and OpenAPI failures.",
+          "summary_zh": "诊断火山引擎错误、资源状态、配额、指标与 OpenAPI 故障。",
+          "keywords": ["troubleshooting", "doctor", "排障", "诊断", "错误码", "quota", "metrics", "openapi"]
+        },
+        {
+          "name": "volcengine-knowledge-search",
+          "path": "skills/core/volcengine-knowledge-search",
+          "summary": "Search and retrieve full text from official Volcengine documentation.",
+          "summary_zh": "检索并获取火山引擎官方文档全文。",
+          "keywords": ["docs", "documentation", "文档", "官方文档", "概念", "计费", "最佳实践"]
+        },
+        {
+          "name": "volcengine-find-skills",
+          "path": "skills/core/volcengine-find-skills",
+          "summary": "List all Volcengine skills so an agent can select and install missing capabilities.",
+          "summary_zh": "列出全部火山引擎技能，供 Agent 选择并安装当前缺失的能力。",
+          "keywords": ["find", "discover", "install", "查找", "发现", "安装", "plugin", "skill"]
+        }
+      ]
+    },
+    {
+      "name": "volcengine-storage",
+      "display_name": "Volcengine Storage",
+      "domain": "存储",
+      "domain_en": "Storage",
+      "default": false,
+      "description": "Operate Volcengine storage products and data with product-specific tools.",
+      "short_description": "Manage Volcengine object storage with tosutil",
+      "keywords": ["存储", "storage", "对象存储", "object storage", "tos"],
+      "default_prompts": ["Manage these TOS buckets and objects with tosutil."],
+      "skills": [
+        {
+          "name": "volcengine-tosutil",
+          "path": "plugins/volcengine-storage/skills/volcengine-tosutil",
+          "summary": "Manage TOS buckets and objects with the tosutil command-line tool.",
+          "summary_zh": "使用 tosutil 命令行工具管理 TOS 桶和对象。",
+          "keywords": ["tos", "tosutil", "bucket", "object", "对象存储", "桶", "上传", "下载"]
+        }
+      ]
+    },
+    {
+      "name": "volcengine-database",
+      "display_name": "Volcengine Database",
+      "domain": "数据库",
+      "domain_en": "Database",
+      "default": false,
+      "description": "Build and operate database-backed applications on Volcengine managed database platforms.",
+      "short_description": "Operate Volcengine AI-native BaaS and PostgreSQL",
+      "keywords": ["数据库", "database", "postgresql", "supabase", "aidap", "baas"],
+      "default_prompts": ["Create and configure a Volcengine Supabase workspace."],
+      "skills": [
+        {
+          "name": "volcengine-db-supabase",
+          "path": "plugins/volcengine-database/skills/volcengine-db-supabase",
+          "summary": "Manage Volcengine AI-native BaaS Supabase workspaces, SQL, Auth, Realtime, and Edge Functions.",
+          "summary_zh": "管理火山引擎 AI 原生 BaaS Supabase 工作区、SQL、Auth、Realtime 与 Edge Functions。",
+          "keywords": ["supabase", "aidap", "postgresql", "baas", "auth", "realtime", "edge functions", "数据库"]
+        }
+      ]
+    },
+    {
+      "name": "volcengine-containers-middleware",
+      "display_name": "Volcengine Containers and Middleware",
+      "domain": "容器与中间件",
+      "domain_en": "Containers and Middleware",
+      "default": false,
+      "description": "Deploy and manage Volcengine serverless, container, and middleware application runtimes.",
+      "short_description": "Deploy and manage veFaaS serverless applications",
+      "keywords": ["容器与中间件", "containers", "middleware", "serverless", "函数服务", "vefaas"],
+      "default_prompts": ["Deploy this project as a veFaaS application."],
+      "skills": [
+        {
+          "name": "volcengine-vefaas",
+          "path": "plugins/volcengine-containers-middleware/skills/volcengine-vefaas",
+          "summary": "Deploy and manage serverless applications on Volcengine veFaaS.",
+          "summary_zh": "在火山引擎 veFaaS 上部署和管理 Serverless 应用。",
+          "keywords": ["vefaas", "serverless", "函数服务", "function", "deploy", "mcp"]
+        }
+      ]
+    },
+    {
+      "name": "volcengine-security",
+      "display_name": "Volcengine Security",
+      "domain": "安全",
+      "domain_en": "Security",
+      "default": false,
+      "description": "Assess and improve security and compliance posture for Volcengine accounts and resources.",
+      "short_description": "Assess Volcengine security and compliance posture",
+      "keywords": ["安全", "security", "compliance", "合规", "配置审计", "rego"],
+      "default_prompts": ["Review this Volcengine account's compliance posture."],
+      "skills": [
+        {
+          "name": "volcengine-compliance",
+          "path": "plugins/volcengine-security/skills/volcengine-compliance",
+          "summary": "Recommend compliance baselines, report posture, and author custom Rego compliance rules.",
+          "summary_zh": "推荐合规基线、汇总合规态势并编写自定义 Rego 合规规则。",
+          "keywords": ["compliance", "合规", "配置审计", "conformance pack", "rego", "等保", "security"]
+        }
+      ]
+    },
+    {
+      "name": "volcengine-identity-access-control",
+      "display_name": "Volcengine Identity and Access Control",
+      "domain": "身份与访问控制",
+      "domain_en": "Identity and Access Control",
+      "default": false,
+      "description": "Design and establish Volcengine landing zones, organizations, identity, account factories, and governance baselines.",
+      "short_description": "Set up landing zones, identity, and governance",
+      "keywords": ["身份与访问控制", "identity", "access control", "iam", "landing zone", "组织", "账号工厂"],
+      "default_prompts": ["Design a Volcengine landing zone for this organization."],
+      "skills": [
+        {
+          "name": "volcengine-landing-zone",
+          "path": "plugins/volcengine-identity-access-control/skills/volcengine-landing-zone",
+          "summary": "Consult, set up, and manage Volcengine landing zones and account baselines.",
+          "summary_zh": "咨询、搭建和管理火山引擎 Landing Zone 与账号基线。",
+          "keywords": ["landing zone", "组织", "organization", "identity", "账号工厂", "account factory", "baseline"]
+        }
+      ]
+    },
+    {
+      "name": "volcengine-service-support",
+      "display_name": "Volcengine Service Support",
+      "domain": "服务支持",
+      "domain_en": "Service Support",
+      "default": false,
+      "description": "Prepare and deploy applications, manage infrastructure as code, explore OpenAPI specifications, and generate runnable SDK examples.",
+      "short_description": "Prepare deployments, manage IaC, and support API integrations",
+      "keywords": ["服务支持", "service support", "deployment", "terraform", "iac", "ecs", "vke", "vefaas", "云控制api", "openapi", "sdk", "api"],
+      "default_prompts": [
+        "Assess this repository for Volcengine deployment.",
+        "Deploy this application to Volcengine.",
+        "Create Terraform for this Volcengine architecture.",
+        "Find the request schema for this Volcengine API.",
+        "Generate a runnable SDK example for this API."
+      ],
+      "skills": [
+        {
+          "name": "volcengine-prepare",
+          "path": "plugins/volcengine-service-support/skills/volcengine-prepare",
+          "summary": "Analyze a repository and recommend ECS, VKE, or veFaaS deployment shapes.",
+          "summary_zh": "分析代码仓库并推荐 ECS、VKE 或 veFaaS 部署形态。",
+          "keywords": ["prepare", "readiness", "部署评估", "架构选择", "ecs", "vke", "vefaas"]
+        },
+        {
+          "name": "volcengine-deploy",
+          "path": "plugins/volcengine-service-support/skills/volcengine-deploy",
+          "summary": "Deploy a local directory or Git repository to Volcengine.",
+          "summary_zh": "将本地目录或 Git 仓库部署到火山引擎。",
+          "keywords": ["deploy", "deployment", "部署", "应用", "发布", "上线", "ecs", "vke", "vefaas"]
+        },
+        {
+          "name": "volcengine-iac",
+          "path": "plugins/volcengine-service-support/skills/volcengine-iac",
+          "summary": "Manage Volcengine infrastructure with Terraform and infrastructure as code.",
+          "summary_zh": "使用 Terraform 和基础设施即代码管理火山引擎资源。",
+          "keywords": ["terraform", "iac", "基础设施即代码", "plan", "drift", "volcenginecc"]
+        },
+        {
+          "name": "volcengine-api",
+          "path": "plugins/volcengine-service-support/skills/volcengine-api",
+          "summary": "Query Volcengine API specifications, parameters, errors, and response structures.",
+          "summary_zh": "查询火山引擎 API 规格、参数、错误码和返回结构。",
+          "keywords": ["api", "openapi", "spec", "参数", "错误码", "response", "action", "version"]
+        },
+        {
+          "name": "volcengine-sdk-generator",
+          "path": "plugins/volcengine-service-support/skills/volcengine-sdk-generator",
+          "summary": "Generate accurate, runnable Volcengine SDK examples in supported languages.",
+          "summary_zh": "生成准确、可运行的多语言火山引擎 SDK 示例。",
+          "keywords": ["sdk", "code generation", "示例代码", "python", "go", "java", "nodejs", "php"]
+        }
+      ]
+    }
+  ]
+}

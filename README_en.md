@@ -29,8 +29,9 @@ skills are grouped into Volcengine product-domain plugins and discovered through
 | `volcengine-service-support` | Service Support | `volcengine-prepare`, `volcengine-deploy`, `volcengine-iac`, `volcengine-api`, `volcengine-sdk-generator` | No |
 
 The core marketplace entry uses `INSTALLED_BY_DEFAULT`; all optional plugins use `AVAILABLE`.
-`skills/` contains only the `core/` category, with exactly four core skills. Every optional skill
-is owned directly by its product-domain plugin and has no duplicate under `skills/`.
+`skills/` contains only the `core/` category, whose skills are discovered automatically by the
+release tooling. Every optional skill is owned directly by its product-domain plugin and has no
+duplicate under `skills/`.
 
 ## Skills
 
@@ -55,7 +56,7 @@ is owned directly by its product-domain plugin and has no duplicate under `skill
 
 ### Finder Design
 
-`volcengine-find-skills` embeds the single catalog for all four core skills and every optional
+`volcengine-find-skills` embeds the single catalog for all core skills and every optional
 plugin skill:
 
 1. The finder triggers for explicit discovery and when the currently loaded or installed skills
@@ -97,7 +98,7 @@ python3 plugins/volcengine-core/skills/volcengine-find-skills/scripts/find_skill
 
 ### Generic skills CLI
 
-This command installs only the four core skills:
+This command installs only the current core skills:
 
 ```bash
 npx skills add volcengine/volcengine-skills \
@@ -151,14 +152,14 @@ Enter the complete command in a Cursor 2.5 or newer Agent chat. `/add-plugin` ma
 ```text
 volcengine-skills/
 ├── skills/
-│   └── core/                         # exactly four core skills
+│   └── core/                         # core skills installed by the CLI
 ├── plugins/
 │   ├── volcengine-core/              # default core plugin with core skills and hooks
 │   └── volcengine-<domain>/          # optional plugin and authoritative skill source
 └── .agents/plugins/marketplace.json
 ```
 
-`skills/core/` is authoritative for the four core skills. Optional skills are maintained directly
+`skills/core/` is authoritative for the core skills. Optional skills are maintained directly
 inside their owning plugins. The sync script copies core and generates manifests and marketplaces.
 After changing or adding a skill, run:
 

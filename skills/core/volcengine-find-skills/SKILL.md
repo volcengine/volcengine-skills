@@ -4,7 +4,7 @@ description: >-
   List, select, and install Volcengine skills from the volcengine-skills marketplace. Use when a
   user asks which Volcengine skill or plugin handles a task, wants to browse every available skill,
   needs an optional skill that is not currently installed, or asks to install or check the
-  installation status of a Volcengine skill. Also use to discover any of the four core skills,
+  installation status of a Volcengine skill. Also use to discover any core skill,
   including this finder. Use as a fallback during a Volcengine operation when the currently loaded
   or installed skills cannot cover the required product, tool, or workflow; inspect the full
   catalog, select the missing capability, and install it.

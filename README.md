@@ -28,7 +28,7 @@
 | `volcengine-service-support` | 服务支持 | `volcengine-prepare`、`volcengine-deploy`、`volcengine-iac`、`volcengine-api`、`volcengine-sdk-generator` | 否 |
 
 核心插件的 marketplace 策略为 `INSTALLED_BY_DEFAULT`，其他插件均为 `AVAILABLE`。
-`skills/` 下只保留 `core/` 分类，其中严格包含四个核心 skill。其他 skill 由各自的可选 plugin 直接拥有，不在 `skills/` 下保留副本。
+`skills/` 下只保留 `core/` 分类；发布工具会自动发现其中的核心 skill。其他 skill 由各自的可选 plugin 直接拥有，不在 `skills/` 下保留副本。
 
 ## Skills
 
@@ -53,7 +53,7 @@
 
 ### Finder 设计
 
-`volcengine-find-skills` 内置唯一 catalog，覆盖四个 core skill 和所有可选 plugin skill：
+`volcengine-find-skills` 内置唯一 catalog，覆盖全部 core skill 和所有可选 plugin skill：
 
 1. 用户主动查找 skill，或者执行火山引擎任务时当前已加载/已安装 skill 无法覆盖所需产品、工具或流程，都会触发 finder。
 2. `list` 一次列出完整 catalog，由 Agent 根据名称、产品域、摘要和关键词选择最小必要 skill 集合。
@@ -87,7 +87,7 @@ python3 plugins/volcengine-core/skills/volcengine-find-skills/scripts/find_skill
 
 ### 通用 skills CLI
 
-下面的命令只安装四个核心 skill，不会默认安装可选产品域 skill：
+下面的命令只安装当前核心 skill，不会默认安装可选产品域 skill：
 
 ```bash
 npx skills add volcengine/volcengine-skills \
@@ -140,14 +140,14 @@ gemini skills list
 ```text
 volcengine-skills/
 ├── skills/
-│   └── core/                         # 仅四个核心 skill
+│   └── core/                         # CLI 默认安装的核心 skill
 ├── plugins/
 │   ├── volcengine-core/              # 默认核心 plugin，复制 skills/core 并保留 hooks
 │   └── volcengine-<domain>/          # 可选 plugin，也是其 skill 的唯一源码
 └── .agents/plugins/marketplace.json
 ```
 
-`skills/core/` 是四个核心 skill 的规范源码；可选 skill 直接在所属 plugin 中维护。同步脚本只复制 core、生成 manifest 和 marketplace。修改或新增 skill 后运行：
+`skills/core/` 是核心 skill 的规范源码；可选 skill 直接在所属 plugin 中维护。同步脚本只复制 core、生成 manifest 和 marketplace。修改或新增 skill 后运行：
 
 ```bash
 python3 scripts/sync_plugins.py

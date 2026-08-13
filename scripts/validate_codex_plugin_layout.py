@@ -22,12 +22,6 @@ CATALOG_PATH = (
 )
 FINDER_SCRIPT = CATALOG_PATH.parents[1] / "scripts" / "find_skills.py"
 CORE_PLUGIN = "volcengine-core"
-CORE_SKILLS = {
-    "volcengine-cli",
-    "volcengine-find-skills",
-    "volcengine-troubleshooting",
-    "volcengine-knowledge-search",
-}
 LIST_FILES = (
     REPO_ROOT / "README.md",
     REPO_ROOT / "README_en.md",
@@ -198,9 +192,13 @@ def validate_catalog(
 
     core_dir = REPO_ROOT / "skills" / "core"
     actual_core = {path.name for path in core_dir.iterdir() if path.is_dir()}
-    if actual_core != CORE_SKILLS:
+    catalog_core = {
+        name for name, skill in skill_map.items() if skill.get("plugin") == CORE_PLUGIN
+    }
+    if actual_core != catalog_core:
         error(
-            f"skills/core must contain exactly {sorted(CORE_SKILLS)}, got {sorted(actual_core)}"
+            "skills/core must match the default plugin catalog; "
+            f"expected={sorted(catalog_core)}, got={sorted(actual_core)}"
         )
     finder = skill_map.get("volcengine-find-skills")
     if not finder or finder.get("path") != "skills/core/volcengine-find-skills":
@@ -301,14 +299,20 @@ def validate_plugin_manifests(
             if label == "Codex" and not isinstance(manifest.get("interface"), dict):
                 error(f"Codex manifest interface missing in {relative(path)}")
 
+    core_source = {
+        path.name
+        for path in (REPO_ROOT / "skills" / "core").iterdir()
+        if path.is_dir()
+    }
     core_packaged = {
         path.name
         for path in (plugins_root / CORE_PLUGIN / "skills").iterdir()
         if path.is_dir()
     }
-    if core_packaged != CORE_SKILLS:
+    if core_packaged != core_source:
         error(
-            f"core plugin must package exactly the four core skills, got {sorted(core_packaged)}"
+            "core plugin must mirror skills/core; "
+            f"source={sorted(core_source)}, packaged={sorted(core_packaged)}"
         )
 
 
@@ -351,7 +355,7 @@ def validate_root_hosts(version: str) -> None:
         error("Gemini extension version must match package.json")
 
 
-def validate_installation_docs() -> None:
+def validate_installation_docs(core_skills: set[str]) -> None:
     readmes = (
         (REPO_ROOT / "README.md", "#默认安装"),
         (REPO_ROOT / "README_en.md", "#default-installation"),
@@ -380,7 +384,7 @@ def validate_installation_docs() -> None:
             error(
                 f"{relative(path)} must install native Gemini skills, not the root extension"
             )
-        for skill in sorted(CORE_SKILLS):
+        for skill in sorted(core_skills):
             command = (
                 "gemini skills install https://github.com/volcengine/volcengine-skills "
                 f"--path skills/core/{skill}"
@@ -623,7 +627,10 @@ def main() -> None:
     validate_marketplaces(plugin_map)
     validate_plugin_manifests(plugin_map, version)
     validate_root_hosts(version)
-    validate_installation_docs()
+    core_skills = {
+        name for name, skill in skill_map.items() if skill.get("plugin") == CORE_PLUGIN
+    }
+    validate_installation_docs(core_skills)
     validate_core_hooks()
     validate_hardcoded_lists(set(skill_map), set(plugin_map))
     validate_finder(skill_map)

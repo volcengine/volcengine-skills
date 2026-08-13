@@ -42,12 +42,6 @@ CORE_HOOK_FILES = (
 )
 NAME_RE = re.compile(r"^volcengine-[a-z0-9]+(?:-[a-z0-9]+)*$")
 CORE_PLUGIN = "volcengine-core"
-CORE_SKILLS = {
-    "volcengine-cli",
-    "volcengine-find-skills",
-    "volcengine-knowledge-search",
-    "volcengine-troubleshooting",
-}
 
 
 def json_text(value: Any) -> str:
@@ -224,9 +218,17 @@ def validate_catalog(catalog: dict[str, Any]) -> None:
         if core_dir.is_dir()
         else set()
     )
-    if actual_core != CORE_SKILLS:
+    catalog_core = {
+        skill["name"]
+        for plugin in plugins
+        if isinstance(plugin, dict) and plugin.get("default")
+        for skill in plugin.get("skills", [])
+        if isinstance(skill, dict) and isinstance(skill.get("name"), str)
+    }
+    if actual_core != catalog_core:
         errors.append(
-            f"skills/core must contain exactly {sorted(CORE_SKILLS)}, got {sorted(actual_core)}"
+            "skills/core must match the default plugin catalog: "
+            f"expected={sorted(catalog_core)}, got={sorted(actual_core)}"
         )
     actual_plugins = {
         path.name for path in PLUGINS_ROOT.iterdir() if path.is_dir()

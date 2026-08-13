@@ -13,6 +13,7 @@ from unittest import mock
 REPO_ROOT = Path(__file__).resolve().parents[1]
 BUILD_SCRIPT = REPO_ROOT / "scripts" / "build_release_bundle.py"
 CORE_ROOT = REPO_ROOT / "skills" / "core"
+RELEASE_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "release.yml"
 SPEC = importlib.util.spec_from_file_location("build_release_bundle", BUILD_SCRIPT)
 BUILD_MODULE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(BUILD_MODULE)
@@ -115,6 +116,25 @@ class BuildReleaseBundleTests(unittest.TestCase):
 
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("does not match package.json", result.stderr)
+
+    def test_release_workflow_uses_cli_tos_upload_contract(self):
+        workflow = RELEASE_WORKFLOW.read_text()
+
+        self.assertIn("python3 -m pip install --user --upgrade awscli", workflow)
+        self.assertIn("secrets.TOS_ACCESS_KEY_ID", workflow)
+        self.assertIn("secrets.TOS_SECRET_ACCESS_KEY", workflow)
+        self.assertIn("https://tos-s3-cn-beijing.volces.com", workflow)
+        self.assertIn(
+            '"s3://${bucket}/${prefix}/v${version}/volcengine-skill-bundle.zip"',
+            workflow,
+        )
+        self.assertIn(
+            '"s3://${bucket}/${prefix}/v${version}/manifest.json"', workflow
+        )
+        self.assertIn(
+            '"s3://${bucket}/${prefix}/latest/manifest.json"', workflow
+        )
+        self.assertNotIn("tosutil", workflow)
 
 
 if __name__ == "__main__":

@@ -91,7 +91,7 @@ ve sts GetCallerIdentity
 
 **Success** — inform the user of the current account identity and region, then proceed with the task.
 
-> **Switching regions later**: once a profile is set up, `---region` on ordinary service API calls and `VOLCENGINE_REGION` do **not** override the region baked into it. Switch profiles with `ve configure profile --profile <name>` only when the user explicitly asks. Use `ve configure list` only to show candidate profile names; after listing, do not choose a profile yourself. This does not apply to the `--region` flag on `ve login` itself, which is required (see below).
+> **Switching regions later**: `---region` on ordinary service API calls **does** override the region for that single call (the response `Region` changes accordingly), and `VOLCENGINE_REGION` sets the default when the profile has none. What does **not** change is the profile's bound login session/account — a region override only redirects where the request goes, not who you are. Do not switch regions or profiles on your own initiative: only pass `---region` or switch profiles (`ve configure profile --profile <name>`) when the user explicitly asks. Use `ve configure list` only to show candidate profile names; after listing, do not choose a profile yourself. This is separate from the `--region` flag on `ve login` itself, which is required (see below).
 
 **Failure** — no usable profile. Default plan: use `ve login` (Console Login, OAuth 2.0 + PKCE). Announce this to the user up front, and tell them they can say "use AK/SK", "use STS token", or "use SSO" to switch.
 
@@ -395,6 +395,7 @@ done
 Consult or update the corresponding notes file when encountering service-specific issues:
 
 - Common errors: [references/common-errors.md](references/common-errors.md)
+- Cloud Control API (cloudcontrol): [references/cloudcontrol.md](references/cloudcontrol.md)
 - ECS: [references/ecs.md](references/ecs.md)
 - VPC: [references/vpc.md](references/vpc.md)
 - CR: [references/cr.md](references/cr.md)

@@ -1,7 +1,7 @@
 {
   "name": "volcengine-service-support",
   "description": "Prepare and deploy applications, manage infrastructure as code, explore OpenAPI specifications, and generate runnable SDK examples.",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "author": {
     "name": "Volcengine Team"
   },

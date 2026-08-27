@@ -1,7 +1,7 @@
 {
   "name": "volcengine-service-support",
-  "version": "1.1.1",
-  "description": "Prepare and deploy applications, manage infrastructure as code, explore OpenAPI specifications, and generate runnable SDK examples.",
+  "version": "1.1.2",
+  "description": "Route product purchases, prepare and deploy applications, manage infrastructure as code, explore OpenAPI specifications, and generate runnable SDK examples.",
   "author": {
     "name": "Volcengine Team",
     "email": "volcengine@bytedance.com",
@@ -15,6 +15,13 @@
     "cloud",
     "服务支持",
     "service support",
+    "billing",
+    "sale",
+    "purchase",
+    "购买",
+    "售卖",
+    "开通",
+    "commonbuy",
     "deployment",
     "terraform",
     "iac",
@@ -25,6 +32,7 @@
     "openapi",
     "sdk",
     "api",
+    "volcengine-sale",
     "volcengine-prepare",
     "volcengine-deploy",
     "volcengine-iac",
@@ -34,8 +42,8 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Volcengine Service Support",
-    "shortDescription": "Prepare deployments, manage IaC, and support API integrations",
-    "longDescription": "Prepare and deploy applications, manage infrastructure as code, explore OpenAPI specifications, and generate runnable SDK examples.",
+    "shortDescription": "Route purchases, prepare deployments, and support API integrations",
+    "longDescription": "Route product purchases, prepare and deploy applications, manage infrastructure as code, explore OpenAPI specifications, and generate runnable SDK examples.",
     "developerName": "Volcengine Team",
     "category": "Cloud",
     "capabilities": [
@@ -44,6 +52,7 @@
       "Write"
     ],
     "defaultPrompt": [
+      "Open a Volcengine Ark endpoint / veFaaS app / TLS project / TOS bucket.",
       "Assess this repository for Volcengine deployment.",
       "Deploy this application to Volcengine.",
       "Create Terraform for this Volcengine architecture.",

@@ -53,6 +53,28 @@ class FinderInstallVerificationTest(unittest.TestCase):
                 self.assertEqual(plugin["name"], record["plugin"])
                 self.assertEqual([item["name"] for item in resolved], [record["name"]])
 
+    def test_sale_skill_is_owned_by_service_support_plugin(self) -> None:
+        sale = next(
+            record
+            for record in FINDER.iter_records(self.catalog)
+            if record["name"] == "volcengine-sale"
+        )
+        self.assertEqual(sale["plugin"], "volcengine-service-support")
+        self.assertEqual(
+            sale["path"],
+            "plugins/volcengine-service-support/skills/volcengine-sale",
+        )
+
+    def test_service_support_exposes_sale_discovery_keywords(self) -> None:
+        service_support = FINDER.plugin_by_name(
+            self.catalog, "volcengine-service-support"
+        )
+        assert service_support is not None
+
+        self.assertIn("开通", service_support["keywords"])
+        self.assertIn("commonbuy", service_support["keywords"])
+        self.assertNotIn("计费", service_support["keywords"])
+
     def test_search_subcommand_is_not_available(self) -> None:
         with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(
             SystemExit

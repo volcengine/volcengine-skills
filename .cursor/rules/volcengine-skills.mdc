@@ -17,6 +17,7 @@ Core skills:
 
 Optional catalogued skills:
 
+- `volcengine-sale` — service support plugin; route Volcengine sale intents and delegate to product skills.
 - `volcengine-prepare` — service support plugin; analyze a repository and recommend a deployment shape.
 - `volcengine-deploy` — service support plugin; deploy an application to Volcengine.
 - `volcengine-iac` — service support plugin; manage infrastructure with Terraform.

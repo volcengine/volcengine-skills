@@ -1,7 +1,7 @@
 {
   "name": "volcengine-service-support",
-  "description": "Prepare and deploy applications, manage infrastructure as code, explore OpenAPI specifications, and generate runnable SDK examples.",
-  "version": "1.1.1",
+  "description": "Route product purchases, prepare and deploy applications, manage infrastructure as code, explore OpenAPI specifications, and generate runnable SDK examples.",
+  "version": "1.1.2",
   "author": {
     "name": "Volcengine Team"
   },
@@ -13,6 +13,13 @@
     "cloud",
     "服务支持",
     "service support",
+    "billing",
+    "sale",
+    "purchase",
+    "购买",
+    "售卖",
+    "开通",
+    "commonbuy",
     "deployment",
     "terraform",
     "iac",
@@ -23,6 +30,7 @@
     "openapi",
     "sdk",
     "api",
+    "volcengine-sale",
     "volcengine-prepare",
     "volcengine-deploy",
     "volcengine-iac",

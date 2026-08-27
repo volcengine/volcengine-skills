@@ -193,10 +193,11 @@
       "domain": "服务支持",
       "domain_en": "Service Support",
       "default": false,
-      "description": "Prepare and deploy applications, manage infrastructure as code, explore OpenAPI specifications, and generate runnable SDK examples.",
-      "short_description": "Prepare deployments, manage IaC, and support API integrations",
-      "keywords": ["服务支持", "service support", "deployment", "terraform", "iac", "ecs", "vke", "vefaas", "云控制api", "openapi", "sdk", "api"],
+      "description": "Route product purchases, prepare and deploy applications, manage infrastructure as code, explore OpenAPI specifications, and generate runnable SDK examples.",
+      "short_description": "Route purchases, prepare deployments, and support API integrations",
+      "keywords": ["服务支持", "service support", "billing", "sale", "purchase", "购买", "售卖", "开通", "commonbuy", "deployment", "terraform", "iac", "ecs", "vke", "vefaas", "云控制api", "openapi", "sdk", "api"],
       "default_prompts": [
+        "Open a Volcengine Ark endpoint / veFaaS app / TLS project / TOS bucket.",
         "Assess this repository for Volcengine deployment.",
         "Deploy this application to Volcengine.",
         "Create Terraform for this Volcengine architecture.",
@@ -204,6 +205,13 @@
         "Generate a runnable SDK example for this API."
       ],
       "skills": [
+        {
+          "name": "volcengine-sale",
+          "path": "plugins/volcengine-service-support/skills/volcengine-sale",
+          "summary": "Route Volcengine product sale/purchase intents and delegate to the owning skill.",
+          "summary_zh": "识别火山商品售卖意图并移交给具体产品 skill 完成开通与查询。",
+          "keywords": ["billing", "sale", "售卖", "开通", "购买", "下单", "方舟", "ark", "vefaas", "函数计算", "tls", "日志服务", "tos", "对象存储", "commonbuy"]
+        },
         {
           "name": "volcengine-prepare",
           "path": "plugins/volcengine-service-support/skills/volcengine-prepare",

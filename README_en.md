@@ -26,7 +26,7 @@ skills are grouped into Volcengine product-domain plugins and discovered through
 | `volcengine-containers-middleware` | Containers and Middleware | `volcengine-vefaas` | No |
 | `volcengine-security` | Security | `volcengine-compliance` | No |
 | `volcengine-identity-access-control` | Identity and Access Control | `volcengine-landing-zone` | No |
-| `volcengine-service-support` | Service Support | `volcengine-prepare`, `volcengine-deploy`, `volcengine-iac`, `volcengine-api`, `volcengine-sdk-generator` | No |
+| `volcengine-service-support` | Service Support | `volcengine-sale`, `volcengine-prepare`, `volcengine-deploy`, `volcengine-iac`, `volcengine-api`, `volcengine-sdk-generator` | No |
 
 The core marketplace entry uses `INSTALLED_BY_DEFAULT`; all optional plugins use `AVAILABLE`.
 `skills/` contains only the `core/` category, whose skills are discovered automatically by the
@@ -41,6 +41,7 @@ duplicate under `skills/`.
 | [`volcengine-troubleshooting`](./skills/core/volcengine-troubleshooting/SKILL.md) | `volcengine-core` | Diagnose Volcengine errors and resource issues |
 | [`volcengine-knowledge-search`](./skills/core/volcengine-knowledge-search/SKILL.md) | `volcengine-core` | Search and retrieve full official Volcengine documentation |
 | [`volcengine-find-skills`](./skills/core/volcengine-find-skills/SKILL.md) | `volcengine-core` | List every skill for the agent to select and install |
+| [`volcengine-sale`](./plugins/volcengine-service-support/skills/volcengine-sale/SKILL.md) | `volcengine-service-support` | Sell Volcengine products |
 | [`volcengine-prepare`](./plugins/volcengine-service-support/skills/volcengine-prepare/SKILL.md) | `volcengine-service-support` | Analyze a repository and recommend ECS, VKE, or veFaaS |
 | [`volcengine-deploy`](./plugins/volcengine-service-support/skills/volcengine-deploy/SKILL.md) | `volcengine-service-support` | Deploy a local directory or Git repository to Volcengine |
 | [`volcengine-iac`](./plugins/volcengine-service-support/skills/volcengine-iac/SKILL.md) | `volcengine-service-support` | Manage Volcengine infrastructure with Terraform |

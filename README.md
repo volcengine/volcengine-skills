@@ -25,7 +25,7 @@
 | `volcengine-containers-middleware` | 容器与中间件 | `volcengine-vefaas` | 否 |
 | `volcengine-security` | 安全 | `volcengine-compliance` | 否 |
 | `volcengine-identity-access-control` | 身份与访问控制 | `volcengine-landing-zone` | 否 |
-| `volcengine-service-support` | 服务支持 | `volcengine-prepare`、`volcengine-deploy`、`volcengine-iac`、`volcengine-api`、`volcengine-sdk-generator` | 否 |
+| `volcengine-service-support` | 服务支持 | `volcengine-sale`、`volcengine-prepare`、`volcengine-deploy`、`volcengine-iac`、`volcengine-api`、`volcengine-sdk-generator` | 否 |
 
 核心插件的 marketplace 策略为 `INSTALLED_BY_DEFAULT`，其他插件均为 `AVAILABLE`。
 `skills/` 下只保留 `core/` 分类；发布工具会自动发现其中的核心 skill。其他 skill 由各自的可选 plugin 直接拥有，不在 `skills/` 下保留副本。
@@ -38,6 +38,7 @@
 | [`volcengine-troubleshooting`](./skills/core/volcengine-troubleshooting/SKILL.md) | `volcengine-core` | 火山引擎故障排查与诊断 |
 | [`volcengine-knowledge-search`](./skills/core/volcengine-knowledge-search/SKILL.md) | `volcengine-core` | 检索火山引擎官方文档并获取全文 |
 | [`volcengine-find-skills`](./skills/core/volcengine-find-skills/SKILL.md) | `volcengine-core` | 列出全部 skill，供 Agent 选择并安装 |
+| [`volcengine-sale`](./plugins/volcengine-service-support/skills/volcengine-sale/SKILL.md) | `volcengine-service-support` | 火山引擎商品售卖 |
 | [`volcengine-prepare`](./plugins/volcengine-service-support/skills/volcengine-prepare/SKILL.md) | `volcengine-service-support` | 分析仓库并推荐 ECS / VKE / veFaaS 部署形态 |
 | [`volcengine-deploy`](./plugins/volcengine-service-support/skills/volcengine-deploy/SKILL.md) | `volcengine-service-support` | 将本地目录或 Git 仓库部署到火山引擎 |
 | [`volcengine-iac`](./plugins/volcengine-service-support/skills/volcengine-iac/SKILL.md) | `volcengine-service-support` | 使用 Terraform 编排火山引擎基础设施 |

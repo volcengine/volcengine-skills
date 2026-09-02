@@ -2,9 +2,28 @@
 # Copyright (c) 2026 Beijing Volcano Engine Technology Co., Ltd.
 # SPDX-License-Identifier: MIT
 """
-Call selected Volcengine extension APIs.
+Call Volcengine OpenAPIs whose request shape `ve` cannot express.
 
-This helper intentionally keeps request signing inline.
+`ve <service> <Action> --version <v> --endpoint <host> --force` handles any
+Action/Version API, including ones missing from the CLI metadata. What it
+cannot do is send URL query parameters *and* a request body in one POST
+(`--body` excludes flattened parameters, and the body is JSON only). A few
+services need exactly that:
+
+  * VMP Prometheus-compatible APIs: `workspace` in the query string, PromQL
+    fields as an application/x-www-form-urlencoded body.
+  * Flink GWS APIs: `ProjectId` (and friends) in the query string, the rest
+    as a JSON body.
+
+This helper signs and sends those. It has two modes:
+
+  registry   --api <Name>            known query/body split (see --list)
+  free       --api <Name> --service <svc> --version <ver> --query-keys k1,k2
+                                     any other API with the same problem
+
+Credentials come from VOLCENGINE_ACCESS_KEY/VOLCENGINE_SECRET_KEY, else from
+the `ve` config/login cache (see references/extend-apis.md). Signing is inline
+on purpose so the script has no third-party imports.
 """
 
 from __future__ import annotations
@@ -28,6 +47,8 @@ DEFAULT_REGION = "cn-beijing"
 DEFAULT_HOST = "open.volcengineapi.com"
 CLI_CONFIG_FILE_ENV = "VOLCENGINE_CLI_CONFIG_FILE"
 LOGIN_CACHE_DIRECTORY_ENV = "VOLCENGINE_LOGIN_CACHE_DIRECTORY"
+FORM_CONTENT_TYPE = "application/x-www-form-urlencoded"
+JSON_CONTENT_TYPE = "application/json"
 
 
 @dataclass(frozen=True)
@@ -42,563 +63,86 @@ class CredentialResolutionError(RuntimeError):
     pass
 
 
-API_REGISTRY: list[dict[str, Any]] = [
-    {
-        "name": "GetVerifyInfo",
-        "service": "account_verify",
-        "version": "2018-01-01",
-        "method": "POST",
-        "content_type": "application/json",
-        "host": "open.volcengineapi.com",
-        "scheme": "https",
-        "call_style": "action_version",
-        "summary": "Check account real-name verification status.",
-    },
-    {
-        "name": "DescribeOriginTopStatisticalData",
-        "service": "CDN",
-        "version": "2021-03-01",
-        "method": "POST",
-        "content_type": "application/json",
-        "host": "cdn.volcengineapi.com",
-        "scheme": "https",
-        "call_style": "action_version",
-        "summary": "CDN origin-side top statistical data.",
-    },
-    {
-        "name": "ListPipelineRunStagesInner",
-        "service": "cp",
-        "version": "2023-05-01",
-        "method": "POST",
-        "content_type": "application/json",
-        "call_style": "universal",
-        "summary": "CodePipeline internal stage list for a pipeline run, used to inspect failed stages/tasks.",
-    },
-    {
-        "name": "DescribeRealtimeData",
-        "service": "dcdn",
-        "version": "2021-04-01",
-        "method": "POST",
-        "content_type": "application/json",
-        "host": "open.volcengineapi.com",
-        "scheme": "https",
-        "call_style": "action_version",
-        "summary": "DCDN realtime edge data.",
-    },
-    {
-        "name": "DescribeOriginRealtimeData",
-        "service": "dcdn",
-        "version": "2021-04-01",
-        "method": "POST",
-        "content_type": "application/json",
-        "host": "open.volcengineapi.com",
-        "scheme": "https",
-        "call_style": "action_version",
-        "summary": "DCDN realtime origin data.",
-    },
-    {
-        "name": "DescribeTopIPs",
-        "service": "dcdn",
-        "version": "2021-04-01",
-        "method": "POST",
-        "content_type": "application/json",
-        "host": "open.volcengineapi.com",
-        "scheme": "https",
-        "call_style": "action_version",
-        "summary": "DCDN top client IP ranking.",
-    },
-    {
-        "name": "DescribeTopReferers",
-        "service": "dcdn",
-        "version": "2021-04-01",
-        "method": "POST",
-        "content_type": "application/json",
-        "host": "open.volcengineapi.com",
-        "scheme": "https",
-        "call_style": "action_version",
-        "summary": "DCDN top referer ranking.",
-    },
-    {
-        "name": "DescribeTopUrls",
-        "service": "dcdn",
-        "version": "2021-04-01",
-        "method": "POST",
-        "content_type": "application/json",
-        "host": "open.volcengineapi.com",
-        "scheme": "https",
-        "call_style": "action_version",
-        "summary": "DCDN top URL ranking.",
-    },
-    {
-        "name": "DescribeListenerLogs",
-        "service": "ga",
-        "version": "2022-03-01",
-        "method": "POST",
-        "content_type": "application/json",
-        "host": "open.volcengineapi.com",
-        "scheme": "https",
-        "call_style": "action_version",
-        "summary": "Global Accelerator listener logs.",
-    },
-    {
-        "name": "GetAcceleratorDimension",
-        "service": "ga",
-        "version": "2022-03-01",
-        "method": "POST",
-        "content_type": "application/json",
-        "host": "open.volcengineapi.com",
-        "scheme": "https",
-        "call_style": "action_version",
-        "summary": "Global Accelerator metric dimensions for accelerator resources.",
-    },
-    {
-        "name": "GetBandwidthPackage",
-        "service": "ga",
-        "version": "2022-03-01",
-        "method": "POST",
-        "content_type": "application/json",
-        "host": "open.volcengineapi.com",
-        "scheme": "https",
-        "call_style": "action_version",
-        "summary": "Global Accelerator bandwidth package detail.",
-    },
-    {
-        "name": "GetBasicEndpointRelatedAccInstanceInfos",
-        "service": "ga",
-        "version": "2022-03-01",
-        "method": "POST",
-        "content_type": "application/json",
-        "host": "open.volcengineapi.com",
-        "scheme": "https",
-        "call_style": "action_version",
-        "summary": "Global Accelerator related basic accelerator instance info for an endpoint.",
-    },
-    {
-        "name": "GetEndpointRelatedAccInstanceInfos",
-        "service": "ga",
-        "version": "2022-03-01",
-        "method": "POST",
-        "content_type": "application/json",
-        "host": "open.volcengineapi.com",
-        "scheme": "https",
-        "call_style": "action_version",
-        "summary": "Global Accelerator related accelerator instance info for an endpoint.",
-    },
-    {
-        "name": "ListAccelerateAreas",
-        "service": "ga",
-        "version": "2022-03-01",
-        "method": "GET",
-        "content_type": "text/plain",
-        "host": "open.volcengineapi.com",
-        "scheme": "https",
-        "call_style": "action_version",
-        "summary": "List Global Accelerator acceleration areas.",
-    },
-    {
-        "name": "ListBandwidthPackages",
-        "service": "ga",
-        "version": "2022-03-01",
-        "method": "POST",
-        "content_type": "application/json",
-        "host": "open.volcengineapi.com",
-        "scheme": "https",
-        "call_style": "action_version",
-        "summary": "List Global Accelerator bandwidth packages.",
-    },
-    {
-        "name": "DescribeLiveBatchStreamTranscodeData",
-        "service": "live",
-        "version": "2023-01-01",
-        "method": "POST",
-        "content_type": "application/json",
-        "host": "live.volcengineapi.com",
-        "scheme": "https",
-        "call_style": "action_version",
-        "summary": "Live batch stream transcode data.",
-    },
-    {
-        "name": "DescribeLiveBatchStreamSessionData",
-        "service": "live",
-        "version": "2023-01-01",
-        "method": "POST",
-        "content_type": "application/json",
-        "host": "live.volcengineapi.com",
-        "scheme": "https",
-        "call_style": "action_version",
-        "summary": "Live batch stream session data.",
-    },
-    {
-        "name": "DescribeCdnDomainConfig",
-        "service": "mcdn",
-        "version": "2022-03-01",
-        "method": "GET",
-        "content_type": "text/plain",
-        "host": "open.volcengineapi.com",
-        "scheme": "https",
-        "call_style": "action_version",
-        "summary": "MCDN CDN domain configuration.",
-    },
-    {
-        "name": "CreateVirtualNode",
-        "service": "vke",
-        "version": "2022-05-12",
-        "method": "POST",
-        "content_type": "application/json",
-        "call_style": "universal",
-        "summary": "Create a VKE virtual node.",
-    },
-    {
-        "name": "ListVirtualNodes",
-        "service": "vke",
-        "version": "2022-05-12",
-        "method": "POST",
-        "content_type": "application/json",
-        "call_style": "universal",
-        "summary": "List VKE virtual nodes.",
-    },
-    {
-        "name": "QueryMetrics",
-        "service": "vmp",
-        "version": "2021-03-03",
-        "method": "POST",
-        "content_type": "application/x-www-form-urlencoded",
-        "query_keys": ["workspace"],
-        "host_template": "vmp.{region}.volcengineapi.com",
-        "scheme": "https",
-        "summary": "VMP instant PromQL query for a workspace.",
-    },
-    {
-        "name": "QueryMetricsRange",
-        "service": "vmp",
-        "version": "2021-03-03",
-        "method": "POST",
-        "content_type": "application/x-www-form-urlencoded",
-        "query_keys": ["workspace"],
-        "host_template": "vmp.{region}.volcengineapi.com",
-        "scheme": "https",
-        "summary": "VMP range PromQL query for a workspace.",
-    },
-    {
-        "name": "GetLabelValues",
-        "service": "vmp",
-        "version": "2021-03-03",
-        "method": "POST",
-        "content_type": "application/x-www-form-urlencoded",
-        "query_keys": ["workspace", "label"],
-        "host_template": "vmp.{region}.volcengineapi.com",
-        "scheme": "https",
-        "summary": "VMP label values query.",
-    },
-    {
-        "name": "GetLabels",
-        "service": "vmp",
-        "version": "2021-03-03",
-        "method": "POST",
-        "content_type": "application/x-www-form-urlencoded",
-        "query_keys": ["workspace"],
-        "host_template": "vmp.{region}.volcengineapi.com",
-        "scheme": "https",
-        "summary": "VMP label names query.",
-    },
-    {
-        "name": "GetSeries",
-        "service": "vmp",
-        "version": "2021-03-03",
-        "method": "POST",
-        "content_type": "application/x-www-form-urlencoded",
-        "query_keys": ["workspace"],
-        "host_template": "vmp.{region}.volcengineapi.com",
-        "scheme": "https",
-        "summary": "VMP series query.",
-    },
-]
+# ---------------------------------------------------------------------------
+# Registry: only APIs that need query + body in one request. Anything else
+# belongs to `ve ... --force`, not here.
+# ---------------------------------------------------------------------------
+API_REGISTRY: list[dict[str, Any]] = []
 
 
-def add_actions(
+def _register(
     names: list[str],
     *,
     service: str,
     version: str,
-    method: str,
-    summary_prefix: str,
-    content_type: str = "application/json",
+    query_keys: list[str],
+    summary: str,
+    content_type: str = JSON_CONTENT_TYPE,
     host: str | None = None,
     host_template: str | None = None,
-    scheme: str | None = None,
-    call_style: str = "action_version",
-    query_keys: list[str] | None = None,
     preserve_query_keys_in_body: list[str] | None = None,
-    test_only: bool = False,
 ) -> None:
     for name in names:
-        entry = {
+        entry: dict[str, Any] = {
             "name": name,
             "service": service,
             "version": version,
-            "method": method,
+            "method": "POST",
             "content_type": content_type,
-            "call_style": call_style,
-            "summary": f"{summary_prefix}: {name}.",
+            "query_keys": list(query_keys),
+            "summary": f"{summary}: {name}.",
         }
         if host:
             entry["host"] = host
         if host_template:
             entry["host_template"] = host_template
-        if scheme:
-            entry["scheme"] = scheme
-        if query_keys:
-            entry["query_keys"] = query_keys
         if preserve_query_keys_in_body:
-            entry["preserve_query_keys_in_body"] = preserve_query_keys_in_body
-        if test_only:
-            entry["test_only"] = True
+            entry["preserve_query_keys_in_body"] = list(preserve_query_keys_in_body)
         API_REGISTRY.append(entry)
 
 
-add_actions(
-    [
-        "RunAlertInvestigator",
-        "RunPcapAnalyzer",
-        "RunAlertFormatter",
-        "RunThreatIntelProducer",
-        "RunWebRiskAssessor",
-        "RunDlpScreenshotAnalyzer",
-        "RunSensitiveDataDetector",
-    ],
-    service="sec_agent",
-    version="2025-01-01",
-    method="POST",
-    summary_prefix="Security intelligent workflow",
-    host="open.volcengineapi.com",
-    scheme="https",
+_VMP = dict(
+    service="vmp",
+    version="2021-03-03",
+    content_type=FORM_CONTENT_TYPE,
+    host_template="vmp.{region}.volcengineapi.com",
+    summary="VMP Prometheus-compatible query (workspace in query string, form body)",
 )
+_register(["QueryMetrics", "QueryMetricsRange", "GetLabels", "GetSeries"], query_keys=["workspace"], **_VMP)
+_register(["GetLabelValues"], query_keys=["workspace", "label"], **_VMP)
 
-add_actions(
-    ["CheckFee", "GetDomain", "GetAsyncTask", "GetTemplate", "ListDomains", "ListTemplates"],
-    service="domain_openapi",
-    version="2022-12-12",
-    method="GET",
-    summary_prefix="Domain service",
-    content_type="text/plain",
-    host="open.volcengineapi.com",
-    scheme="https",
-)
-add_actions(
-    ["RegisterDomain"],
-    service="domain_openapi",
-    version="2022-12-12",
-    method="POST",
-    summary_prefix="Domain service",
-    host="open.volcengineapi.com",
-    scheme="https",
-)
-
-add_actions(
-    [
-        "CallService",
-        "GetAllLastDevicePropertyValue",
-        "GetCustomTopicList",
-        "GetDeviceDetail",
-        "GetDeviceEventRecordList",
-        "GetDeviceList",
-        "GetDeviceOverview",
-        "GetDeviceStatus",
-        "GetDeviceServiceCallRecordList",
-        "GetInstanceDetail",
-        "GetInstanceEndpoints",
-        "GetInstanceList",
-        "GetLastDevicePropertyValue",
-        "GetProductList",
-        "GetProductDetail",
-        "GetPropertyValuesByTime",
-        "GetThingModel",
-        "SetProperty",
-    ],
-    service="iot",
-    version="2021-12-14",
-    method="POST",
-    summary_prefix="IoT device or instance operation",
-    host="iot.cn-shanghai.volcengineapi.com",
-    scheme="https",
-)
-
-add_actions(
-    ["GetApplicant", "GetTrademark", "ListApplicants", "GetRequirement", "ListRequirements", "ListTrademarks", "ListBarrierTrademarks"],
-    service="trademark",
-    version="2023-06-01",
-    method="GET",
-    summary_prefix="Trademark query",
-    content_type="text/plain",
-    host="open.volcengineapi.com",
-    scheme="https",
-)
-add_actions(
-    ["SearchTrademarkInfo", "SearchTrademark"],
-    service="trademark",
-    version="2023-06-01",
-    method="POST",
-    summary_prefix="Trademark search",
-    host="open.volcengineapi.com",
-    scheme="https",
-)
-
-add_actions(
-    ["ListWorkspace", "GetWorkspaceInfo", "ListQueryClusters", "GetQueryCluster", "ListPreagg", "InfluxQuery", "MetricsQuery"],
-    service="metrics",
-    version="2024-06-29",
-    method="POST",
-    summary_prefix="Volcengine Metrics service",
-    host_template="metrics.{region}.volcengineapi.com",
-    scheme="https",
-)
-
-add_actions(
-    [
-        "StartCloudServer",
-        "StopCloudServer",
-        "RebootCloudServer",
-    ],
-    service="veenedge",
-    version="2021-04-30",
-    method="POST",
-    summary_prefix="VEEN edge cloud mutation",
-    host="veenedge.volcengineapi.com",
-)
-add_actions(
-    [
-        "GetVEENInstanceUsage",
-        "GetVEEWInstanceUsage",
-        "GetBandwidthUsage",
-        "GetBillingUsageDetail",
-    ],
-    service="veenedge",
-    version="2021-04-30",
-    method="GET",
-    summary_prefix="VEEN edge cloud query",
-    content_type="text/plain",
-    host="veenedge.volcengineapi.com",
-)
-
-add_actions(
-    ["ListGMSProject", "GetGMSProjectDetail", "GetGRSAppById"],
+_FLINK = dict(
     service="flink",
     version="2021-06-01",
-    method="GET",
-    summary_prefix="Flink management query",
-    content_type="text/plain",
-    host="open.volcengineapi.com",
-    scheme="https",
-    call_style="flink_path",
+    host=DEFAULT_HOST,
+    summary="Flink GWS operation (ProjectId in query string, JSON body)",
 )
-add_actions(
-    ["ListGMCSResourcePool"],
-    service="flink",
-    version="2022-06-01",
-    method="GET",
-    summary_prefix="Flink management query",
-    content_type="text/plain",
-    host="open.volcengineapi.com",
-    scheme="https",
-    call_style="flink_path",
-)
-add_actions(
-    ["ListGASLogs", "GetGWSApplication"],
-    service="flink",
-    version="2021-06-01",
-    method="POST",
-    summary_prefix="Flink GWS/GAS operation",
-    host="open.volcengineapi.com",
-    scheme="https",
-    call_style="flink_path",
-)
-add_actions(
-    ["ListGWSDirectory"],
-    service="flink",
-    version="2021-06-01",
-    method="POST",
-    summary_prefix="Flink GWS/GAS operation",
-    host="open.volcengineapi.com",
-    scheme="https",
-    call_style="flink_path",
-    query_keys=["ProjectId", "Type"],
-)
-add_actions(
-    ["GetGWSApplicationDraft", "DeleteGWSApplication", "GWSGetEventList", "StartGWSApplication", "CancelGWSApplication", "RestartGWSApplication"],
-    service="flink",
-    version="2021-06-01",
-    method="POST",
-    summary_prefix="Flink GWS/GAS operation",
-    host="open.volcengineapi.com",
-    scheme="https",
-    call_style="flink_path",
+_register(["ListGWSDirectory"], query_keys=["ProjectId", "Type"], **_FLINK)
+_register(
+    [
+        "GetGWSApplicationDraft",
+        "DeleteGWSApplication",
+        "GWSGetEventList",
+        "StartGWSApplication",
+        "CancelGWSApplication",
+        "RestartGWSApplication",
+    ],
     query_keys=["ProjectId"],
+    **_FLINK,
 )
-add_actions(
+_register(
     ["CreateGWSApplicationDraft", "UpdateGWSApplicationDraft"],
-    service="flink",
-    version="2021-06-01",
-    method="POST",
-    summary_prefix="Flink GWS/GAS operation",
-    host="open.volcengineapi.com",
-    scheme="https",
-    call_style="flink_path",
     query_keys=["ProjectId"],
     preserve_query_keys_in_body=["ProjectId"],
+    **_FLINK,
 )
-add_actions(
-    ["DeployGWSApplicationDraft"],
-    service="flink",
-    version="2021-06-01",
-    method="POST",
-    summary_prefix="Flink GWS/GAS operation",
-    host="open.volcengineapi.com",
-    scheme="https",
-    call_style="flink_path",
-    query_keys=["ProjectId", "Id"],
-)
-add_actions(
-    ["ListGWSApplication"],
-    service="flink",
-    version="2021-06-01",
-    method="POST",
-    summary_prefix="Flink GWS/GAS operation",
-    host="open.volcengineapi.com",
-    scheme="https",
-    call_style="flink_path",
-    query_keys=["PageSize", "PageNum", "SortField", "SortOrder"],
-)
-add_actions(
-    ["GetGMSUserToken"],
-    service="flink",
-    version="2021-06-01",
-    method="GET",
-    summary_prefix="Flink test-only token query",
-    content_type="text/plain",
-    host="open.volcengineapi.com",
-    scheme="https",
-    call_style="flink_path",
-    test_only=True,
-)
+_register(["DeployGWSApplicationDraft"], query_keys=["ProjectId", "Id"], **_FLINK)
+_register(["ListGWSApplication"], query_keys=["PageSize", "PageNum", "SortField", "SortOrder"], **_FLINK)
 
 
-_REGION_BY_SERVICE = {
-    "CDN": "cn-north-1",
-    "dcdn": "cn-north-1",
-    "ga": "cn-north-1",
-    "live": "cn-north-1",
-    "mcdn": "cn-north-1",
-    "domain_openapi": "cn-north-1",
-    "trademark": "cn-north-1",
-    "veenedge": "cn-north-1",
-    "iot": "cn-shanghai",
-}
-for _entry in API_REGISTRY:
-    _region = _REGION_BY_SERVICE.get(_entry["service"])
-    if _region:
-        _entry["region"] = _region
-
-
+# ---------------------------------------------------------------------------
+# Small helpers
+# ---------------------------------------------------------------------------
 def parse_json_value(raw: str | None) -> dict[str, Any]:
     if raw is None or raw == "":
         return {}
@@ -612,6 +156,13 @@ def parse_json_value(raw: str | None) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise SystemExit("--params must be a JSON object")
     return value
+
+
+def parse_key_list(raw: str | None) -> list[str]:
+    if not raw:
+        return []
+    keys = [part.strip() for part in raw.split(",")]
+    return [key for key in keys if key]
 
 
 def env(name: str, default: str = "") -> str:
@@ -648,6 +199,9 @@ def check_ve_login_status() -> str:
     return output or f"`ve sts GetCallerIdentity` failed with exit code {completed.returncode}."
 
 
+# ---------------------------------------------------------------------------
+# Credential resolution (env -> ve profile AK/SK -> ve console-login cache)
+# ---------------------------------------------------------------------------
 def _config_path(env_getter=env) -> str:
     return _env_value(env_getter, CLI_CONFIG_FILE_ENV) or os.path.expanduser("~/.volcengine/config.json")
 
@@ -884,6 +438,9 @@ def resolve_volcengine_credentials(
     return resolved
 
 
+# ---------------------------------------------------------------------------
+# Request shaping and HMAC-SHA256 signing
+# ---------------------------------------------------------------------------
 def split_query_body(
     params: dict[str, Any],
     query_keys: list[str] | None,
@@ -926,100 +483,13 @@ def utc_now() -> datetime.datetime:
     return datetime.datetime.now(datetime.timezone.utc)
 
 
-def signed_post_with_query(
-    *,
-    ak: str,
-    sk: str,
-    session_token: str,
-    region: str,
-    host: str,
-    service: str,
-    version: str,
-    action: str,
-    content_type: str,
-    query: dict[str, Any],
-    body: dict[str, Any],
-    scheme: str,
-) -> tuple[Any, int, dict[str, str]]:
-    if content_type == "application/x-www-form-urlencoded":
-        body_str = urlencode(body, doseq=True)
-    else:
-        body_str = json.dumps(body)
-
-    request_query = {"Action": action, "Version": version, **query}
-    x_date = utc_now().strftime("%Y%m%dT%H%M%SZ")
-    short_x_date = x_date[:8]
-    x_content_sha256 = hash_sha256(body_str)
-    signed_headers = "content-type;host;x-content-sha256;x-date"
-    canonical_request = "\n".join(
-        [
-            "POST",
-            "/",
-            norm_query(request_query),
-            "\n".join(
-                [
-                    "content-type:" + content_type,
-                    "host:" + host,
-                    "x-content-sha256:" + x_content_sha256,
-                    "x-date:" + x_date,
-                ]
-            ),
-            "",
-            signed_headers,
-            x_content_sha256,
-        ]
-    )
-    credential_scope = "/".join([short_x_date, region, service, "request"])
-    string_to_sign = "\n".join(["HMAC-SHA256", x_date, credential_scope, hash_sha256(canonical_request)])
-    k_date = hmac_sha256(sk.encode("utf-8"), short_x_date)
-    k_region = hmac_sha256(k_date, region)
-    k_service = hmac_sha256(k_region, service)
-    k_signing = hmac_sha256(k_service, "request")
-    signature = hmac_sha256(k_signing, string_to_sign).hex()
-    headers = {
-        "Host": host,
-        "X-Content-Sha256": x_content_sha256,
-        "X-Date": x_date,
-        "Content-Type": content_type,
-        "Authorization": (
-            "HMAC-SHA256 Credential="
-            + ak
-            + "/"
-            + credential_scope
-            + ", SignedHeaders="
-            + signed_headers
-            + ", Signature="
-            + signature
-        ),
-    }
-    if session_token:
-        headers["x-security-token"] = session_token
-
-    url = f"{scheme}://{host}/?{norm_query(request_query)}"
-    req = urllib_request.Request(
-        url=url,
-        data=body_str.encode("utf-8"),
-        headers=headers,
-        method="POST",
-    )
-    try:
-        with urllib_request.urlopen(req, timeout=30) as response:
-            status_code = response.status
-            response_headers = dict(response.headers.items())
-            response_text = response.read().decode("utf-8")
-    except urllib_error.HTTPError as exc:
-        status_code = exc.code
-        response_headers = dict(exc.headers.items())
-        response_text = exc.read().decode("utf-8")
-
-    try:
-        payload = json.loads(response_text)
-    except json.JSONDecodeError:
-        payload = response_text
-    return payload, status_code, response_headers
+def encode_body(body: dict[str, Any], content_type: str) -> str:
+    if content_type == FORM_CONTENT_TYPE:
+        return urlencode(body, doseq=True)
+    return json.dumps(body)
 
 
-def signed_action_version_request(
+def build_signed_request(
     *,
     ak: str,
     sk: str,
@@ -1033,20 +503,19 @@ def signed_action_version_request(
     content_type: str,
     query: dict[str, Any],
     body: dict[str, Any],
-    scheme: str,
-) -> tuple[Any, int, dict[str, str]]:
+    scheme: str = "https",
+    now: datetime.datetime | None = None,
+) -> urllib_request.Request:
+    """Build a signed urllib Request. GET folds the body into the query string."""
     method = method.upper()
     if method == "GET":
         request_query = {"Action": action, "Version": version, **body, **query}
         body_str = ""
     else:
         request_query = {"Action": action, "Version": version, **query}
-        if content_type == "application/x-www-form-urlencoded":
-            body_str = urlencode(body, doseq=True)
-        else:
-            body_str = json.dumps(body)
+        body_str = encode_body(body, content_type)
 
-    x_date = utc_now().strftime("%Y%m%dT%H%M%SZ")
+    x_date = (now or utc_now()).strftime("%Y%m%dT%H%M%SZ")
     short_x_date = x_date[:8]
     x_content_sha256 = hash_sha256(body_str)
     signed_headers = "content-type;host;x-content-sha256;x-date"
@@ -1096,9 +565,12 @@ def signed_action_version_request(
 
     url = f"{scheme}://{host}/?{norm_query(request_query)}"
     data = None if method == "GET" else body_str.encode("utf-8")
-    req = urllib_request.Request(url=url, data=data, headers=headers, method=method)
+    return urllib_request.Request(url=url, data=data, headers=headers, method=method)
+
+
+def send_request(req: urllib_request.Request, timeout: int = 30) -> tuple[Any, int, dict[str, str]]:
     try:
-        with urllib_request.urlopen(req, timeout=30) as response:
+        with urllib_request.urlopen(req, timeout=timeout) as response:
             status_code = response.status
             response_headers = dict(response.headers.items())
             response_text = response.read().decode("utf-8")
@@ -1114,43 +586,92 @@ def signed_action_version_request(
     return payload, status_code, response_headers
 
 
-def call_flink_path(
-    *,
-    ak: str,
-    sk: str,
-    session_token: str,
-    region: str,
-    host: str,
-    service: str,
-    version: str,
-    action: str,
-    method: str,
-    content_type: str,
-    params: dict[str, Any],
-    query_keys: list[str] | None,
-    preserve_query_keys_in_body: list[str] | None,
-    scheme: str,
-) -> tuple[Any, int, dict[str, str]]:
-    if method == "GET":
-        query = params
-        body: dict[str, Any] = {}
-    else:
-        query, body = split_query_body(params, query_keys, preserve_query_keys_in_body)
-    return signed_action_version_request(
-        ak=ak,
-        sk=sk,
-        session_token=session_token,
-        region=region,
-        host=host,
-        service=service,
-        version=version,
-        action=action,
-        method=method,
-        content_type=content_type,
-        query=query,
-        body=body,
-        scheme=scheme,
-    )
+def response_failed(payload: Any, status_code: int) -> bool:
+    """True for HTTP failures and for Volcengine errors carried inside an HTTP 200."""
+    if status_code >= 400:
+        return True
+    if not isinstance(payload, dict):
+        return False
+    metadata = payload.get("ResponseMetadata")
+    return isinstance(metadata, dict) and metadata.get("Error") is not None
+
+
+# ---------------------------------------------------------------------------
+# Registry lookup / free mode
+# ---------------------------------------------------------------------------
+def registry_by_name() -> dict[str, list[dict[str, Any]]]:
+    index: dict[str, list[dict[str, Any]]] = {}
+    for entry in API_REGISTRY:
+        index.setdefault(entry["name"], []).append(entry)
+    return index
+
+
+def find_registry_entry(api_name: str, service: str | None) -> dict[str, Any] | None:
+    matches = registry_by_name().get(api_name, [])
+    if service:
+        matches = [entry for entry in matches if entry["service"] == service]
+    if not matches:
+        return None
+    if len(matches) > 1:
+        services = ", ".join(sorted({entry["service"] for entry in matches}))
+        raise SystemExit(f"APIName {api_name} is ambiguous across services: {services}. Pass --service.")
+    return matches[0]
+
+
+def resolve_api(api_name: str, service: str | None) -> dict[str, Any]:
+    entry = find_registry_entry(api_name, service)
+    if entry is None:
+        raise SystemExit(
+            f"Unknown APIName: {api_name}. Use --list to see the registered query+body APIs, "
+            "or pass --service/--version/--query-keys for free mode. For ordinary APIs use "
+            f"`ve <service> {api_name} --version <ver> --endpoint <host> --force` instead."
+        )
+    return entry
+
+
+def build_free_entry(args: argparse.Namespace) -> dict[str, Any]:
+    missing = [flag for flag, value in (("--service", args.service), ("--version", args.version)) if not value]
+    if missing:
+        raise SystemExit(
+            f"{args.api_name} is not in the registry; free mode needs {' and '.join(missing)} "
+            "(plus --query-keys for the keys that belong in the URL)."
+        )
+    query_keys = parse_key_list(args.query_keys)
+    if not query_keys:
+        raise SystemExit(
+            f"{args.api_name} is not in the registry and no --query-keys were given. An API without a "
+            f"query/body split does not need this helper: use `ve {args.service} {args.api_name} "
+            f"--version {args.version} --endpoint <host> --force`."
+        )
+    preserve = parse_key_list(args.body_keys_also)
+    unknown_preserve = [key for key in preserve if key not in query_keys]
+    if unknown_preserve:
+        raise SystemExit(f"--body-keys-also lists keys that are not in --query-keys: {', '.join(unknown_preserve)}")
+    entry: dict[str, Any] = {
+        "name": args.api_name,
+        "service": args.service,
+        "version": args.version,
+        "method": (args.method or "POST").upper(),
+        "content_type": args.content_type or JSON_CONTENT_TYPE,
+        "query_keys": query_keys,
+        "summary": "Free-mode call (not in registry).",
+        "free_mode": True,
+    }
+    if preserve:
+        entry["preserve_query_keys_in_body"] = preserve
+    return entry
+
+
+def resolve_entry(args: argparse.Namespace) -> dict[str, Any]:
+    entry = find_registry_entry(args.api_name, args.service)
+    if entry is not None:
+        if args.query_keys:
+            raise SystemExit(
+                f"{entry['name']} is a registered API; its query keys are fixed to "
+                f"{', '.join(entry['query_keys'])}. Drop --query-keys."
+            )
+        return entry
+    return build_free_entry(args)
 
 
 def resolve_host(entry: dict[str, Any], region: str, explicit_host: str | None) -> str:
@@ -1163,66 +684,11 @@ def resolve_host(entry: dict[str, Any], region: str, explicit_host: str | None) 
     return env("VOLCENGINE_ENDPOINT") or DEFAULT_HOST
 
 
-def registry_by_name(include_test: bool = False) -> dict[str, list[dict[str, Any]]]:
-    index: dict[str, list[dict[str, Any]]] = {}
-    for entry in API_REGISTRY:
-        if entry.get("test_only") and not include_test:
-            continue
-        index.setdefault(entry["name"], []).append(entry)
-    return index
-
-
-def resolve_api(api_name: str, service: str | None, include_test: bool = False) -> dict[str, Any]:
-    matches = registry_by_name(include_test).get(api_name, [])
-    if service:
-        matches = [entry for entry in matches if entry["service"] == service]
-    if not matches:
-        raise SystemExit(f"Unknown APIName: {api_name}. Use --list to inspect supported extension APIs.")
-    if len(matches) > 1:
-        services = ", ".join(sorted({entry["service"] for entry in matches}))
-        raise SystemExit(f"APIName {api_name} is ambiguous across services: {services}. Pass --service.")
-    return matches[0]
-
-
-def action_kind(action: str) -> str:
-    destructive_prefixes = ("Delete", "Terminate", "Release", "Revoke", "Modify", "Stop", "Detach", "Cancel")
-    write_prefixes = ("Create", "Run", "Allocate", "Attach", "Associate", "Authorize", "Update", "Set", "Start", "Register", "Import")
-    readonly_prefixes = ("Describe", "List", "Get", "Query", "Check", "Search")
-    if action.startswith(destructive_prefixes):
-        return "destructive"
-    if action.startswith(write_prefixes):
-        return "write"
-    if action.startswith(readonly_prefixes):
-        return "read"
-    return "unknown"
-
-
-def summarize_verify_info(payload: Any) -> dict[str, Any]:
-    info = payload.get("Result", payload) if isinstance(payload, dict) else {}
-    if not isinstance(info, dict):
-        info = {}
-    is_verified = info.get("IsVerified") is True
-    identity_type = info.get("IdentityType")
-    return {
-        "is_verified": is_verified,
-        "identity_type": identity_type,
-        "individual_verified": is_verified and identity_type == "individual",
-        "enterprise_verified": is_verified and identity_type == "enterprise",
-    }
-
-
-def derived_summary(entry: dict[str, Any], payload: Any) -> dict[str, Any] | None:
-    if entry["service"] == "account_verify" and entry["name"] == "GetVerifyInfo":
-        return {"verification": summarize_verify_info(payload)}
-    return None
-
-
-def print_list(include_test: bool = False) -> None:
-    entries = [entry for entry in API_REGISTRY if include_test or not entry.get("test_only")]
-    for entry in sorted(entries, key=lambda e: (e["service"], e["name"])):
+def print_list() -> None:
+    for entry in sorted(API_REGISTRY, key=lambda e: (e["service"], e["name"])):
         print(
             f"{entry['name']}\t{entry['service']}\t{entry['version']}\t"
-            f"{entry['method']}\t{entry.get('summary', '')}"
+            f"{entry['method']}\tquery={','.join(entry['query_keys'])}\t{entry.get('summary', '')}"
         )
 
 
@@ -1230,20 +696,41 @@ def print_describe(entry: dict[str, Any]) -> None:
     print(json.dumps(entry, ensure_ascii=False, indent=2))
 
 
-def call_api(args: argparse.Namespace) -> int:
-    entry = resolve_api(args.api_name, args.service, include_test=args.include_test)
+# ---------------------------------------------------------------------------
+# CLI
+# ---------------------------------------------------------------------------
+def prepare_request_shape(entry: dict[str, Any], args: argparse.Namespace) -> dict[str, Any]:
+    """Everything needed to sign, minus credentials. Split out so it is testable offline."""
     expected_method = entry["method"].upper()
-    if args.method and args.method.upper() != expected_method:
+    if args.method and args.method.upper() != expected_method and not entry.get("free_mode"):
         raise SystemExit(f"{entry['name']} uses method {expected_method}, not {args.method.upper()}")
+    method = (args.method or expected_method).upper()
 
     params = parse_json_value(args.params)
     query_params, body_params = split_query_body(params, entry.get("query_keys"), entry.get("preserve_query_keys_in_body"))
-    region = args.region or entry.get("region") or env("VOLCENGINE_REGION") or DEFAULT_REGION
+    region = args.region or env("VOLCENGINE_REGION") or DEFAULT_REGION
     host = resolve_host(entry, region, args.host)
     scheme = args.scheme or entry.get("scheme") or "https"
     if scheme != "https":
         raise SystemExit("Only HTTPS endpoints are supported by this helper.")
-    content_type = args.content_type or entry.get("content_type") or "application/json"
+    content_type = args.content_type or entry.get("content_type") or JSON_CONTENT_TYPE
+    return {
+        "region": region,
+        "host": host,
+        "service": entry["service"],
+        "version": entry["version"],
+        "action": entry["name"],
+        "method": method,
+        "content_type": content_type,
+        "query": query_params,
+        "body": body_params,
+        "scheme": scheme,
+    }
+
+
+def call_api(args: argparse.Namespace) -> int:
+    entry = resolve_entry(args)
+    shape = prepare_request_shape(entry, args)
 
     try:
         credentials = resolve_volcengine_credentials(
@@ -1253,90 +740,53 @@ def call_api(args: argparse.Namespace) -> int:
         )
     except CredentialResolutionError as exc:
         raise SystemExit(str(exc)) from exc
-    ak = credentials.ak
-    sk = credentials.sk
-    session_token = credentials.session_token
 
-    if entry.get("call_style") == "flink_path":
-        response, status_code, response_headers = call_flink_path(
-            ak=ak,
-            sk=sk,
-            session_token=session_token,
-            region=region,
-            host=host,
-            service=entry["service"],
-            version=entry["version"],
-            action=entry["name"],
-            method=expected_method,
-            content_type=content_type,
-            params=params,
-            query_keys=entry.get("query_keys"),
-            preserve_query_keys_in_body=entry.get("preserve_query_keys_in_body"),
-            scheme=scheme,
-        )
-    elif query_params and expected_method == "POST":
-        response, status_code, response_headers = signed_post_with_query(
-            ak=ak,
-            sk=sk,
-            session_token=session_token,
-            region=region,
-            host=host,
-            service=entry["service"],
-            version=entry["version"],
-            action=entry["name"],
-            content_type=content_type,
-            query=query_params,
-            body=body_params,
-            scheme=scheme,
-        )
-    else:
-        response, status_code, response_headers = signed_action_version_request(
-            ak=ak,
-            sk=sk,
-            session_token=session_token,
-            region=region,
-            host=host,
-            service=entry["service"],
-            version=entry["version"],
-            action=entry["name"],
-            method=expected_method,
-            content_type=content_type,
-            query=query_params,
-            body=body_params,
-            scheme=scheme,
-        )
+    req = build_signed_request(
+        ak=credentials.ak,
+        sk=credentials.sk,
+        session_token=credentials.session_token,
+        **shape,
+    )
+    response, status_code, response_headers = send_request(req)
 
-    summary = derived_summary(entry, response)
     if args.output == "json":
         print(json.dumps(response, ensure_ascii=False))
     else:
         print(f"Status Code: {status_code}")
         print(json.dumps(response, ensure_ascii=False, indent=2))
-        if summary:
-            print("Derived Summary:")
-            print(json.dumps(summary, ensure_ascii=False, indent=2))
         if args.show_headers:
             print("Response Headers:")
             print(json.dumps(dict(response_headers), ensure_ascii=False, indent=2, default=str))
-    return 0
+    return 1 if response_failed(response, status_code) else 0
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Call Volcengine extension APIs")
-    parser.add_argument("--api", "--api-name", dest="api_name", help="APIName/Action to call")
+    parser = argparse.ArgumentParser(
+        description="Call Volcengine APIs that need URL query parameters and a request body in one POST. "
+        "For everything else use `ve <service> <Action> --version <ver> --endpoint <host> --force`.",
+    )
+    parser.add_argument("--api", "--api-name", dest="api_name", help="Action name to call")
     parser.add_argument("--params", "--param", default="{}", help="JSON object or @file.json, default {}")
-    parser.add_argument("--method", choices=["GET", "POST", "get", "post"], help="Optional method assertion")
-    parser.add_argument("--service", help="ServiceCode disambiguator for duplicate API names")
+    parser.add_argument("--service", help="ServiceCode (required in free mode; disambiguates registry names)")
+    parser.add_argument("--version", help="API version, e.g. 2021-06-01 (free mode only)")
+    parser.add_argument(
+        "--query-keys",
+        help="Comma-separated param keys sent in the URL query string instead of the body (free mode only)",
+    )
+    parser.add_argument(
+        "--body-keys-also",
+        help="Comma-separated subset of --query-keys that must ALSO stay in the body (free mode only)",
+    )
+    parser.add_argument("--method", choices=["GET", "POST", "get", "post"], help="HTTP method; registry entries are fixed to POST")
     parser.add_argument("--region", help="Request region, default VOLCENGINE_REGION or cn-beijing")
-    parser.add_argument("--host", help="Override endpoint host; otherwise uses the registry host or VOLCENGINE_ENDPOINT fallback")
-    parser.add_argument("--scheme", choices=["https"], help="Override endpoint scheme; HTTPS only")
-    parser.add_argument("--content-type", help="Override content type")
+    parser.add_argument("--host", help="Override endpoint host; otherwise registry host/template or VOLCENGINE_ENDPOINT or open.volcengineapi.com")
+    parser.add_argument("--scheme", choices=["https"], help="HTTPS only")
+    parser.add_argument("--content-type", help="Override content type (application/json or application/x-www-form-urlencoded)")
     parser.add_argument("--session-token", help="Override VOLCENGINE_SESSION_TOKEN")
     parser.add_argument("--profile", help="Volcengine CLI profile name for ve login/config credentials")
     parser.add_argument("--output", choices=["pretty", "json"], default="pretty")
     parser.add_argument("--show-headers", action="store_true")
-    parser.add_argument("--include-test", action="store_true", help="Include test-only APIs in --list/--describe/calls")
-    parser.add_argument("--list", action="store_true", help="List supported extension APIs")
+    parser.add_argument("--list", action="store_true", help="List registered query+body APIs")
     parser.add_argument("--describe", metavar="APIName", help="Print registry metadata for an API")
     return parser
 
@@ -1346,10 +796,10 @@ def main() -> int:
     args = parser.parse_args()
 
     if args.list:
-        print_list(include_test=args.include_test)
+        print_list()
         return 0
     if args.describe:
-        print_describe(resolve_api(args.describe, args.service, include_test=args.include_test))
+        print_describe(resolve_api(args.describe, args.service))
         return 0
     if not args.api_name:
         parser.error("--api is required unless --list or --describe is used")

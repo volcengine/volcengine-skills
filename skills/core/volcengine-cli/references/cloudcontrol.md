@@ -179,7 +179,7 @@ See the official permissions guide: https://www.volcengine.com/docs/86682/185084
 
 ## Resource Type Discovery
 
-`ListResourceTypes` is paginated. Each page's `NextToken` is a long base64 string, and response bodies can contain unescaped control characters that break naive shell/`jq` parsing. To decide whether a type is supported, page through the full list (following `NextToken` until it is empty) and check whether your target `TypeName` appears — only if you reach the end without finding it can you conclude it is absent. Check every call's exit code and abort the loop on failure rather than silently treating it as "no more pages". Use a real JSON parser with lenient string handling. Region is optional — omit it to use the profile default; only pass `---region <region>` when you specifically want another region (the check is per-region):
+`ListResourceTypes` is paginated. Each page's `NextToken` is a long base64 string, and response bodies can contain unescaped control characters that break naive shell/`jq` parsing. To decide whether a type is supported, page through the full list (following `NextToken` until it is empty) and check whether your target `TypeName` appears — only if you reach the end without finding it can you conclude it is absent. Check every call's exit code and abort the loop on failure rather than silently treating it as "no more pages". Use a real JSON parser with lenient string handling. Region is optional — omit it to use the profile default; only pass `--region <region>` when you specifically want another region (the check is per-region):
 
 ```bash
 python3 - "Volcengine::VPC::VPC" <<'PY'
@@ -193,7 +193,7 @@ while True:
     if next_tok:
         cmd += ["--NextToken", next_tok]
     if region:
-        cmd += ["---region", region]
+        cmd += ["--region", region]
     r = subprocess.run(cmd, capture_output=True, text=True)
     if r.returncode != 0:
         raise SystemExit(f"page {page} failed: {r.stderr.strip()}")
@@ -215,6 +215,6 @@ PY
 
 - **Type name casing is exact.** Use `Volcengine::Service::Resource` exactly as returned by `ListResourceTypes`; a wrong case or segment yields a not-found/validation error, not a formatting hint.
 - **Schema is authoritative, not the docs in your head.** Re-run `DescribeResourceType` whenever a create/update fails validation; required fields and enums differ per type.
-- **Region is optional and per-call.** Cloud Control is regional but region is not required — calls use the profile default when omitted. Pass `---region <region>` (three-hyphen flag) only to target another region; it does take effect — the response `Region` changes accordingly. Regional resources (VPC, ECS, etc.) are not visible across regions; global resources (e.g. IAM users, which list and read identically under any `---region`) are the exception.
+- **Region is optional and per-call.** Cloud Control is regional but region is not required — calls use the profile default when omitted. Pass `--region <region>` only to target another region; it does take effect — the response `Region` changes accordingly. Regional resources (VPC, ECS, etc.) are not visible across regions; global resources (e.g. IAM users, which list and read identically under any `--region`) are the exception.
 - **Not every product is covered.** If `ListResourceTypes` (fully paginated) does not list the type you need, fall back to the product-specific `ve <svc>` API. Official supported list: https://www.volcengine.com/docs/86682/1850848
 - **Complex resources may need several tries.** Some resources depend on others (e.g. an ECS instance needs a VPC/subnet/security group). Create dependencies first, poll them to ready, then create the dependent resource.

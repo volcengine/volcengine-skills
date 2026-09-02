@@ -1,9 +1,5 @@
 # Redis Service Notes
 
-## Swagger/Explorer Gaps
-
-`scripts/fetch_swagger.py --service redis --action <Action>` can fail with OpenAPI Explorer HTTP 500 for Redis actions including allow-list and instance lifecycle APIs. Fall back to `ve redis <Action> --help` for the JSON body schema.
-
 ## Allow-List Cleanup Ordering
 
 Calling `DeleteAllowList` immediately after `DeleteDBInstance` can fail with `AllowListBindInstanceCannotDelete` because the instance has not been fully removed. Wait until `DescribeDBInstanceDetail` returns not found, then delete the allow list.

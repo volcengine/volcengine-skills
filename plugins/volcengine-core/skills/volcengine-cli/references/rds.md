@@ -1,9 +1,5 @@
 # RDS Service Notes
 
-## Explorer Helper Gap
-
-`scripts/fetch_swagger.py --service rdsmysql --list`, `rdspostgresql`, and `rdsmssql` returned HTTP 404 from the Explorer versions endpoint. Use `ve <service> <Action> --help` for these service schemas.
-
 Verified CLI service names in the current `ve` build:
 
 | Engine | CLI service |

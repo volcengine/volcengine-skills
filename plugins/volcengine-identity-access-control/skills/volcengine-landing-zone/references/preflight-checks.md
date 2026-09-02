@@ -62,7 +62,7 @@ For a default profile-based setup, follow the profile-based configuration exampl
 
 When the customer explicitly prefers environment variables for `ve`, follow the CLI README and guide them to export the corresponding variables instead.
 
-If the customer already uses a console-login flow such as `ve login`, keep that path and verify it for **CLI identity only**; do not replace it just because another option exists. Use `ve login --region <region>` only when the customer explicitly chooses that path or already depends on it. Use `--remote` only when the environment cannot complete the normal local browser flow.
+If the customer already uses a console-login flow such as `ve login`, keep that path and verify it for **CLI identity only**; do not replace it just because another option exists. Use `ve login --region <region>` only when the customer explicitly chooses that path or already depends on it. On a headless or remote agent host, follow the `volcengine-cli` skill's Console Login procedure (`scripts/ve_login_remote.sh`, device code with `--no-browser`) instead of running `ve login` directly.
 
 After the selected `ve` auth path is ready, verify it with:
 

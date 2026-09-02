@@ -21,7 +21,7 @@
 - 若 `ve config` 报 `failed to refresh session token. Please run 've login'...`（或类似
   会话过期文案），**不要**让用户自己去终端跑 `ve login`，也**不要**盲目重试。
 - 按 **`volcengine-cli` 技能**的 Console Login（`scripts/ve_login_remote.sh` 设备码流程）
-  帮用户完成登录，只把登录 URL 和授权码回填交给用户。本技能不复制该脚本。
+  帮用户完成登录，只把登录链接交给用户（老版本 ve 才需要用户回传授权码）。本技能不复制该脚本。
 - **profile 一致性**：若对话中早前固定过某 profile，重新登录必须打到同一 profile，否则会
   刷新 `default`、弄坏原 profile 并污染默认账号上下文。
 

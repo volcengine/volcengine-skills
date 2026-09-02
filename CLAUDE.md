@@ -32,6 +32,7 @@
 - 不得提交账号信息、AK/SK、本地绝对目录、真实资源 ID 或 TRN。
 - 资源 ID 脱敏时保留固定前缀，例如 `vpc-<id>`、`clb-<id>`；账号或数字 ID 使用 `<account-id>` 等语义占位符。
 
+
 ## 新增或移动 skill
 
 1. 核心 skill 放在 `skills/core/volcengine-<name>/`；可选 skill 放在 `plugins/volcengine-<domain>/skills/volcengine-<name>/`。
